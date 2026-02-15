@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Layout from '../components/layout/Layout';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import styles from '../styles/Dashboard.module.css';
 
 export default function Dashboard() {
-  const { currentFarm, userProfile } = useAuth();
+  const router = useRouter();
+  const { currentFarm, userProfile, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({
     totalCattle: 0,
     maleCount: 0,
@@ -19,24 +21,36 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (currentFarm) {
-      loadDashboardData();
+    // Se ainda está carregando a autenticação, aguarda
+    if (authLoading) return;
+
+    // Se não tem perfil de usuário, redireciona para setup
+    if (!userProfile) {
+      router.push('/setup');
+      return;
     }
-  }, [currentFarm]);
+
+    // Se tem perfil mas não tem fazenda, redireciona para setup
+    if (!currentFarm) {
+      router.push('/setup');
+      return;
+    }
+
+    // Se está tudo ok, carrega os dados
+    loadDashboardData();
+  }, [authLoading, userProfile, currentFarm, router]);
 
   const loadDashboardData = async () => {
     if (!currentFarm) return;
 
     setLoading(true);
     try {
-      // Total de gado ativo
       const { count: cattleCount } = await supabase
         .from('cattle')
         .select('*', { count: 'exact', head: true })
         .eq('farm_id', currentFarm.id)
         .eq('status', 'active');
 
-      // Contagem por sexo
       const { data: cattleData } = await supabase
         .from('cattle')
         .select('sex, entry_weight')
@@ -46,19 +60,16 @@ export default function Dashboard() {
       const maleCount = cattleData?.filter(c => c.sex === 'macho').length || 0;
       const femaleCount = cattleData?.filter(c => c.sex === 'femea').length || 0;
       
-      // Peso médio
       const avgWeight = cattleData?.length > 0
         ? cattleData.reduce((sum, c) => sum + (c.entry_weight || 0), 0) / cattleData.length
         : 0;
 
-      // Baias ativas
       const { count: pensCount } = await supabase
         .from('pens')
         .select('*', { count: 'exact', head: true })
         .eq('farm_id', currentFarm.id)
         .eq('status', 'active');
 
-      // Despesas totais
       const { data: expensesData } = await supabase
         .from('expenses')
         .select('amount')
@@ -66,7 +77,6 @@ export default function Dashboard() {
 
       const totalExpenses = expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
 
-      // Receitas totais
       const { data: revenuesData } = await supabase
         .from('revenues')
         .select('amount')
@@ -82,7 +92,7 @@ export default function Dashboard() {
         totalExpenses,
         totalRevenues,
         avgWeight: avgWeight.toFixed(2),
-        avgDailyGain: 0 // Calcular depois com dados de pesagem
+        avgDailyGain: 0
       });
 
     } catch (error) {
@@ -92,16 +102,12 @@ export default function Dashboard() {
     }
   };
 
-  if (!currentFarm) {
+  // Enquanto verifica se precisa do setup, mostra loading
+  if (authLoading || !userProfile || !currentFarm) {
     return (
-      <Layout>
-        <div className={styles.container}>
-          <div className={styles.noFarm}>
-            <h2>Nenhuma fazenda selecionada</h2>
-            <p>Selecione uma fazenda no menu superior ou solicite acesso ao administrador.</p>
-          </div>
-        </div>
-      </Layout>
+      <div className="loading-overlay">
+        <div className="spinner" />
+      </div>
     );
   }
 
@@ -131,7 +137,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Cards de Estatísticas */}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
             <div className={styles.statIcon}>🐂</div>
@@ -202,7 +207,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Atalhos Rápidos */}
         <div className={styles.quickActions}>
           <h2>Ações Rápidas</h2>
           <div className={styles.actionsGrid}>
@@ -225,7 +229,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Alertas Recentes */}
         <div className={styles.alerts}>
           <h2>⚠️ Alertas Recentes</h2>
           <div className={styles.alertsList}>
