@@ -1,0 +1,252 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.header h1 {
+  font-size: var(--font-3xl);
+  color: var(--primary-green);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.farmName {
+  color: var(--text-light);
+  font-size: var(--font-md);
+  margin: 0;
+}
+
+.welcomeUser {
+  font-size: var(--font-md);
+  color: var(--text-dark);
+}
+
+.noFarm {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background: white;
+  border-radius: 12px;
+}
+
+.noFarm h2 {
+  color: var(--text-dark);
+  margin-bottom: var(--spacing-md);
+}
+
+.noFarm p {
+  color: var(--text-light);
+}
+
+/* Stats Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.statCard {
+  background: white;
+  border-radius: 12px;
+  padding: var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.statIcon {
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: var(--bg-main);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.statContent {
+  flex: 1;
+}
+
+.statLabel {
+  font-size: var(--font-sm);
+  color: var(--text-light);
+  margin-bottom: var(--spacing-xs);
+}
+
+.statValue {
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: var(--spacing-xs);
+}
+
+.statDetail {
+  font-size: var(--font-xs);
+  color: var(--text-light);
+}
+
+.statPositive {
+  border-left: 4px solid var(--success);
+}
+
+.statNegative {
+  border-left: 4px solid var(--danger);
+}
+
+/* Quick Actions */
+.quickActions {
+  margin-bottom: var(--spacing-xl);
+}
+
+.quickActions h2 {
+  font-size: var(--font-xl);
+  color: var(--text-dark);
+  margin-bottom: var(--spacing-lg);
+}
+
+.actionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.actionCard {
+  background: white;
+  border-radius: 12px;
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  color: var(--text-dark);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.actionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  background: var(--bg-main);
+}
+
+.actionIcon {
+  font-size: 2rem;
+}
+
+.actionLabel {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Alerts */
+.alerts {
+  background: white;
+  border-radius: 12px;
+  padding: var(--spacing-lg);
+}
+
+.alerts h2 {
+  font-size: var(--font-xl);
+  color: var(--text-dark);
+  margin-bottom: var(--spacing-lg);
+}
+
+.alertsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.noAlerts {
+  text-align: center;
+  color: var(--text-light);
+  padding: var(--spacing-lg);
+}
+
+/* Mobile */
+@media (max-width: 430px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .header h1 {
+    font-size: var(--font-2xl);
+  }
+
+  .farmName {
+    font-size: var(--font-sm);
+  }
+
+  .welcomeUser {
+    font-size: var(--font-sm);
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .statCard {
+    padding: var(--spacing-md);
+  }
+
+  .statIcon {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+  }
+
+  .statValue {
+    font-size: var(--font-xl);
+  }
+
+  .actionsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .actionCard {
+    padding: var(--spacing-md);
+  }
+
+  .actionIcon {
+    font-size: 1.5rem;
+  }
+
+  .actionLabel {
+    font-size: var(--font-xs);
+  }
+}
+
+/* Tablet */
+@media (min-width: 431px) and (max-width: 1024px) {
+  .header h1 {
+    font-size: var(--font-2xl);
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .actionsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
