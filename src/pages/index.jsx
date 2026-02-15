@@ -26,15 +26,22 @@ export default function Login() {
       const { data, error: signInError } = await signIn(email, password);
       
       if (signInError) {
-        throw new Error('Email ou senha inválidos');
+        // Mostra o erro real do Supabase
+        console.error('Erro de login:', signInError);
+        setError(signInError.message || 'Email ou senha inválidos');
+        setLoading(false);
+        return;
       }
 
       if (data?.user) {
         router.push('/dashboard');
+      } else {
+        setError('Erro ao fazer login. Tente novamente.');
+        setLoading(false);
       }
     } catch (err) {
-      setError(err.message);
-    } finally {
+      console.error('Erro no login:', err);
+      setError(err.message || 'Erro ao fazer login');
       setLoading(false);
     }
   };
