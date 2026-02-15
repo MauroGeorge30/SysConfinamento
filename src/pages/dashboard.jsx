@@ -7,7 +7,7 @@ import styles from '../styles/Dashboard.module.css';
 
 export default function Dashboard() {
   const router = useRouter();
-  const { currentFarm, userProfile, loading: authLoading } = useAuth();
+  const { currentFarm, userProfile, user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({
     totalCattle: 0,
     maleCount: 0,
@@ -21,10 +21,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Se ainda está carregando a autenticação, aguarda
+    // Aguarda carregar autenticação
     if (authLoading) return;
 
-    // Se não tem perfil de usuário, redireciona para setup
+    // Se não está logado, redireciona para login
+    if (!user) {
+      router.push('/');
+      return;
+    }
+
+    // Se está logado mas não tem perfil, redireciona para setup
     if (!userProfile) {
       router.push('/setup');
       return;
@@ -38,7 +44,7 @@ export default function Dashboard() {
 
     // Se está tudo ok, carrega os dados
     loadDashboardData();
-  }, [authLoading, userProfile, currentFarm, router]);
+  }, [authLoading, user, userProfile, currentFarm, router]);
 
   const loadDashboardData = async () => {
     if (!currentFarm) return;
@@ -102,13 +108,18 @@ export default function Dashboard() {
     }
   };
 
-  // Enquanto verifica se precisa do setup, mostra loading
-  if (authLoading || !userProfile || !currentFarm) {
+  // Enquanto carrega, mostra loading
+  if (authLoading) {
     return (
       <div className="loading-overlay">
         <div className="spinner" />
       </div>
     );
+  }
+
+  // Se não está logado ou não tem perfil, não renderiza nada (já redirecionou)
+  if (!user || !userProfile || !currentFarm) {
+    return null;
   }
 
   if (loading) {
