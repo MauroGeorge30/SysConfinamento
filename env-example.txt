@@ -1,3 +1,0 @@
-NEXT_PUBLIC_SUPABASE_URL=sua_url_aqui
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_aqui
-WHATSAPP_API_KEY=sua_chave_whatsapp_aqui
