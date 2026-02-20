@@ -32,19 +32,16 @@ export default function Usuarios() {
 
   const loadData = async () => {
     try {
-      // Carregar usuários
       const { data: usersData } = await supabase
         .from('users')
         .select('*, farm:farms(name), role:roles(name)')
         .order('created_at', { ascending: false });
 
-      // Carregar fazendas
       const { data: farmsData } = await supabase
         .from('farms')
         .select('*')
         .order('name');
 
-      // Carregar roles
       const { data: rolesData } = await supabase
         .from('roles')
         .select('*')
@@ -65,13 +62,11 @@ export default function Usuarios() {
     setLoading(true);
 
     try {
-      // 1. Criar usuário no Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Criar usuário no Auth com auto-confirmação
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: formData.email,
         password: formData.password,
-        options: {
-          emailRedirectTo: window.location.origin,
-        }
+        email_confirm: true, // Confirma automaticamente
       });
 
       if (authError) throw authError;
@@ -106,7 +101,7 @@ export default function Usuarios() {
 
       if (permError) throw permError;
 
-      alert('Usuário criado! Email de confirmação enviado.');
+      alert('Usuário criado com sucesso!');
       setShowForm(false);
       setFormData({
         name: '',
@@ -118,6 +113,7 @@ export default function Usuarios() {
       });
       loadData();
     } catch (error) {
+      console.error('Erro completo:', error);
       alert('Erro ao criar usuário: ' + error.message);
     } finally {
       setLoading(false);
