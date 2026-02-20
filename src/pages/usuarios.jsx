@@ -33,37 +33,27 @@ export default function Usuarios() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Carregar usuários
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (usersError) {
-        console.error('Erro ao carregar usuários:', usersError);
-      }
+      if (usersError) console.error('Erro ao carregar usuários:', usersError);
 
-      // Carregar fazendas separadamente
       const { data: farmsData, error: farmsError } = await supabase
         .from('farms')
         .select('*')
         .order('name');
 
-      if (farmsError) {
-        console.error('Erro ao carregar fazendas:', farmsError);
-      }
+      if (farmsError) console.error('Erro ao carregar fazendas:', farmsError);
 
-      // Carregar roles separadamente
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
         .order('level');
 
-      if (rolesError) {
-        console.error('Erro ao carregar roles:', rolesError);
-      }
+      if (rolesError) console.error('Erro ao carregar roles:', rolesError);
 
-      // Combinar dados manualmente
       const usuariosComDados = (usersData || []).map(u => {
         const farm = farmsData?.find(f => f.id === u.farm_id);
         const role = rolesData?.find(r => r.id === u.role_id);
@@ -89,14 +79,19 @@ export default function Usuarios() {
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Criar usuário (vai precisar confirmar email manualmente no Supabase)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        email_confirm: true,
       });
 
       if (authError) throw authError;
 
+      if (!authData.user) {
+        throw new Error('Usuário não foi criado');
+      }
+
+      // Criar perfil
       const { error: userError } = await supabase
         .from('users')
         .insert([{
@@ -112,6 +107,7 @@ export default function Usuarios() {
 
       if (userError) throw userError;
 
+      // Criar permissões
       const { error: permError } = await supabase
         .from('user_permissions')
         .insert([{
@@ -125,7 +121,8 @@ export default function Usuarios() {
 
       if (permError) throw permError;
 
-      alert('Usuário criado com sucesso!');
+      alert('✅ Usuário criado!\n\n⚠️ IMPORTANTE: Confirme o email no Supabase:\n\nExecute este SQL:\n\nUPDATE auth.users SET email_confirmed_at = NOW() WHERE email = \'' + formData.email + '\';');
+      
       setShowForm(false);
       setFormData({
         name: '',
@@ -191,6 +188,11 @@ export default function Usuarios() {
         {showForm && (
           <div className={styles.formCard}>
             <h2>Novo Usuário</h2>
+            <div style={{background: '#fff3cd', padding: '1rem', borderRadius: '4px', marginBottom: '1rem'}}>
+              <p style={{margin: 0, fontSize: '0.9rem'}}>
+                ⚠️ Após criar, será necessário confirmar o email no Supabase manualmente.
+              </p>
+            </div>
             <form onSubmit={handleSubmit}>
               <div>
                 <label>Nome Completo *</label>
@@ -291,7 +293,6 @@ export default function Usuarios() {
                   <p>📍 Fazenda: {usuario.farm_name || 'Não definida'}</p>
                   <p>👤 Perfil: {usuario.role_name || 'Não definido'}</p>
                   {usuario.phone && <p>📞 {usuario.phone}</p>}
-                  <p style={{fontSize: '0.8rem', color: '#999'}}>ID: {usuario.id.substring(0, 8)}...</p>
                 </div>
               </div>
             ))
