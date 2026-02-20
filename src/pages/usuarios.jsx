@@ -33,26 +33,20 @@ export default function Usuarios() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data: usersData, error: usersError } = await supabase
+      const { data: usersData } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (usersError) console.error('Erro ao carregar usuários:', usersError);
-
-      const { data: farmsData, error: farmsError } = await supabase
+      const { data: farmsData } = await supabase
         .from('farms')
         .select('*')
         .order('name');
 
-      if (farmsError) console.error('Erro ao carregar fazendas:', farmsError);
-
-      const { data: rolesData, error: rolesError } = await supabase
+      const { data: rolesData } = await supabase
         .from('roles')
         .select('*')
         .order('level');
-
-      if (rolesError) console.error('Erro ao carregar roles:', rolesError);
 
       const usuariosComDados = (usersData || []).map(u => {
         const farm = farmsData?.find(f => f.id === u.farm_id);
@@ -68,7 +62,7 @@ export default function Usuarios() {
       setFazendas(farmsData || []);
       setRoles(rolesData || []);
     } catch (error) {
-      console.error('Erro geral:', error);
+      console.error('Erro:', error);
     } finally {
       setLoading(false);
     }
@@ -79,35 +73,45 @@ export default function Usuarios() {
     setLoading(true);
 
     try {
-      // Criar usuário (vai precisar confirmar email manualmente no Supabase)
+      // 1. Criar usuário no Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
 
-      if (authError) throw authError;
-
-      if (!authData.user) {
-        throw new Error('Usuário não foi criado');
+      if (authError) {
+        throw new Error('Erro no Auth: ' + authError.message);
       }
 
-      // Criar perfil
+      if (!authData.user) {
+        throw new Error('Usuário não foi criado no Auth');
+      }
+
+      console.log('Usuário Auth criado:', authData.user.id);
+
+      // 2. Aguardar 2 segundos (garantir que o Auth salvou)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 3. Criar perfil
       const { error: userError } = await supabase
         .from('users')
         .insert([{
           id: authData.user.id,
           name: formData.name,
           email: formData.email,
-          phone: formData.phone,
+          phone: formData.phone || null,
           farm_id: formData.farm_id,
           default_farm_id: formData.farm_id,
           role_id: formData.role_id,
           status: 'active'
         }]);
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error('Erro ao criar perfil:', userError);
+        throw new Error('Erro ao criar perfil: ' + userError.message);
+      }
 
-      // Criar permissões
+      // 4. Criar permissões
       const { error: permError } = await supabase
         .from('user_permissions')
         .insert([{
@@ -119,10 +123,19 @@ export default function Usuarios() {
           can_delete: false
         }]);
 
-      if (permError) throw permError;
+      if (permError) {
+        console.error('Erro ao criar permissões:', permError);
+      }
 
-      alert('✅ Usuário criado!\n\n⚠️ IMPORTANTE: Confirme o email no Supabase:\n\nExecute este SQL:\n\nUPDATE auth.users SET email_confirmed_at = NOW() WHERE email = \'' + formData.email + '\';');
+      // 5. Confirmar email via SQL
+      const sqlConfirm = `UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = '${formData.email}';`;
       
+      alert(
+        '✅ Usuário criado com sucesso!\n\n' +
+        '⚠️ IMPORTANTE: Execute este SQL no Supabase para confirmar o email:\n\n' +
+        sqlConfirm
+      );
+
       setShowForm(false);
       setFormData({
         name: '',
@@ -135,7 +148,7 @@ export default function Usuarios() {
       loadData();
     } catch (error) {
       console.error('Erro completo:', error);
-      alert('Erro ao criar usuário: ' + error.message);
+      alert('❌ ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -151,10 +164,10 @@ export default function Usuarios() {
         .eq('id', id);
 
       if (error) throw error;
-      alert('Usuário deletado!');
+      alert('✅ Usuário deletado!');
       loadData();
     } catch (error) {
-      alert('Erro ao deletar: ' + error.message);
+      alert('❌ Erro ao deletar: ' + error.message);
     }
   };
 
@@ -188,10 +201,8 @@ export default function Usuarios() {
         {showForm && (
           <div className={styles.formCard}>
             <h2>Novo Usuário</h2>
-            <div style={{background: '#fff3cd', padding: '1rem', borderRadius: '4px', marginBottom: '1rem'}}>
-              <p style={{margin: 0, fontSize: '0.9rem'}}>
-                ⚠️ Após criar, será necessário confirmar o email no Supabase manualmente.
-              </p>
+            <div style={{background: '#fff3cd', padding: '1rem', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.9rem'}}>
+              ⚠️ Após criar, você receberá um SQL para confirmar o email no Supabase.
             </div>
             <form onSubmit={handleSubmit}>
               <div>
@@ -266,7 +277,7 @@ export default function Usuarios() {
               </div>
 
               <button type="submit" disabled={loading}>
-                {loading ? 'Criando...' : 'Criar Usuário'}
+                {loading ? 'Criando usuário...' : 'Criar Usuário'}
               </button>
             </form>
           </div>
@@ -274,7 +285,7 @@ export default function Usuarios() {
 
         <div className={styles.list}>
           {loading ? (
-            <p>Carregando usuários...</p>
+            <p>Carregando...</p>
           ) : usuarios.length === 0 ? (
             <p>Nenhum usuário cadastrado</p>
           ) : (
@@ -290,8 +301,8 @@ export default function Usuarios() {
                   </div>
                 </div>
                 <div className={styles.cardBody}>
-                  <p>📍 Fazenda: {usuario.farm_name || 'Não definida'}</p>
-                  <p>👤 Perfil: {usuario.role_name || 'Não definido'}</p>
+                  <p>📍 {usuario.farm_name || 'Fazenda não definida'}</p>
+                  <p>👤 {usuario.role_name || 'Perfil não definido'}</p>
                   {usuario.phone && <p>📞 {usuario.phone}</p>}
                 </div>
               </div>
