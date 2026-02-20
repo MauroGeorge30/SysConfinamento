@@ -73,69 +73,26 @@ export default function Usuarios() {
     setLoading(true);
 
     try {
-      // 1. Criar usuário no Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+      // Chamar função SQL que cria tudo de uma vez
+      const { data, error } = await supabase.rpc('criar_usuario_completo', {
+        p_email: formData.email,
+        p_password: formData.password,
+        p_name: formData.name,
+        p_phone: formData.phone || null,
+        p_farm_id: formData.farm_id,
+        p_role_id: formData.role_id
       });
 
-      if (authError) {
-        throw new Error('Erro no Auth: ' + authError.message);
+      if (error) {
+        throw error;
       }
 
-      if (!authData.user) {
-        throw new Error('Usuário não foi criado no Auth');
+      if (data && !data.success) {
+        throw new Error(data.error || 'Erro ao criar usuário');
       }
 
-      console.log('Usuário Auth criado:', authData.user.id);
-
-      // 2. Aguardar 2 segundos (garantir que o Auth salvou)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // 3. Criar perfil
-      const { error: userError } = await supabase
-        .from('users')
-        .insert([{
-          id: authData.user.id,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone || null,
-          farm_id: formData.farm_id,
-          default_farm_id: formData.farm_id,
-          role_id: formData.role_id,
-          status: 'active'
-        }]);
-
-      if (userError) {
-        console.error('Erro ao criar perfil:', userError);
-        throw new Error('Erro ao criar perfil: ' + userError.message);
-      }
-
-      // 4. Criar permissões
-      const { error: permError } = await supabase
-        .from('user_permissions')
-        .insert([{
-          user_id: authData.user.id,
-          module: 'dashboard',
-          can_view: true,
-          can_create: false,
-          can_edit: false,
-          can_delete: false
-        }]);
-
-      if (permError) {
-        console.error('Erro ao criar permissões:', permError);
-      }
-
-      // 5. Confirmar email via SQL
-      const sqlConfirm = `UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = '${formData.email}';`;
+      alert('✅ Usuário criado com sucesso!');
       
-      alert(
-        '✅ Usuário criado com sucesso!\n\n' +
-        '⚠️ IMPORTANTE: Execute este SQL no Supabase para confirmar o email:\n\n' +
-        sqlConfirm
-      );
-
       setShowForm(false);
       setFormData({
         name: '',
@@ -147,8 +104,8 @@ export default function Usuarios() {
       });
       loadData();
     } catch (error) {
-      console.error('Erro completo:', error);
-      alert('❌ ' + error.message);
+      console.error('Erro:', error);
+      alert('❌ Erro ao criar usuário: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -167,7 +124,7 @@ export default function Usuarios() {
       alert('✅ Usuário deletado!');
       loadData();
     } catch (error) {
-      alert('❌ Erro ao deletar: ' + error.message);
+      alert('❌ Erro: ' + error.message);
     }
   };
 
@@ -201,9 +158,6 @@ export default function Usuarios() {
         {showForm && (
           <div className={styles.formCard}>
             <h2>Novo Usuário</h2>
-            <div style={{background: '#fff3cd', padding: '1rem', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.9rem'}}>
-              ⚠️ Após criar, você receberá um SQL para confirmar o email no Supabase.
-            </div>
             <form onSubmit={handleSubmit}>
               <div>
                 <label>Nome Completo *</label>
@@ -277,7 +231,7 @@ export default function Usuarios() {
               </div>
 
               <button type="submit" disabled={loading}>
-                {loading ? 'Criando usuário...' : 'Criar Usuário'}
+                {loading ? 'Criando...' : 'Criar Usuário'}
               </button>
             </form>
           </div>
@@ -301,8 +255,8 @@ export default function Usuarios() {
                   </div>
                 </div>
                 <div className={styles.cardBody}>
-                  <p>📍 {usuario.farm_name || 'Fazenda não definida'}</p>
-                  <p>👤 {usuario.role_name || 'Perfil não definido'}</p>
+                  <p>📍 {usuario.farm_name || 'Não definida'}</p>
+                  <p>👤 {usuario.role_name || 'Não definido'}</p>
                   {usuario.phone && <p>📞 {usuario.phone}</p>}
                 </div>
               </div>
