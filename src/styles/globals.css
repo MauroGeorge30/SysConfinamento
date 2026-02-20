@@ -18,7 +18,9 @@ body {
   font-size: 1.2rem;
 }
 
-input {
+/* Estilos globais APENAS para a tela de login (index.jsx) */
+/* Inputs e buttons dentro de .loginForm para não vazar em todo o sistema */
+.loginForm input {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ddd;
@@ -27,13 +29,13 @@ input {
   margin-top: 0.25rem;
 }
 
-label {
+.loginForm label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
 }
 
-button {
+.loginForm button {
   width: 100%;
   padding: 0.75rem;
   background: #2d5016;
@@ -45,7 +47,7 @@ button {
   margin-top: 1rem;
 }
 
-button:hover {
+.loginForm button:hover {
   background: #3d6820;
 }
 
