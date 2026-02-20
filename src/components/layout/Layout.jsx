@@ -4,7 +4,7 @@ import Link from 'next/link';
 import styles from '../../styles/Layout.module.css';
 
 export default function Layout({ children }) {
-  const { userProfile, currentFarm, signOut } = useAuth();
+  const { userProfile, currentFarm, allFarms, switchFarm, signOut } = useAuth();
   const { isAdmin, isManager } = usePermissions();
 
   const handleSignOut = async () => {
@@ -12,8 +12,8 @@ export default function Layout({ children }) {
     window.location.href = '/';
   };
 
-  // Admins e Gerentes veem Fazendas e Usuários
   const showAdminMenu = isAdmin() || isManager();
+  const isAdminGeral = userProfile?.role?.level === 1;
 
   return (
     <div className={styles.container}>
@@ -29,7 +29,20 @@ export default function Layout({ children }) {
           </nav>
         </div>
         <div className={styles.headerRight}>
-          {currentFarm && <span>{currentFarm.name}</span>}
+          {/* Seletor de fazenda para Admin Geral */}
+          {isAdminGeral && allFarms.length > 1 ? (
+            <select
+              className={styles.seletorFazenda}
+              value={currentFarm?.id || ''}
+              onChange={(e) => switchFarm(e.target.value)}
+            >
+              {allFarms.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          ) : (
+            currentFarm && <span className={styles.nomeFazenda}>{currentFarm.name}</span>
+          )}
           {userProfile && <span>{userProfile.name}</span>}
           <button onClick={handleSignOut}>Sair</button>
         </div>
