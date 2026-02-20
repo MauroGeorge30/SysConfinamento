@@ -92,3 +92,27 @@
     font-size: 0.8rem;
   }
 }
+
+.seletorFazenda {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.seletorFazenda option {
+  background: #2d5016;
+  color: white;
+}
+
+.seletorFazenda:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.nomeFazenda {
+  font-size: 0.9rem;
+}
