@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -6,21 +7,19 @@ import { supabase } from '../lib/supabase';
 import styles from '../styles/Gado.module.css';
 
 export default function Gado() {
-  const { userProfile, currentFarm } = useAuth();
-  const { canCreate, canEdit, canDelete } = usePermissions('cattle');
+  const router = useRouter();
+  const { user, userProfile, loading: authLoading, currentFarm } = useAuth();
+  const { canCreate, canEdit, canDelete, isViewer } = usePermissions();
 
   const [gado, setGado] = useState([]);
   const [baias, setBaias] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editando, setEditando] = useState(null);
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState('');
-  const [sucesso, setSucesso] = useState('');
-  const [filtros, setFiltros] = useState({ busca: '', sexo: '', status: 'active' });
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [filtros, setFiltros] = useState({ busca: '', sexo: '', status: 'active' });
 
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     tag_number: '',
     name: '',
     sex: 'macho',
@@ -31,26 +30,17 @@ export default function Gado() {
     status: 'active',
   });
 
-  const resetForm = () => {
-    setForm({
-      tag_number: '',
-      name: '',
-      sex: 'macho',
-      breed: '',
-      entry_date: new Date().toISOString().split('T')[0],
-      entry_weight: '',
-      pen_id: '',
-      status: 'active',
-    });
-    setEditando(null);
-    setErro('');
-  };
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+    } else if (user && currentFarm) {
+      loadDados();
+    }
+  }, [user, authLoading, currentFarm]);
 
-  const carregarDados = useCallback(async () => {
-    if (!currentFarm?.id) return;
-    setLoading(true);
+  const loadDados = async () => {
     try {
-      const [{ data: gadoData }, { data: baiasData }] = await Promise.all([
+      const [{ data: gadoData, error: gadoError }, { data: baiasData }] = await Promise.all([
         supabase
           .from('cattle')
           .select('*, pens(pen_number)')
@@ -63,96 +53,109 @@ export default function Gado() {
           .eq('status', 'active')
           .order('pen_number'),
       ]);
+
+      if (gadoError) throw gadoError;
       setGado(gadoData || []);
       setBaias(baiasData || []);
-    } catch (err) {
-      setErro('Erro ao carregar dados.');
+    } catch (error) {
+      console.error('Erro ao carregar:', error);
+      alert('Erro ao carregar dados: ' + error.message);
     } finally {
       setLoading(false);
     }
-  }, [currentFarm?.id]);
-
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
-
-  const abrirModal = (animal = null) => {
-    if (animal) {
-      setEditando(animal);
-      setForm({
-        tag_number: animal.tag_number || '',
-        name: animal.name || '',
-        sex: animal.sex || 'macho',
-        breed: animal.breed || '',
-        entry_date: animal.entry_date || new Date().toISOString().split('T')[0],
-        entry_weight: animal.entry_weight || '',
-        pen_id: animal.pen_id || '',
-        status: animal.status || 'active',
-      });
-    } else {
-      resetForm();
-    }
-    setShowModal(true);
-    setErro('');
-    setSucesso('');
   };
 
-  const fecharModal = () => {
-    setShowModal(false);
-    resetForm();
+  const resetForm = () => {
+    setFormData({
+      tag_number: '',
+      name: '',
+      sex: 'macho',
+      breed: '',
+      entry_date: new Date().toISOString().split('T')[0],
+      entry_weight: '',
+      pen_id: '',
+      status: 'active',
+    });
+    setEditingId(null);
+    setShowForm(false);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const salvar = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.tag_number.trim()) return setErro('Número do brinco é obrigatório.');
-    if (!form.entry_weight || isNaN(form.entry_weight)) return setErro('Peso de entrada inválido.');
-    setSalvando(true);
-    setErro('');
+
+    if (!formData.tag_number.trim()) {
+      alert('Número do brinco é obrigatório.');
+      return;
+    }
+    if (!formData.entry_weight || isNaN(formData.entry_weight)) {
+      alert('Peso de entrada inválido.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const payload = {
-        ...form,
+        tag_number: formData.tag_number,
+        name: formData.name || null,
+        sex: formData.sex,
+        breed: formData.breed || null,
+        entry_date: formData.entry_date,
+        entry_weight: parseFloat(formData.entry_weight),
+        pen_id: formData.pen_id || null,
+        status: formData.status,
         farm_id: currentFarm.id,
-        entry_weight: parseFloat(form.entry_weight),
-        pen_id: form.pen_id || null,
-        name: form.name || null,
-        breed: form.breed || null,
       };
-      if (editando) {
-        const { error } = await supabase.from('cattle').update(payload).eq('id', editando.id);
+
+      if (editingId) {
+        const { error } = await supabase.from('cattle').update(payload).eq('id', editingId);
         if (error) throw error;
-        setSucesso('Animal atualizado com sucesso!');
+        alert('✅ Animal atualizado!');
       } else {
         const { error } = await supabase.from('cattle').insert([payload]);
         if (error) throw error;
-        setSucesso('Animal cadastrado com sucesso!');
+        alert('✅ Animal cadastrado!');
       }
-      fecharModal();
-      carregarDados();
-      setTimeout(() => setSucesso(''), 4000);
-    } catch (err) {
-      setErro(err.message || 'Erro ao salvar animal.');
+
+      resetForm();
+      loadDados();
+    } catch (error) {
+      alert('❌ Erro: ' + error.message);
     } finally {
-      setSalvando(false);
+      setLoading(false);
     }
   };
 
-  const deletar = async (id) => {
+  const handleEdit = (animal) => {
+    setFormData({
+      tag_number: animal.tag_number || '',
+      name: animal.name || '',
+      sex: animal.sex || 'macho',
+      breed: animal.breed || '',
+      entry_date: animal.entry_date || new Date().toISOString().split('T')[0],
+      entry_weight: animal.entry_weight || '',
+      pen_id: animal.pen_id || '',
+      status: animal.status || 'active',
+    });
+    setEditingId(animal.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id) => {
     try {
       const { error } = await supabase.from('cattle').delete().eq('id', id);
       if (error) throw error;
-      setSucesso('Animal removido.');
+      alert('✅ Animal removido!');
       setConfirmDelete(null);
-      carregarDados();
-      setTimeout(() => setSucesso(''), 3000);
-    } catch (err) {
-      setErro('Erro ao remover animal.');
+      loadDados();
+    } catch (error) {
+      alert('❌ Erro: ' + error.message);
     }
   };
+
+  if (authLoading || !user) {
+    return <div className="loading">Carregando...</div>;
+  }
 
   const gadoFiltrado = gado.filter((a) => {
     const buscaMatch =
@@ -165,57 +168,163 @@ export default function Gado() {
     return buscaMatch && sexoMatch && statusMatch;
   });
 
+  const totalAtivos = gado.filter((a) => a.status === 'active').length;
   const totalMachos = gado.filter((a) => a.sex === 'macho' && a.status === 'active').length;
   const totalFemeas = gado.filter((a) => a.sex === 'femea' && a.status === 'active').length;
-  const totalAtivos = gado.filter((a) => a.status === 'active').length;
-
-  if (!currentFarm) {
-    return (
-      <Layout>
-        <div className={styles.semFazenda}>Nenhuma fazenda selecionada.</div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
       <div className={styles.container}>
-        {/* Cabeçalho */}
         <div className={styles.header}>
-          <div>
-            <h1 className={styles.titulo}>🐂 Cadastro de Gado</h1>
-            <p className={styles.subtitulo}>{currentFarm.name}</p>
-          </div>
-          {canCreate && (
-            <button className={styles.btnPrimario} onClick={() => abrirModal()}>
-              + Novo Animal
+          <h1>🐂 Cadastro de Gado ({totalAtivos} ativos)</h1>
+          {canCreate('cattle') && (
+            <button
+              className={styles.btnAdd}
+              onClick={() => {
+                resetForm();
+                setShowForm(!showForm);
+              }}
+            >
+              {showForm && !editingId ? 'Cancelar' : '+ Novo Animal'}
             </button>
           )}
         </div>
 
-        {/* Cards de Resumo */}
+        {/* Resumo */}
         <div className={styles.resumo}>
-          <div className={styles.card}>
-            <span className={styles.cardLabel}>Total Ativo</span>
-            <span className={styles.cardValor}>{totalAtivos}</span>
+          <div className={styles.resumoCard}>
+            <span>Total Ativo</span>
+            <strong>{totalAtivos}</strong>
           </div>
-          <div className={styles.card}>
-            <span className={styles.cardLabel}>🐂 Machos</span>
-            <span className={styles.cardValor}>{totalMachos}</span>
+          <div className={styles.resumoCard}>
+            <span>🐂 Machos</span>
+            <strong>{totalMachos}</strong>
           </div>
-          <div className={styles.card}>
-            <span className={styles.cardLabel}>🐄 Fêmeas</span>
-            <span className={styles.cardValor}>{totalFemeas}</span>
+          <div className={styles.resumoCard}>
+            <span>🐄 Fêmeas</span>
+            <strong>{totalFemeas}</strong>
           </div>
-          <div className={styles.card}>
-            <span className={styles.cardLabel}>Baias Ativas</span>
-            <span className={styles.cardValor}>{baias.length}</span>
+          <div className={styles.resumoCard}>
+            <span>Baias Ativas</span>
+            <strong>{baias.length}</strong>
           </div>
         </div>
 
-        {/* Alertas */}
-        {sucesso && <div className={styles.alertSucesso}>{sucesso}</div>}
-        {erro && !showModal && <div className={styles.alertErro}>{erro}</div>}
+        {/* Formulário */}
+        {showForm && (
+          <div className={styles.formCard}>
+            <h2>{editingId ? 'Editar Animal' : 'Novo Animal'}</h2>
+            <form onSubmit={handleSubmit}>
+              <div className={styles.row}>
+                <div>
+                  <label>Nº Brinco *</label>
+                  <input
+                    type="text"
+                    value={formData.tag_number}
+                    onChange={(e) => setFormData({ ...formData, tag_number: e.target.value })}
+                    placeholder="Ex: 001, A-023"
+                    required
+                  />
+                </div>
+                <div>
+                  <label>Nome (opcional)</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ex: Valentão"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.row}>
+                <div>
+                  <label>Sexo *</label>
+                  <select
+                    value={formData.sex}
+                    onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                    required
+                  >
+                    <option value="macho">Macho</option>
+                    <option value="femea">Fêmea</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Raça</label>
+                  <input
+                    type="text"
+                    value={formData.breed}
+                    onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                    placeholder="Ex: Nelore, Angus"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.row}>
+                <div>
+                  <label>Data de Entrada *</label>
+                  <input
+                    type="date"
+                    value={formData.entry_date}
+                    onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label>Peso de Entrada (kg) *</label>
+                  <input
+                    type="number"
+                    value={formData.entry_weight}
+                    onChange={(e) => setFormData({ ...formData, entry_weight: e.target.value })}
+                    placeholder="Ex: 320.5"
+                    step="0.1"
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className={styles.row}>
+                <div>
+                  <label>Baia</label>
+                  <select
+                    value={formData.pen_id}
+                    onChange={(e) => setFormData({ ...formData, pen_id: e.target.value })}
+                  >
+                    <option value="">Sem baia definida</option>
+                    {baias.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        Baia {b.pen_number} ({b.current_occupancy}/{b.capacity})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {editingId && (
+                  <div>
+                    <label>Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    >
+                      <option value="active">Ativo</option>
+                      <option value="sold">Vendido</option>
+                      <option value="dead">Morto</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.formAcoes}>
+                <button type="button" className={styles.btnCancelar} onClick={resetForm}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : editingId ? 'Atualizar Animal' : 'Cadastrar Animal'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className={styles.filtros}>
@@ -223,13 +332,12 @@ export default function Gado() {
             type="text"
             placeholder="Buscar por brinco, nome ou raça..."
             value={filtros.busca}
-            onChange={(e) => setFiltros((f) => ({ ...f, busca: e.target.value }))}
+            onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
             className={styles.inputBusca}
           />
           <select
             value={filtros.sexo}
-            onChange={(e) => setFiltros((f) => ({ ...f, sexo: e.target.value }))}
-            className={styles.selectFiltro}
+            onChange={(e) => setFiltros({ ...filtros, sexo: e.target.value })}
           >
             <option value="">Todos os sexos</option>
             <option value="macho">Macho</option>
@@ -237,8 +345,7 @@ export default function Gado() {
           </select>
           <select
             value={filtros.status}
-            onChange={(e) => setFiltros((f) => ({ ...f, status: e.target.value }))}
-            className={styles.selectFiltro}
+            onChange={(e) => setFiltros({ ...filtros, status: e.target.value })}
           >
             <option value="active">Ativo</option>
             <option value="sold">Vendido</option>
@@ -247,15 +354,15 @@ export default function Gado() {
           </select>
         </div>
 
-        {/* Tabela */}
+        {/* Lista */}
         {loading ? (
-          <div className={styles.loading}>Carregando...</div>
+          <p>Carregando...</p>
         ) : gadoFiltrado.length === 0 ? (
-          <div className={styles.vazio}>
+          <p className={styles.vazio}>
             {gado.length === 0
-              ? 'Nenhum animal cadastrado. Clique em "+ Novo Animal" para começar.'
+              ? 'Nenhum animal cadastrado.'
               : 'Nenhum animal encontrado com os filtros aplicados.'}
-          </div>
+          </p>
         ) : (
           <div className={styles.tabelaWrapper}>
             <table className={styles.tabela}>
@@ -269,7 +376,7 @@ export default function Gado() {
                   <th>Data Entrada</th>
                   <th>Baia</th>
                   <th>Status</th>
-                  {(canEdit || canDelete) && <th>Ações</th>}
+                  {(canEdit('cattle') || canDelete('cattle')) && <th>Ações</th>}
                 </tr>
               </thead>
               <tbody>
@@ -291,17 +398,13 @@ export default function Gado() {
                         {animal.status === 'active' ? 'Ativo' : animal.status === 'sold' ? 'Vendido' : 'Morto'}
                       </span>
                     </td>
-                    {(canEdit || canDelete) && (
+                    {(canEdit('cattle') || canDelete('cattle')) && (
                       <td className={styles.acoes}>
-                        {canEdit && (
-                          <button className={styles.btnEditar} onClick={() => abrirModal(animal)}>
-                            ✏️
-                          </button>
+                        {canEdit('cattle') && (
+                          <button className={styles.btnEditar} onClick={() => handleEdit(animal)}>Editar</button>
                         )}
-                        {canDelete && (
-                          <button className={styles.btnDeletar} onClick={() => setConfirmDelete(animal)}>
-                            🗑️
-                          </button>
+                        {canDelete('cattle') && (
+                          <button className={styles.btnDeletar} onClick={() => setConfirmDelete(animal)}>Deletar</button>
                         )}
                       </td>
                     )}
@@ -312,130 +415,10 @@ export default function Gado() {
           </div>
         )}
 
-        <div className={styles.totalRegistros}>
-          {gadoFiltrado.length} animal(is) exibido(s)
-        </div>
+        <p className={styles.totalRegistros}>{gadoFiltrado.length} animal(is) exibido(s)</p>
       </div>
 
-      {/* Modal Formulário */}
-      {showModal && (
-        <div className={styles.modalOverlay} onClick={fecharModal}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>{editando ? 'Editar Animal' : 'Novo Animal'}</h2>
-              <button className={styles.btnFechar} onClick={fecharModal}>✕</button>
-            </div>
-            <form onSubmit={salvar} className={styles.form}>
-              {erro && <div className={styles.alertErro}>{erro}</div>}
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Nº Brinco *</label>
-                  <input
-                    type="text"
-                    name="tag_number"
-                    value={form.tag_number}
-                    onChange={handleChange}
-                    placeholder="Ex: 001, A-023"
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Nome (opcional)</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    placeholder="Ex: Boiada, Valentão"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Sexo *</label>
-                  <select name="sex" value={form.sex} onChange={handleChange} required>
-                    <option value="macho">Macho</option>
-                    <option value="femea">Fêmea</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Raça</label>
-                  <input
-                    type="text"
-                    name="breed"
-                    value={form.breed}
-                    onChange={handleChange}
-                    placeholder="Ex: Nelore, Angus, Brangus"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Data de Entrada *</label>
-                  <input
-                    type="date"
-                    name="entry_date"
-                    value={form.entry_date}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Peso de Entrada (kg) *</label>
-                  <input
-                    type="number"
-                    name="entry_weight"
-                    value={form.entry_weight}
-                    onChange={handleChange}
-                    placeholder="Ex: 320.5"
-                    step="0.1"
-                    min="0"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Baia</label>
-                  <select name="pen_id" value={form.pen_id} onChange={handleChange}>
-                    <option value="">Sem baia definida</option>
-                    {baias.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        Baia {b.pen_number} ({b.current_occupancy}/{b.capacity})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {editando && (
-                  <div className={styles.formGroup}>
-                    <label>Status</label>
-                    <select name="status" value={form.status} onChange={handleChange}>
-                      <option value="active">Ativo</option>
-                      <option value="sold">Vendido</option>
-                      <option value="dead">Morto</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.formAcoes}>
-                <button type="button" className={styles.btnSecundario} onClick={fecharModal}>
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.btnPrimario} disabled={salvando}>
-                  {salvando ? 'Salvando...' : editando ? 'Atualizar' : 'Cadastrar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Confirmação Delete */}
+      {/* Modal Confirmar Delete */}
       {confirmDelete && (
         <div className={styles.modalOverlay} onClick={() => setConfirmDelete(null)}>
           <div className={styles.modalConfirm} onClick={(e) => e.stopPropagation()}>
@@ -447,10 +430,10 @@ export default function Gado() {
             </p>
             <p className={styles.avisoDelete}>Esta ação não pode ser desfeita.</p>
             <div className={styles.formAcoes}>
-              <button className={styles.btnSecundario} onClick={() => setConfirmDelete(null)}>
+              <button className={styles.btnCancelar} onClick={() => setConfirmDelete(null)}>
                 Cancelar
               </button>
-              <button className={styles.btnDanger} onClick={() => deletar(confirmDelete.id)}>
+              <button className={styles.btnDanger} onClick={() => handleDelete(confirmDelete.id)}>
                 Sim, Remover
               </button>
             </div>
