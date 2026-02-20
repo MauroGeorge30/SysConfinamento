@@ -1,0 +1,35 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.container h1 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  color: #2d5016;
+}
+
+.welcome {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.welcome h2 {
+  margin-bottom: 0.5rem;
+}
+
+.welcome p {
+  color: #666;
+}
+
+.info {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.info p {
+  padding: 0.5rem 0;
+}
