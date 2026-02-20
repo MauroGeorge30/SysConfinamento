@@ -23,6 +23,7 @@ export default function Layout({ children }) {
           <nav className={styles.nav}>
             <Link href="/dashboard">Dashboard</Link>
             <Link href="/gado">Gado</Link>
+            <Link href="/baias">Baias</Link>
             {showAdminMenu && <Link href="/fazendas">Fazendas</Link>}
             {showAdminMenu && <Link href="/usuarios">Usuários</Link>}
           </nav>
