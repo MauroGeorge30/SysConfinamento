@@ -43,7 +43,7 @@ export default function Gado() {
       const [{ data: gadoData, error: gadoError }, { data: baiasData }] = await Promise.all([
         supabase
           .from('cattle')
-          .select('*, pens(pen_number)')
+          .select('*, pens!cattle_pen_id_fkey(pen_number)')
           .eq('farm_id', currentFarm.id)
           .order('tag_number'),
         supabase
@@ -392,7 +392,7 @@ export default function Gado() {
                     <td>{animal.breed || '-'}</td>
                     <td>{animal.entry_weight ? `${Number(animal.entry_weight).toFixed(1)} kg` : '-'}</td>
                     <td>{animal.entry_date ? new Date(animal.entry_date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
-                    <td>{animal.pens?.pen_number ? `Baia ${animal.pens.pen_number}` : '-'}</td>
+                    <td>{animal['pens!cattle_pen_id_fkey']?.pen_number ? `Baia ${animal['pens!cattle_pen_id_fkey'].pen_number}` : '-'}</td>
                     <td>
                       <span className={styles[`status_${animal.status}`]}>
                         {animal.status === 'active' ? 'Ativo' : animal.status === 'sold' ? 'Vendido' : 'Morto'}
