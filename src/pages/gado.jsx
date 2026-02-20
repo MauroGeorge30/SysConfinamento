@@ -19,49 +19,34 @@ export default function Gado() {
   const [editingId, setEditingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filtros, setFiltros] = useState({ busca: '', sexo: '', status: 'active' });
+  const [baiasAbertas, setBaiasAbertas] = useState({});
 
-  // Form individual
   const [formData, setFormData] = useState({
-    tag_number: '',
-    name: '',
-    sex: 'macho',
-    breed: '',
+    tag_number: '', name: '', sex: 'macho', breed: '',
     entry_date: new Date().toISOString().split('T')[0],
-    entry_weight: '',
-    pen_id: '',
-    status: 'active',
+    entry_weight: '', pen_id: '', status: 'active',
   });
 
-  // Form lote
   const [loteData, setLoteData] = useState({
-    tag_start: '',
-    quantidade: '',
-    sex: 'macho',
-    breed: '',
+    tag_start: '', quantidade: '', sex: 'macho', breed: '',
     entry_date: new Date().toISOString().split('T')[0],
-    entry_weight: '',
-    pen_id: '',
+    entry_weight: '', pen_id: '',
   });
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/');
-    } else if (user && currentFarm) {
-      loadDados();
-    }
+    if (!authLoading && !user) router.push('/');
+    else if (user && currentFarm) loadDados();
   }, [user, authLoading, currentFarm]);
 
   const loadDados = async () => {
     setLoading(true);
     try {
       const [{ data: gadoData, error: gadoError }, { data: baiasData }] = await Promise.all([
-        supabase
-          .from('cattle')
-          .select('*, pens!cattle_pen_id_fkey(pen_number)')
+        supabase.from('cattle')
+          .select('*, pens!cattle_pen_id_fkey(id, pen_number)')
           .eq('farm_id', currentFarm.id)
           .order('tag_number'),
-        supabase
-          .from('pens')
+        supabase.from('pens')
           .select('id, pen_number, capacity, current_occupancy')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
@@ -70,6 +55,11 @@ export default function Gado() {
       if (gadoError) throw gadoError;
       setGado(gadoData || []);
       setBaias(baiasData || []);
+      // Abrir todas as baias por padrão
+      const abertas = {};
+      (baiasData || []).forEach(b => { abertas[b.id] = true; });
+      abertas['sem_baia'] = true;
+      setBaiasAbertas(abertas);
     } catch (error) {
       alert('Erro ao carregar dados: ' + error.message);
     } finally {
@@ -85,26 +75,18 @@ export default function Gado() {
     setModoLote(false);
   };
 
-  // Cadastro individual
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.tag_number.trim()) return alert('Número do brinco é obrigatório.');
     if (!formData.entry_weight || isNaN(formData.entry_weight)) return alert('Peso de entrada inválido.');
-
     setLoading(true);
     try {
       const payload = {
-        tag_number: formData.tag_number,
-        name: formData.name || null,
-        sex: formData.sex,
-        breed: formData.breed || null,
-        entry_date: formData.entry_date,
-        entry_weight: parseFloat(formData.entry_weight),
-        pen_id: formData.pen_id || null,
-        status: formData.status,
-        farm_id: currentFarm.id,
+        tag_number: formData.tag_number, name: formData.name || null,
+        sex: formData.sex, breed: formData.breed || null,
+        entry_date: formData.entry_date, entry_weight: parseFloat(formData.entry_weight),
+        pen_id: formData.pen_id || null, status: formData.status, farm_id: currentFarm.id,
       };
-
       if (editingId) {
         const { error } = await supabase.from('cattle').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -123,39 +105,25 @@ export default function Gado() {
     }
   };
 
-  // Cadastro em lote
   const handleSubmitLote = async (e) => {
     e.preventDefault();
     const tagStart = parseInt(loteData.tag_start);
     const qtd = parseInt(loteData.quantidade);
-
     if (isNaN(tagStart)) return alert('Número inicial do brinco deve ser um número.');
     if (!qtd || qtd < 1 || qtd > 500) return alert('Quantidade deve ser entre 1 e 500.');
     if (!loteData.entry_weight || isNaN(loteData.entry_weight)) return alert('Peso de entrada inválido.');
-
     setLoading(true);
     try {
-      const animais = [];
-      for (let i = 0; i < qtd; i++) {
-        const num = tagStart + i;
-        // Formatar com zeros à esquerda, mesmo número de dígitos do tag_start
-        const digits = loteData.tag_start.length;
-        const tag = String(num).padStart(digits, '0');
-        animais.push({
-          tag_number: tag,
-          sex: loteData.sex,
-          breed: loteData.breed || null,
-          entry_date: loteData.entry_date,
-          entry_weight: parseFloat(loteData.entry_weight),
-          pen_id: loteData.pen_id || null,
-          status: 'active',
-          farm_id: currentFarm.id,
-        });
-      }
-
+      const digits = loteData.tag_start.length;
+      const animais = Array.from({ length: qtd }, (_, i) => ({
+        tag_number: String(tagStart + i).padStart(digits, '0'),
+        sex: loteData.sex, breed: loteData.breed || null,
+        entry_date: loteData.entry_date, entry_weight: parseFloat(loteData.entry_weight),
+        pen_id: loteData.pen_id || null, status: 'active', farm_id: currentFarm.id,
+      }));
       const { error } = await supabase.from('cattle').insert(animais);
       if (error) throw error;
-      alert(`${qtd} animais cadastrados com sucesso! Brincos: ${animais[0].tag_number} a ${animais[qtd-1].tag_number}`);
+      alert(`${qtd} animais cadastrados! Brincos: ${animais[0].tag_number} a ${animais[qtd-1].tag_number}`);
       resetForm();
       loadDados();
     } catch (error) {
@@ -167,14 +135,10 @@ export default function Gado() {
 
   const handleEdit = (animal) => {
     setFormData({
-      tag_number: animal.tag_number || '',
-      name: animal.name || '',
-      sex: animal.sex || 'macho',
-      breed: animal.breed || '',
+      tag_number: animal.tag_number || '', name: animal.name || '',
+      sex: animal.sex || 'macho', breed: animal.breed || '',
       entry_date: animal.entry_date || new Date().toISOString().split('T')[0],
-      entry_weight: animal.entry_weight || '',
-      pen_id: animal.pen_id || '',
-      status: animal.status || 'active',
+      entry_weight: animal.entry_weight || '', pen_id: animal.pen_id || '', status: animal.status || 'active',
     });
     setEditingId(animal.id);
     setModoLote(false);
@@ -186,12 +150,23 @@ export default function Gado() {
     try {
       const { error } = await supabase.from('cattle').delete().eq('id', id);
       if (error) throw error;
-      alert('Animal removido!');
       setConfirmDelete(null);
       loadDados();
     } catch (error) {
       alert('Erro: ' + error.message);
     }
+  };
+
+  const toggleBaia = (id) => {
+    setBaiasAbertas(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const diasNoBaia = (entry_date) => {
+    if (!entry_date) return '-';
+    const entrada = new Date(entry_date + 'T00:00:00');
+    const hoje = new Date();
+    const diff = Math.floor((hoje - entrada) / (1000 * 60 * 60 * 24));
+    return diff === 0 ? 'hoje' : diff === 1 ? '1 dia' : `${diff} dias`;
   };
 
   if (authLoading || !user) return <div className="loading">Carregando...</div>;
@@ -206,11 +181,30 @@ export default function Gado() {
     return buscaMatch && sexoMatch && statusMatch;
   });
 
-  const totalAtivos = gado.filter((a) => a.status === 'active').length;
-  const totalMachos = gado.filter((a) => a.sex === 'macho' && a.status === 'active').length;
-  const totalFemeas = gado.filter((a) => a.sex === 'femea' && a.status === 'active').length;
+  const totalAtivos = gado.filter(a => a.status === 'active').length;
+  const totalMachos = gado.filter(a => a.sex === 'macho' && a.status === 'active').length;
+  const totalFemeas = gado.filter(a => a.sex === 'femea' && a.status === 'active').length;
 
-  // Preview do lote
+  // Agrupar gado filtrado por baia
+  const grupoBaias = {};
+  // Baias com animais
+  gadoFiltrado.forEach(animal => {
+    const penData = animal['pens!cattle_pen_id_fkey'];
+    const penId = penData?.id || 'sem_baia';
+    const penNum = penData?.pen_number || null;
+    if (!grupoBaias[penId]) {
+      grupoBaias[penId] = { pen_id: penId, pen_number: penNum, animais: [] };
+    }
+    grupoBaias[penId].animais.push(animal);
+  });
+
+  // Ordenar: baias com número primeiro, sem baia por último
+  const gruposOrdenados = Object.values(grupoBaias).sort((a, b) => {
+    if (a.pen_id === 'sem_baia') return 1;
+    if (b.pen_id === 'sem_baia') return -1;
+    return (a.pen_number || '').localeCompare(b.pen_number || '', undefined, { numeric: true });
+  });
+
   const tagStart = parseInt(loteData.tag_start);
   const qtdLote = parseInt(loteData.quantidade);
   const loteValido = !isNaN(tagStart) && qtdLote > 0;
@@ -225,12 +219,8 @@ export default function Gado() {
           <h1>🐂 Cadastro de Gado ({totalAtivos} ativos)</h1>
           {canCreate('cattle') && !showForm && (
             <div className={styles.headerBtns}>
-              <button className={styles.btnAdd} onClick={() => { setModoLote(false); setShowForm(true); }}>
-                + Individual
-              </button>
-              <button className={styles.btnAddLote} onClick={() => { setModoLote(true); setShowForm(true); }}>
-                + Cadastro em Lote
-              </button>
+              <button className={styles.btnAdd} onClick={() => { setModoLote(false); setShowForm(true); }}>+ Individual</button>
+              <button className={styles.btnAddLote} onClick={() => { setModoLote(true); setShowForm(true); }}>+ Cadastro em Lote</button>
             </div>
           )}
           {showForm && (
@@ -253,12 +243,12 @@ export default function Gado() {
             <strong>{totalFemeas}</strong>
           </div>
           <div className={styles.resumoCard}>
-            <span>Baias Ativas</span>
-            <strong>{baias.length}</strong>
+            <span>Baias com Gado</span>
+            <strong>{gruposOrdenados.filter(g => g.pen_id !== 'sem_baia').length}</strong>
           </div>
         </div>
 
-        {/* Formulário Individual */}
+        {/* Form Individual */}
         {showForm && !modoLote && (
           <div className={styles.formCard}>
             <h2>{editingId ? '✏️ Editar Animal' : '➕ Novo Animal'}</h2>
@@ -301,9 +291,7 @@ export default function Gado() {
                   <label>Baia</label>
                   <select value={formData.pen_id} onChange={(e) => setFormData({ ...formData, pen_id: e.target.value })}>
                     <option value="">Sem baia definida</option>
-                    {baias.map((b) => (
-                      <option key={b.id} value={b.id}>Baia {b.pen_number} ({b.current_occupancy}/{b.capacity})</option>
-                    ))}
+                    {baias.map(b => <option key={b.id} value={b.id}>Baia {b.pen_number} ({b.current_occupancy}/{b.capacity})</option>)}
                   </select>
                 </div>
                 {editingId && (
@@ -319,15 +307,13 @@ export default function Gado() {
               </div>
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-                <button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : editingId ? 'Atualizar Animal' : 'Cadastrar Animal'}
-                </button>
+                <button type="submit" disabled={loading}>{loading ? 'Salvando...' : editingId ? 'Atualizar Animal' : 'Cadastrar Animal'}</button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Formulário Lote */}
+        {/* Form Lote */}
         {showForm && modoLote && (
           <div className={styles.formCard}>
             <h2>📦 Cadastro em Lote</h2>
@@ -342,15 +328,11 @@ export default function Gado() {
                   <input type="number" value={loteData.quantidade} onChange={(e) => setLoteData({ ...loteData, quantidade: e.target.value })} placeholder="Ex: 50" min="1" max="500" required />
                 </div>
               </div>
-
-              {/* Preview dos brincos */}
               {loteValido && (
                 <div className={styles.lotePreview}>
-                  📋 Serão cadastrados <strong>{loteData.quantidade}</strong> animais com brincos de{' '}
-                  <strong>{String(tagStart).padStart(loteData.tag_start.length, '0')}</strong> até <strong>{tagFim}</strong>
+                  📋 Serão cadastrados <strong>{loteData.quantidade}</strong> animais — brincos de <strong>{String(tagStart).padStart(loteData.tag_start.length, '0')}</strong> até <strong>{tagFim}</strong>
                 </div>
               )}
-
               <div className={styles.row}>
                 <div>
                   <label>Sexo *</label>
@@ -379,17 +361,13 @@ export default function Gado() {
                   <label>Baia</label>
                   <select value={loteData.pen_id} onChange={(e) => setLoteData({ ...loteData, pen_id: e.target.value })}>
                     <option value="">Sem baia definida</option>
-                    {baias.map((b) => (
-                      <option key={b.id} value={b.id}>Baia {b.pen_number} ({b.current_occupancy}/{b.capacity})</option>
-                    ))}
+                    {baias.map(b => <option key={b.id} value={b.id}>Baia {b.pen_number} ({b.current_occupancy}/{b.capacity})</option>)}
                   </select>
                 </div>
               </div>
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-                <button type="submit" disabled={loading}>
-                  {loading ? 'Cadastrando...' : `Cadastrar ${loteData.quantidade || ''} Animais`}
-                </button>
+                <button type="submit" disabled={loading}>{loading ? 'Cadastrando...' : `Cadastrar ${loteData.quantidade || ''} Animais`}</button>
               </div>
             </form>
           </div>
@@ -411,60 +389,85 @@ export default function Gado() {
           </select>
         </div>
 
-        {/* Tabela */}
+        {/* Listagem agrupada por baia */}
         {loading ? (
           <p className={styles.vazio}>Carregando...</p>
         ) : gadoFiltrado.length === 0 ? (
           <p className={styles.vazio}>{gado.length === 0 ? 'Nenhum animal cadastrado.' : 'Nenhum animal encontrado com os filtros aplicados.'}</p>
         ) : (
-          <div className={styles.tabelaWrapper}>
-            <table className={styles.tabela}>
-              <thead>
-                <tr>
-                  <th>Brinco</th>
-                  <th>Nome</th>
-                  <th>Sexo</th>
-                  <th>Raça</th>
-                  <th>Peso Entrada</th>
-                  <th>Data Entrada</th>
-                  <th>Baia</th>
-                  <th>Status</th>
-                  {(canEdit('cattle') || canDelete('cattle')) && <th>Ações</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {gadoFiltrado.map((animal) => {
-                  const penData = animal['pens!cattle_pen_id_fkey'];
-                  return (
-                    <tr key={animal.id}>
-                      <td><strong>{animal.tag_number}</strong></td>
-                      <td>{animal.name || '-'}</td>
-                      <td>
-                        <span className={animal.sex === 'macho' ? styles.badgeMacho : styles.badgeFemea}>
-                          {animal.sex === 'macho' ? '🐂 Macho' : '🐄 Fêmea'}
-                        </span>
-                      </td>
-                      <td>{animal.breed || '-'}</td>
-                      <td>{animal.entry_weight ? `${Number(animal.entry_weight).toFixed(1)} kg` : '-'}</td>
-                      <td>{animal.entry_date ? new Date(animal.entry_date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
-                      <td>{penData?.pen_number ? `Baia ${penData.pen_number}` : '-'}</td>
-                      <td>
-                        <span className={styles[`status_${animal.status}`]}>
-                          {animal.status === 'active' ? 'Ativo' : animal.status === 'sold' ? 'Vendido' : 'Morto'}
-                        </span>
-                      </td>
-                      {(canEdit('cattle') || canDelete('cattle')) && (
-                        <td className={styles.acoes}>
-                          {canEdit('cattle') && <button className={styles.btnEditar} onClick={() => handleEdit(animal)}>Editar</button>}
-                          {canDelete('cattle') && <button className={styles.btnDeletar} onClick={() => setConfirmDelete(animal)}>Deletar</button>}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          gruposOrdenados.map(grupo => {
+            const machos = grupo.animais.filter(a => a.sex === 'macho').length;
+            const femeas = grupo.animais.filter(a => a.sex === 'femea').length;
+            const aberta = baiasAbertas[grupo.pen_id];
+            const titulo = grupo.pen_id === 'sem_baia' ? 'Sem Baia Definida' : `Baia ${grupo.pen_number}`;
+
+            return (
+              <div key={grupo.pen_id} className={styles.grupoBaia}>
+                {/* Cabeçalho da baia */}
+                <div className={styles.baiaCabecalho} onClick={() => toggleBaia(grupo.pen_id)}>
+                  <div className={styles.baiaTitulo}>
+                    <span className={styles.baiaIcone}>{grupo.pen_id === 'sem_baia' ? '❓' : '🏠'}</span>
+                    <strong>{titulo}</strong>
+                    <span className={styles.baiaTotal}>{grupo.animais.length} animal(is)</span>
+                  </div>
+                  <div className={styles.baiaInfo}>
+                    <span className={styles.badgeMacho}>🐂 {machos} machos</span>
+                    <span className={styles.badgeFemea}>🐄 {femeas} fêmeas</span>
+                    <span className={styles.baiaToggle}>{aberta ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+
+                {/* Tabela dos animais da baia */}
+                {aberta && (
+                  <div className={styles.tabelaWrapper}>
+                    <table className={styles.tabela}>
+                      <thead>
+                        <tr>
+                          <th>Brinco</th>
+                          <th>Nome</th>
+                          <th>Sexo</th>
+                          <th>Raça</th>
+                          <th>Peso Entrada</th>
+                          <th>Dias no Confinamento</th>
+                          <th>Status</th>
+                          {(canEdit('cattle') || canDelete('cattle')) && <th>Ações</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grupo.animais.map(animal => (
+                          <tr key={animal.id}>
+                            <td><strong>{animal.tag_number}</strong></td>
+                            <td>{animal.name || '-'}</td>
+                            <td>
+                              <span className={animal.sex === 'macho' ? styles.badgeMacho : styles.badgeFemea}>
+                                {animal.sex === 'macho' ? '🐂 Macho' : '🐄 Fêmea'}
+                              </span>
+                            </td>
+                            <td>{animal.breed || '-'}</td>
+                            <td>{animal.entry_weight ? `${Number(animal.entry_weight).toFixed(1)} kg` : '-'}</td>
+                            <td>
+                              <span className={styles.diasBadge}>{diasNoBaia(animal.entry_date)}</span>
+                            </td>
+                            <td>
+                              <span className={styles[`status_${animal.status}`]}>
+                                {animal.status === 'active' ? 'Ativo' : animal.status === 'sold' ? 'Vendido' : 'Morto'}
+                              </span>
+                            </td>
+                            {(canEdit('cattle') || canDelete('cattle')) && (
+                              <td className={styles.acoes}>
+                                {canEdit('cattle') && <button className={styles.btnEditar} onClick={() => handleEdit(animal)}>Editar</button>}
+                                {canDelete('cattle') && <button className={styles.btnDeletar} onClick={() => setConfirmDelete(animal)}>Deletar</button>}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
 
         <p className={styles.totalRegistros}>{gadoFiltrado.length} animal(is) exibido(s)</p>
@@ -475,7 +478,7 @@ export default function Gado() {
         <div className={styles.modalOverlay} onClick={() => setConfirmDelete(null)}>
           <div className={styles.modalConfirm} onClick={(e) => e.stopPropagation()}>
             <h3>Remover Animal</h3>
-            <p>Tem certeza que deseja remover o animal <strong>Brinco {confirmDelete.tag_number}</strong>{confirmDelete.name ? ` (${confirmDelete.name})` : ''}?</p>
+            <p>Tem certeza que deseja remover <strong>Brinco {confirmDelete.tag_number}</strong>{confirmDelete.name ? ` (${confirmDelete.name})` : ''}?</p>
             <p className={styles.avisoDelete}>Esta ação não pode ser desfeita.</p>
             <div className={styles.formAcoes}>
               <button className={styles.btnCancelar} onClick={() => setConfirmDelete(null)}>Cancelar</button>
