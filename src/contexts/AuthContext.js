@@ -9,10 +9,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [currentFarm, setCurrentFarm] = useState(null);
+  const [allFarms, setAllFarms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sessão inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -22,7 +22,6 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    // Escutar mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -30,6 +29,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUserProfile(null);
         setCurrentFarm(null);
+        setAllFarms([]);
         setLoading(false);
       }
     });
@@ -39,7 +39,6 @@ export const AuthProvider = ({ children }) => {
 
   const loadUserProfile = async (userId) => {
     try {
-      // Buscar perfil do usuário
       const { data: profile } = await supabase
         .from('users')
         .select('*, role:roles(*)')
@@ -49,14 +48,23 @@ export const AuthProvider = ({ children }) => {
       if (profile) {
         setUserProfile(profile);
 
-        // Buscar fazenda
+        // Admin Geral (level 1) carrega todas as fazendas
+        if (profile.role?.level === 1) {
+          const { data: farms } = await supabase
+            .from('farms')
+            .select('*')
+            .eq('status', 'active')
+            .order('name');
+          setAllFarms(farms || []);
+        }
+
+        // Carregar fazenda padrão
         if (profile.default_farm_id) {
           const { data: farm } = await supabase
             .from('farms')
             .select('*')
             .eq('id', profile.default_farm_id)
             .single();
-
           if (farm) setCurrentFarm(farm);
         }
       }
@@ -67,11 +75,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const switchFarm = async (farmId) => {
+    const farm = allFarms.find((f) => f.id === farmId);
+    if (farm) setCurrentFarm(farm);
+  };
+
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     return { data, error };
   };
 
@@ -81,6 +91,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setUserProfile(null);
       setCurrentFarm(null);
+      setAllFarms([]);
     }
     return { error };
   };
@@ -89,6 +100,8 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     currentFarm,
+    allFarms,
+    switchFarm,
     loading,
     signIn,
     signOut,
