@@ -4,7 +4,6 @@
   padding: 2rem 1rem;
 }
 
-/* Header */
 .header {
   display: flex;
   justify-content: space-between;
@@ -21,6 +20,11 @@
   margin: 0;
 }
 
+.headerBtns {
+  display: flex;
+  gap: 10px;
+}
+
 .btnAdd {
   background: #2e7d32;
   color: #fff;
@@ -34,6 +38,33 @@
   white-space: nowrap;
 }
 .btnAdd:hover { background: #1b5e20; }
+
+.btnAddLote {
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.btnAddLote:hover { background: #0d47a1; }
+
+.btnCancelarHeader {
+  background: #fff;
+  color: #c62828;
+  border: 1px solid #e57373;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btnCancelarHeader:hover { background: #ffebee; }
 
 /* Cards resumo */
 .resumo {
@@ -66,7 +97,7 @@
   line-height: 1.2;
 }
 
-/* Formulário inline */
+/* Formulário */
 .formCard {
   background: #fff;
   border-radius: 12px;
@@ -83,7 +114,6 @@
   border-bottom: 1px solid #eee;
 }
 
-/* Grid de 2 colunas */
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -91,7 +121,6 @@
   margin-bottom: 1rem;
 }
 
-/* Cada campo dentro do row */
 .row > div {
   display: flex;
   flex-direction: column;
@@ -123,13 +152,22 @@
   border-color: #2e7d32;
 }
 
+.lotePreview {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+  color: #2e7d32;
+}
+
 .formAcoes {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  padding-top: 0.5rem;
+  padding-top: 0.8rem;
   border-top: 1px solid #eee;
-  margin-top: 0.5rem;
 }
 
 .formCard button[type="submit"] {
@@ -189,11 +227,63 @@
   min-width: 150px;
 }
 
+/* Grupos por baia */
+.grupoBaia {
+  margin-bottom: 1.2rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.baiaCabecalho {
+  background: #2e7d32;
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.baiaCabecalho:hover { background: #1b5e20; }
+
+.baiaTitulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.baiaIcone {
+  font-size: 1.1rem;
+}
+
+.baiaTitulo strong {
+  font-size: 1rem;
+}
+
+.baiaTotal {
+  background: rgba(255,255,255,0.2);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+}
+
+.baiaInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.baiaToggle {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
 /* Tabela */
 .tabelaWrapper {
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   overflow-x: auto;
 }
 
@@ -203,10 +293,10 @@
   font-size: 0.93rem;
 }
 
-.tabela thead tr { background: #f5f5f5; }
+.tabela thead tr { background: #f9f9f9; }
 
 .tabela th {
-  padding: 13px 16px;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 600;
   color: #555;
@@ -215,7 +305,7 @@
 }
 
 .tabela td {
-  padding: 12px 16px;
+  padding: 11px 16px;
   border-bottom: 1px solid #f0f0f0;
   color: #333;
 }
@@ -236,7 +326,17 @@
 
 .badgeFemea {
   background: #fce4ec;
-  color: #c62828;
+  color: #880e4f;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.diasBadge {
+  background: #fff3e0;
+  color: #e65100;
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 0.82rem;
@@ -271,7 +371,7 @@
   font-weight: 600;
 }
 
-/* Botões ações tabela */
+/* Botões ações */
 .acoes {
   display: flex;
   gap: 6px;
@@ -321,7 +421,7 @@
   margin-top: 12px;
 }
 
-/* Modal confirmação delete */
+/* Modal delete */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -375,77 +475,12 @@
 
 /* Responsivo */
 @media (max-width: 768px) {
-  .resumo {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .resumo { grid-template-columns: repeat(2, 1fr); }
+  .baiaInfo .badgeMacho, .baiaInfo .badgeFemea { display: none; }
 }
 
 @media (max-width: 600px) {
-  .resumo {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .row {
-    grid-template-columns: 1fr;
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .filtros {
-    flex-direction: column;
-  }
-
-  .tabela th:nth-child(4),
-  .tabela td:nth-child(4),
-  .tabela th:nth-child(6),
-  .tabela td:nth-child(6) {
-    display: none;
-  }
-}
-
-/* Botões header */
-.headerBtns {
-  display: flex;
-  gap: 10px;
-}
-
-.btnAddLote {
-  background: #1565c0;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-  white-space: nowrap;
-}
-.btnAddLote:hover { background: #0d47a1; }
-
-.btnCancelarHeader {
-  background: #fff;
-  color: #c62828;
-  border: 1px solid #e57373;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btnCancelarHeader:hover { background: #ffebee; }
-
-/* Preview do lote */
-.lotePreview {
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 1rem;
-  font-size: 0.92rem;
-  color: #2e7d32;
+  .row { grid-template-columns: 1fr; }
+  .header { flex-direction: column; align-items: flex-start; }
+  .filtros { flex-direction: column; }
 }
