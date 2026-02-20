@@ -26,7 +26,14 @@
 .logo {
   font-size: 3.5rem;
   margin-bottom: 0.8rem;
-  display: block;
+  display: block !important;
+  width: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: inherit !important;
+  margin-top: 0 !important;
 }
 
 .boxHeader h1 {
@@ -48,61 +55,73 @@
 
 .formGroup {
   margin-bottom: 1.2rem;
+  display: block !important;
 }
 
 .formGroup label {
-  display: block;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #444;
-  margin-bottom: 6px;
+  display: block !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  color: #444 !important;
+  margin-bottom: 6px !important;
+  margin-top: 0 !important;
+  width: auto !important;
+  padding: 0 !important;
 }
 
 .formGroup input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  outline: none;
+  display: block !important;
+  width: 100% !important;
+  padding: 12px 14px !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+  font-size: 0.95rem !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  color: #333 !important;
+  background: #fff !important;
+  margin-top: 0 !important;
   transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  color: #333;
 }
 
 .formGroup input:focus {
-  border-color: #2e7d32;
-  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
+  border-color: #2e7d32 !important;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12) !important;
 }
 
 .btnEntrar {
-  width: 100%;
-  padding: 13px;
-  background: #2e7d32;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-  margin-top: 0.5rem;
+  display: block !important;
+  width: 100% !important;
+  padding: 13px !important;
+  background: #2e7d32 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  margin-top: 0.5rem !important;
   letter-spacing: 0.3px;
+  transition: background 0.2s, transform 0.1s;
+  text-align: center;
 }
 
-.btnEntrar:hover { background: #1b5e20; }
+.btnEntrar:hover { background: #1b5e20 !important; }
 .btnEntrar:active { transform: scale(0.99); }
-.btnEntrar:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+.btnEntrar:disabled { background: #aaa !important; cursor: not-allowed !important; transform: none; }
 
 .error {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #ef9a9a;
-  padding: 10px 14px;
-  border-radius: 8px;
+  background: #ffebee !important;
+  color: #c62828 !important;
+  border: 1px solid #ef9a9a !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
   margin-bottom: 1.2rem;
   font-size: 0.9rem;
   text-align: center;
+  display: block !important;
+  width: auto !important;
+  margin-top: 0 !important;
 }
 
 .rodape {
