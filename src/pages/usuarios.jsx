@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../lib/supabase';
 import styles from '../styles/Usuarios.module.css';
 
 export default function Usuarios() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const { canCreate, canDelete, isViewer, isOperator } = usePermissions();
+  
   const [usuarios, setUsuarios] = useState([]);
   const [fazendas, setFazendas] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -26,9 +29,15 @@ export default function Usuarios() {
     if (!authLoading && !user) {
       router.push('/');
     } else if (user) {
+      // Verificar permissão para acessar
+      if (isViewer() || isOperator()) {
+        alert('Você não tem permissão para acessar esta página');
+        router.push('/dashboard');
+        return;
+      }
       loadData();
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, userProfile]);
 
   const loadData = async () => {
     setLoading(true);
@@ -70,10 +79,15 @@ export default function Usuarios() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!canCreate('users')) {
+      alert('Você não tem permissão para criar usuários');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Chamar função SQL que cria tudo de uma vez
       const { data, error } = await supabase.rpc('criar_usuario_completo', {
         p_email: formData.email,
         p_password: formData.password,
@@ -83,13 +97,8 @@ export default function Usuarios() {
         p_role_id: formData.role_id
       });
 
-      if (error) {
-        throw error;
-      }
-
-      if (data && !data.success) {
-        throw new Error(data.error || 'Erro ao criar usuário');
-      }
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error);
 
       alert('✅ Usuário criado com sucesso!');
       
@@ -105,13 +114,18 @@ export default function Usuarios() {
       loadData();
     } catch (error) {
       console.error('Erro:', error);
-      alert('❌ Erro ao criar usuário: ' + error.message);
+      alert('❌ Erro: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
+    if (!canDelete('users')) {
+      alert('Você não tem permissão para deletar usuários');
+      return;
+    }
+
     if (!confirm('Deseja realmente deletar este usuário?')) return;
 
     try {
@@ -132,30 +146,44 @@ export default function Usuarios() {
     return <div className="loading">Carregando...</div>;
   }
 
+  // Bloquear visualizadores e operadores
+  if (isViewer() || isOperator()) {
+    return (
+      <Layout>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>⛔ Acesso Negado</h2>
+          <p>Você não tem permissão para acessar esta página.</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1>Usuários ({usuarios.length})</h1>
-          <button 
-            className={styles.btnAdd}
-            onClick={() => {
-              setShowForm(!showForm);
-              setFormData({
-                name: '',
-                email: '',
-                password: '',
-                phone: '',
-                farm_id: '',
-                role_id: '',
-              });
-            }}
-          >
-            {showForm ? 'Cancelar' : '+ Novo Usuário'}
-          </button>
+          {canCreate('users') && (
+            <button 
+              className={styles.btnAdd}
+              onClick={() => {
+                setShowForm(!showForm);
+                setFormData({
+                  name: '',
+                  email: '',
+                  password: '',
+                  phone: '',
+                  farm_id: '',
+                  role_id: '',
+                });
+              }}
+            >
+              {showForm ? 'Cancelar' : '+ Novo Usuário'}
+            </button>
+          )}
         </div>
 
-        {showForm && (
+        {showForm && canCreate('users') && (
           <div className={styles.formCard}>
             <h2>Novo Usuário</h2>
             <form onSubmit={handleSubmit}>
@@ -250,9 +278,11 @@ export default function Usuarios() {
                     <h3>{usuario.name}</h3>
                     <p className={styles.email}>{usuario.email}</p>
                   </div>
-                  <div className={styles.actions}>
-                    <button onClick={() => handleDelete(usuario.id)}>Deletar</button>
-                  </div>
+                  {canDelete('users') && (
+                    <div className={styles.actions}>
+                      <button onClick={() => handleDelete(usuario.id)}>Deletar</button>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.cardBody}>
                   <p>📍 {usuario.farm_name || 'Não definida'}</p>
