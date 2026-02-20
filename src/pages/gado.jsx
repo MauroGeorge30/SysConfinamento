@@ -43,7 +43,7 @@ export default function Gado() {
     try {
       const [{ data: gadoData, error: gadoError }, { data: baiasData }] = await Promise.all([
         supabase.from('cattle')
-          .select('*, pens!cattle_pen_id_fkey(id, pen_number)')
+          .select('*, pens!cattle_current_pen_id_fkey(id, pen_number)')
           .eq('farm_id', currentFarm.id)
           .order('tag_number'),
         supabase.from('pens')
@@ -85,7 +85,7 @@ export default function Gado() {
         tag_number: formData.tag_number, name: formData.name || null,
         sex: formData.sex, breed: formData.breed || null,
         entry_date: formData.entry_date, entry_weight: parseFloat(formData.entry_weight),
-        pen_id: formData.pen_id || null, status: formData.status, farm_id: currentFarm.id,
+        current_pen_id: formData.pen_id || null, status: formData.status, farm_id: currentFarm.id,
       };
       if (editingId) {
         const { error } = await supabase.from('cattle').update(payload).eq('id', editingId);
@@ -119,7 +119,7 @@ export default function Gado() {
         tag_number: String(tagStart + i).padStart(digits, '0'),
         sex: loteData.sex, breed: loteData.breed || null,
         entry_date: loteData.entry_date, entry_weight: parseFloat(loteData.entry_weight),
-        pen_id: loteData.pen_id || null, status: 'active', farm_id: currentFarm.id,
+        current_pen_id: loteData.pen_id || null, status: 'active', farm_id: currentFarm.id,
       }));
       const { error } = await supabase.from('cattle').insert(animais);
       if (error) throw error;
@@ -138,7 +138,7 @@ export default function Gado() {
       tag_number: animal.tag_number || '', name: animal.name || '',
       sex: animal.sex || 'macho', breed: animal.breed || '',
       entry_date: animal.entry_date || new Date().toISOString().split('T')[0],
-      entry_weight: animal.entry_weight || '', pen_id: animal.pen_id || '', status: animal.status || 'active',
+      entry_weight: animal.entry_weight || '', pen_id: animal.current_pen_id || '', status: animal.status || 'active',
     });
     setEditingId(animal.id);
     setModoLote(false);
@@ -189,7 +189,7 @@ export default function Gado() {
   const grupoBaias = {};
   // Baias com animais
   gadoFiltrado.forEach(animal => {
-    const penData = animal['pens!cattle_pen_id_fkey'];
+    const penData = animal['pens!cattle_current_pen_id_fkey'];
     const penId = penData?.id || 'sem_baia';
     const penNum = penData?.pen_number || null;
     if (!grupoBaias[penId]) {
