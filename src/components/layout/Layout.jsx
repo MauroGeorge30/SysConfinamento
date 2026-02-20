@@ -24,21 +24,16 @@ export default function Layout({ children }) {
             <Link href="/dashboard">Dashboard</Link>
             <Link href="/gado">Gado</Link>
             <Link href="/baias">Baias</Link>
+            <Link href="/racoes">Rações</Link>
+            <Link href="/alimentacao">Alimentação</Link>
             {showAdminMenu && <Link href="/fazendas">Fazendas</Link>}
             {showAdminMenu && <Link href="/usuarios">Usuários</Link>}
           </nav>
         </div>
         <div className={styles.headerRight}>
-          {/* Seletor de fazenda para Admin Geral */}
           {isAdminGeral && allFarms.length > 1 ? (
-            <select
-              className={styles.seletorFazenda}
-              value={currentFarm?.id || ''}
-              onChange={(e) => switchFarm(e.target.value)}
-            >
-              {allFarms.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
+            <select className={styles.seletorFazenda} value={currentFarm?.id || ''} onChange={(e) => switchFarm(e.target.value)}>
+              {allFarms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           ) : (
             currentFarm && <span className={styles.nomeFazenda}>{currentFarm.name}</span>
