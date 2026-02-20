@@ -31,27 +31,54 @@ export default function Usuarios() {
   }, [user, authLoading, router]);
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      const { data: usersData } = await supabase
+      // Carregar usuários
+      const { data: usersData, error: usersError } = await supabase
         .from('users')
-        .select('*, farm:farms(name), role:roles(name)')
+        .select('*')
         .order('created_at', { ascending: false });
 
-      const { data: farmsData } = await supabase
+      if (usersError) {
+        console.error('Erro ao carregar usuários:', usersError);
+      }
+
+      // Carregar fazendas separadamente
+      const { data: farmsData, error: farmsError } = await supabase
         .from('farms')
         .select('*')
         .order('name');
 
-      const { data: rolesData } = await supabase
+      if (farmsError) {
+        console.error('Erro ao carregar fazendas:', farmsError);
+      }
+
+      // Carregar roles separadamente
+      const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
         .order('level');
 
-      setUsuarios(usersData || []);
+      if (rolesError) {
+        console.error('Erro ao carregar roles:', rolesError);
+      }
+
+      // Combinar dados manualmente
+      const usuariosComDados = (usersData || []).map(u => {
+        const farm = farmsData?.find(f => f.id === u.farm_id);
+        const role = rolesData?.find(r => r.id === u.role_id);
+        return {
+          ...u,
+          farm_name: farm?.name,
+          role_name: role?.name
+        };
+      });
+
+      setUsuarios(usuariosComDados);
       setFazendas(farmsData || []);
       setRoles(rolesData || []);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro geral:', error);
     } finally {
       setLoading(false);
     }
@@ -62,16 +89,14 @@ export default function Usuarios() {
     setLoading(true);
 
     try {
-      // 1. Criar usuário no Auth com auto-confirmação
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: formData.email,
         password: formData.password,
-        email_confirm: true, // Confirma automaticamente
+        email_confirm: true,
       });
 
       if (authError) throw authError;
 
-      // 2. Criar perfil na tabela users
       const { error: userError } = await supabase
         .from('users')
         .insert([{
@@ -87,7 +112,6 @@ export default function Usuarios() {
 
       if (userError) throw userError;
 
-      // 3. Criar permissões básicas
       const { error: permError } = await supabase
         .from('user_permissions')
         .insert([{
@@ -130,6 +154,7 @@ export default function Usuarios() {
         .eq('id', id);
 
       if (error) throw error;
+      alert('Usuário deletado!');
       loadData();
     } catch (error) {
       alert('Erro ao deletar: ' + error.message);
@@ -144,7 +169,7 @@ export default function Usuarios() {
     <Layout>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1>Usuários</h1>
+          <h1>Usuários ({usuarios.length})</h1>
           <button 
             className={styles.btnAdd}
             onClick={() => {
@@ -263,9 +288,10 @@ export default function Usuarios() {
                   </div>
                 </div>
                 <div className={styles.cardBody}>
-                  <p>📍 Fazenda: {usuario.farm?.name || 'Não definida'}</p>
-                  <p>👤 Perfil: {usuario.role?.name || 'Não definido'}</p>
+                  <p>📍 Fazenda: {usuario.farm_name || 'Não definida'}</p>
+                  <p>👤 Perfil: {usuario.role_name || 'Não definido'}</p>
                   {usuario.phone && <p>📞 {usuario.phone}</p>}
+                  <p style={{fontSize: '0.8rem', color: '#999'}}>ID: {usuario.id.substring(0, 8)}...</p>
                 </div>
               </div>
             ))
