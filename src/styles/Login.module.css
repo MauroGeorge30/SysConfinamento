@@ -3,45 +3,112 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #2d5016 0%, #3d6820 100%);
+  background: linear-gradient(160deg, #1b3a0a 0%, #2e7d32 50%, #1b5e20 100%);
+  padding: 1rem;
 }
 
 .box {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+
+.boxHeader {
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+  padding: 2.5rem 2rem 2rem;
   text-align: center;
+  color: #fff;
 }
 
 .logo {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: 3.5rem;
+  margin-bottom: 0.8rem;
+  display: block;
 }
 
-.box h1 {
-  margin-bottom: 0.5rem;
+.boxHeader h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: #fff;
 }
 
-.box p {
-  color: #666;
-  margin-bottom: 2rem;
+.boxHeader p {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.75);
+  margin: 0;
 }
 
-.box form {
-  text-align: left;
+.boxBody {
+  padding: 2rem;
 }
 
-.box form > div {
-  margin-bottom: 1rem;
+.formGroup {
+  margin-bottom: 1.2rem;
 }
+
+.formGroup label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 6px;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  color: #333;
+}
+
+.formGroup input:focus {
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
+}
+
+.btnEntrar {
+  width: 100%;
+  padding: 13px;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 0.5rem;
+  letter-spacing: 0.3px;
+}
+
+.btnEntrar:hover { background: #1b5e20; }
+.btnEntrar:active { transform: scale(0.99); }
+.btnEntrar:disabled { background: #aaa; cursor: not-allowed; transform: none; }
 
 .error {
   background: #ffebee;
   color: #c62828;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  border: 1px solid #ef9a9a;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 1.2rem;
+  font-size: 0.9rem;
   text-align: center;
+}
+
+.rodape {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.78rem;
+  color: #bbb;
+  border-top: 1px solid #f0f0f0;
 }
