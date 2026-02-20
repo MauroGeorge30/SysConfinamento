@@ -1,14 +1,19 @@
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import Link from 'next/link';
 import styles from '../../styles/Layout.module.css';
 
 export default function Layout({ children }) {
   const { userProfile, currentFarm, signOut } = useAuth();
+  const { isAdmin, isManager } = usePermissions();
 
   const handleSignOut = async () => {
     await signOut();
     window.location.href = '/';
   };
+
+  // Admins e Gerentes veem Fazendas e Usuários
+  const showAdminMenu = isAdmin() || isManager();
 
   return (
     <div className={styles.container}>
@@ -17,8 +22,9 @@ export default function Layout({ children }) {
           <div className={styles.logo}>🐂 Confinamento</div>
           <nav className={styles.nav}>
             <Link href="/dashboard">Dashboard</Link>
-            <Link href="/fazendas">Fazendas</Link>
-            <Link href="/usuarios">Usuários</Link>
+            <Link href="/gado">Gado</Link>
+            {showAdminMenu && <Link href="/fazendas">Fazendas</Link>}
+            {showAdminMenu && <Link href="/usuarios">Usuários</Link>}
           </nav>
         </div>
         <div className={styles.headerRight}>
