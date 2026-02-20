@@ -43,7 +43,7 @@ export default function Gado() {
     try {
       const [{ data: gadoData, error: gadoError }, { data: baiasData }] = await Promise.all([
         supabase.from('cattle')
-          .select('*, pens!cattle_current_pen_id_fkey(id, pen_number)')
+          .select('*')
           .eq('farm_id', currentFarm.id)
           .order('tag_number'),
         supabase.from('pens')
@@ -189,8 +189,8 @@ export default function Gado() {
   const grupoBaias = {};
   // Baias com animais
   gadoFiltrado.forEach(animal => {
-    const penData = animal['pens!cattle_current_pen_id_fkey'];
-    const penId = penData?.id || 'sem_baia';
+    const penData = baias.find(b => b.id === animal.current_pen_id) || null;
+    const penId = animal.current_pen_id || 'sem_baia';
     const penNum = penData?.pen_number || null;
     if (!grupoBaias[penId]) {
       grupoBaias[penId] = { pen_id: penId, pen_number: penNum, animais: [] };
