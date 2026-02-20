@@ -15,11 +15,9 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     const { error: signInError } = await signIn(email, password);
-
     if (signInError) {
-      setError('Email ou senha inválidos');
+      setError('Email ou senha inválidos. Verifique seus dados e tente novamente.');
       setLoading(false);
     } else {
       router.push('/dashboard');
@@ -29,37 +27,49 @@ export default function Login() {
   return (
     <div className={styles.container}>
       <div className={styles.box}>
-        <div className={styles.logo}>🐂</div>
-        <h1>Sistema de Confinamento</h1>
-        <p>Gerenciamento de Gado</p>
+        <div className={styles.boxHeader}>
+          <span className={styles.logo}>🐂</span>
+          <h1>Sistema de Confinamento</h1>
+          <p>Gerenciamento de Gado</p>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && <div className={styles.error}>{error}</div>}
+        <div className={styles.boxBody}>
+          <form onSubmit={handleSubmit}>
+            {error && <div className={styles.error}>{error}</div>}
 
-          <div>
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+            <div className={styles.formGroup}>
+              <label>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
+                required
+                autoComplete="email"
+              />
+            </div>
 
-          <div>
-            <label>Senha</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+            <div className={styles.formGroup}>
+              <label>Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+            </div>
 
-          <button type="submit" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
+            <button type="submit" className={styles.btnEntrar} disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+        </div>
+
+        <div className={styles.rodape}>
+          Sistema de Confinamento de Gado © 2026
+        </div>
       </div>
     </div>
   );
