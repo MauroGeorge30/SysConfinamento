@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../lib/supabase';
 import styles from '../styles/Fazendas.module.css';
 
 export default function Fazendas() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const { canCreate, canEdit, canDelete, isViewer, isOperator } = usePermissions();
+  
   const [fazendas, setFazendas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -24,9 +27,15 @@ export default function Fazendas() {
     if (!authLoading && !user) {
       router.push('/');
     } else if (user) {
+      // Operadores e Visualizadores não podem acessar gerenciamento de fazendas
+      if (isViewer() || isOperator()) {
+        alert('Você não tem permissão para acessar esta página');
+        router.push('/dashboard');
+        return;
+      }
       loadFazendas();
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, userProfile]);
 
   const loadFazendas = async () => {
     try {
@@ -38,7 +47,7 @@ export default function Fazendas() {
       if (error) throw error;
       setFazendas(data || []);
     } catch (error) {
-      console.error('Erro ao carregar fazendas:', error);
+      console.error('Erro:', error);
     } finally {
       setLoading(false);
     }
@@ -46,24 +55,35 @@ export default function Fazendas() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (editingId && !canEdit('farms')) {
+      alert('Você não tem permissão para editar fazendas');
+      return;
+    }
+
+    if (!editingId && !canCreate('farms')) {
+      alert('Você não tem permissão para criar fazendas');
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (editingId) {
-        // Atualizar
         const { error } = await supabase
           .from('farms')
           .update(formData)
           .eq('id', editingId);
 
         if (error) throw error;
+        alert('✅ Fazenda atualizada!');
       } else {
-        // Criar
         const { error } = await supabase
           .from('farms')
           .insert([{ ...formData, status: 'active' }]);
 
         if (error) throw error;
+        alert('✅ Fazenda criada!');
       }
 
       setShowForm(false);
@@ -77,13 +97,18 @@ export default function Fazendas() {
       });
       loadFazendas();
     } catch (error) {
-      alert('Erro ao salvar: ' + error.message);
+      alert('❌ Erro: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleEdit = (fazenda) => {
+    if (!canEdit('farms')) {
+      alert('Você não tem permissão para editar fazendas');
+      return;
+    }
+
     setFormData({
       name: fazenda.name,
       location: fazenda.location,
@@ -96,6 +121,11 @@ export default function Fazendas() {
   };
 
   const handleDelete = async (id) => {
+    if (!canDelete('farms')) {
+      alert('Você não tem permissão para deletar fazendas');
+      return;
+    }
+
     if (!confirm('Deseja realmente deletar esta fazenda?')) return;
 
     try {
@@ -105,9 +135,10 @@ export default function Fazendas() {
         .eq('id', id);
 
       if (error) throw error;
+      alert('✅ Fazenda deletada!');
       loadFazendas();
     } catch (error) {
-      alert('Erro ao deletar: ' + error.message);
+      alert('❌ Erro: ' + error.message);
     }
   };
 
@@ -115,30 +146,44 @@ export default function Fazendas() {
     return <div className="loading">Carregando...</div>;
   }
 
+  // Bloquear visualizadores e operadores
+  if (isViewer() || isOperator()) {
+    return (
+      <Layout>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>⛔ Acesso Negado</h2>
+          <p>Você não tem permissão para acessar esta página.</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1>Fazendas</h1>
-          <button 
-            className={styles.btnAdd}
-            onClick={() => {
-              setShowForm(!showForm);
-              setEditingId(null);
-              setFormData({
-                name: '',
-                location: '',
-                owner: '',
-                capacity: '1000',
-                default_feed_limit: '800',
-              });
-            }}
-          >
-            {showForm ? 'Cancelar' : '+ Nova Fazenda'}
-          </button>
+          <h1>Fazendas ({fazendas.length})</h1>
+          {canCreate('farms') && (
+            <button 
+              className={styles.btnAdd}
+              onClick={() => {
+                setShowForm(!showForm);
+                setEditingId(null);
+                setFormData({
+                  name: '',
+                  location: '',
+                  owner: '',
+                  capacity: '1000',
+                  default_feed_limit: '800',
+                });
+              }}
+            >
+              {showForm ? 'Cancelar' : '+ Nova Fazenda'}
+            </button>
+          )}
         </div>
 
-        {showForm && (
+        {showForm && (canCreate('farms') || (editingId && canEdit('farms'))) && (
           <div className={styles.formCard}>
             <h2>{editingId ? 'Editar Fazenda' : 'Nova Fazenda'}</h2>
             <form onSubmit={handleSubmit}>
@@ -214,10 +259,16 @@ export default function Fazendas() {
               <div key={fazenda.id} className={styles.card}>
                 <div className={styles.cardHeader}>
                   <h3>{fazenda.name}</h3>
-                  <div className={styles.actions}>
-                    <button onClick={() => handleEdit(fazenda)}>Editar</button>
-                    <button onClick={() => handleDelete(fazenda.id)}>Deletar</button>
-                  </div>
+                  {(canEdit('farms') || canDelete('farms')) && (
+                    <div className={styles.actions}>
+                      {canEdit('farms') && (
+                        <button onClick={() => handleEdit(fazenda)}>Editar</button>
+                      )}
+                      {canDelete('farms') && (
+                        <button onClick={() => handleDelete(fazenda.id)}>Deletar</button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.cardBody}>
                   <p>📍 {fazenda.location}</p>
