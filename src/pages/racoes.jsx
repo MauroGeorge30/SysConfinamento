@@ -376,7 +376,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canDelete }) {
         supabase.from('feed_types').select('id, name, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
         supabase.from('feed_ingredients').select('id, name, unit, current_price').eq('farm_id', currentFarm.id).eq('active', true).order('name'),
         supabase.from('feed_compositions')
-          .select('*, feed_types(name), feed_composition_items(*, feed_ingredients(name, unit))')
+          .select('*, feed_types!feed_compositions_feed_type_id_fkey(name), feed_composition_items(*, feed_ingredients(name, unit))')
           .eq('farm_id', currentFarm.id)
           .order('created_at', { ascending: false })
           .limit(50),
