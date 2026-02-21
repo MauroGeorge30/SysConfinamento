@@ -28,6 +28,8 @@ export default function Layout({ children }) {
             <Link href="/alimentacao">Alimentação</Link>
             <Link href="/pesagens">Pesagens</Link>
             <Link href="/movimentacao">Movimentação</Link>
+            <Link href="/saidas">Saídas</Link>
+            <Link href="/financeiro">Financeiro</Link>
             {showAdminMenu && <Link href="/fazendas">Fazendas</Link>}
             {showAdminMenu && <Link href="/usuarios">Usuários</Link>}
           </nav>
