@@ -1,0 +1,38 @@
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+.header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.btnAdd { background: #c62828; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btnAdd:hover { background: #b71c1c; }
+.resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.resumoCard { background: #fff; border-radius: 10px; padding: 1rem 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 4px; border-left: 4px solid #2e7d32; }
+.resumoCard span { font-size: 0.82rem; color: #888; }
+.resumoCard strong { font-size: 1.4rem; font-weight: 700; color: #333; }
+.formCard { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.formCard h2 { margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a1a2e; padding-bottom: 0.8rem; border-bottom: 1px solid #eee; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.rowFull { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1rem; }
+.row > div, .rowFull > div { display: flex; flex-direction: column; gap: 5px; }
+.row label, .rowFull label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.row input, .row select, .rowFull input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box; background: #fff; height: 42px; }
+.row input:focus, .row select:focus, .rowFull input:focus { border-color: #c62828; }
+.infoAnimal { background: #f5f5f5; border-radius: 8px; padding: 10px 16px; margin-bottom: 1rem; display: flex; gap: 24px; font-size: 0.9rem; color: #555; }
+.previewGMD { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 0.92rem; color: #2e7d32; }
+.formAcoes { display: flex; gap: 10px; justify-content: flex-end; padding-top: 0.8rem; border-top: 1px solid #eee; }
+.formCard button[type="submit"] { background: #c62828; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+.formCard button[type="submit"]:hover { background: #b71c1c; }
+.formCard button[type="submit"]:disabled { background: #aaa; cursor: not-allowed; }
+.btnCancelar { background: #fff; color: #444; border: 1px solid #ccc; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+.btnCancelar:hover { background: #f5f5f5; }
+.tabelaWrapper { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.tabela thead tr { background: #f5f5f5; }
+.tabela th { padding: 13px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; }
+.tabela td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabela tbody tr:hover { background: #fafafa; }
+.badgeVenda { background: #e8f5e9; color: #2e7d32; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+.badgeMorte { background: #f5f5f5; color: #757575; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+.ganhoPos { background: #e8f5e9; color: #2e7d32; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.ganhoNeg { background: #ffebee; color: #c62828; padding: 3px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.vazio { text-align: center; padding: 60px 20px; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+@media (max-width: 768px) { .resumo { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .row { grid-template-columns: 1fr; } .infoAnimal { flex-direction: column; gap: 4px; } }
