@@ -1,33 +1,113 @@
-.container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 12px; }
 .header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
-.btnAdd { background: #2e7d32; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+
+/* Abas */
+.abas { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 2px solid #e0e0e0; }
+.aba { padding: 8px 20px; border-radius: 8px 8px 0 0; font-size: 0.92rem; font-weight: 600; color: #666; cursor: pointer; background: transparent; border: 1px solid transparent; border-bottom: none; transition: background 0.15s; }
+.aba:hover { background: #f5f5f5; color: #2e7d32; }
+.abaAtiva { background: #fff; color: #2e7d32; border-color: #e0e0e0; border-bottom: 2px solid #fff; margin-bottom: -2px; }
+
+/* SubHeader dentro de cada aba */
+.subHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 8px; }
+.subHeader span { font-size: 0.88rem; color: #888; }
+.btnAdd { background: #2e7d32; color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-size: 0.92rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btnAdd:hover { background: #1b5e20; }
+
+/* Formulário */
 .formCard { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .formCard h2 { margin: 0 0 1.2rem 0; font-size: 1.1rem; color: #1a1a2e; padding-bottom: 0.8rem; border-bottom: 1px solid #eee; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-.rowFull { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1rem; }
-.row > div, .rowFull > div { display: flex; flex-direction: column; gap: 5px; }
-.row label, .rowFull label { font-size: 0.88rem; font-weight: 600; color: #444; }
-.row input, .row select, .rowFull input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box; background: #fff; height: 42px; }
-.row input:focus, .rowFull input:focus { border-color: #2e7d32; }
-.formAcoes { display: flex; gap: 10px; justify-content: flex-end; padding-top: 0.8rem; border-top: 1px solid #eee; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.row > div, .row3 > div { display: flex; flex-direction: column; gap: 5px; }
+.row label, .row3 label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.row input, .row select, .row3 input, .row3 select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box; background: #fff; height: 42px; }
+.row input:focus, .row select:focus, .row3 input:focus, .row3 select:focus { border-color: #2e7d32; }
+.formAcoes { display: flex; gap: 10px; justify-content: flex-end; padding-top: 0.8rem; border-top: 1px solid #eee; margin-top: 1rem; }
 .formCard button[type="submit"] { background: #2e7d32; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
 .formCard button[type="submit"]:hover { background: #1b5e20; }
 .formCard button[type="submit"]:disabled { background: #aaa; cursor: not-allowed; }
 .btnCancelar { background: #fff; color: #444; border: 1px solid #ccc; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
 .btnCancelar:hover { background: #f5f5f5; }
+
+/* Tabelas */
 .tabelaWrapper { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
 .tabela { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
 .tabela thead tr { background: #f5f5f5; }
-.tabela th { padding: 13px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; }
-.tabela td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabela th { padding: 12px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; }
+.tabela td { padding: 11px 16px; border-bottom: 1px solid #f0f0f0; color: #333; }
 .tabela tbody tr:hover { background: #f9fff9; }
 .tabela tbody tr:last-child td { border-bottom: none; }
-.acoes { display: flex; gap: 6px; }
-.btnEditar { background: #fff; color: #222; border: 1px solid #999; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+
+/* Tabela de itens da composição (form) */
+.ingredientesBox { background: #f9f9f9; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+.ingredientesHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+.ingredientesHeader strong { font-size: 0.95rem; color: #333; }
+.btnAddItem { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 6px 14px; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.btnAddItem:hover { background: #c8e6c9; }
+.tabelaItens { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: #fff; border-radius: 8px; overflow: hidden; }
+.tabelaItens th { padding: 9px 10px; text-align: left; font-weight: 600; color: #555; background: #f5f5f5; border-bottom: 2px solid #eee; white-space: nowrap; }
+.tabelaItens td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+.tabelaItens select { width: 100%; padding: 7px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; background: #fff; }
+.inputSmall { width: 100%; padding: 7px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.88rem; box-sizing: border-box; }
+.inputSmall:focus { border-color: #2e7d32; outline: none; }
+.custoItem { font-weight: 600; color: #333; white-space: nowrap; }
+.btnRemItem { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; }
+.totalRow { background: #f0f7f0; font-size: 0.9rem; }
+.totalRow td { padding: 9px 10px; border-top: 2px solid #c8e6c9; }
+.pctOk { color: #2e7d32; }
+.pctWarn { color: #e65100; }
+
+/* Preview custo */
+.previewCusto { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 10px; padding: 1rem 1.2rem; margin-top: 0.8rem; }
+.previewItem { display: flex; flex-direction: column; gap: 3px; }
+.previewItem span { font-size: 0.78rem; color: #555; }
+.previewItem strong { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+.custoDestaque { color: #1b5e20 !important; font-size: 1.05rem !important; }
+
+/* Badges */
+.badgeGreen { background: #e8f5e9; color: #2e7d32; padding: 2px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+.badgeBlue { background: #e3f2fd; color: #1565c0; padding: 2px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+.badgeGray { background: #f5f5f5; color: #888; padding: 2px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+.badgeWarn { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.semComp { color: #bbb; font-size: 0.85rem; font-style: italic; }
+.preco { color: #1b5e20; }
+
+/* Botões ação */
+.acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.btnEditar { background: #fff; color: #333; border: 1px solid #bbb; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .btnEditar:hover { background: #f0f0f0; }
 .btnDeletar { background: #fff; color: #c62828; border: 1px solid #e57373; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .btnDeletar:hover { background: #ffebee; }
-.vazio { text-align: center; padding: 60px 20px; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-@media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+.btnHistorico { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btnHistorico:hover { background: #bbdefb; }
+
+/* Histórico de preços (inline) */
+.tdHistorico { padding: 0 !important; background: #f9fbff; }
+.historicoBox { padding: 1rem 1.5rem; border-top: 1px dashed #90caf9; }
+.historicoBox strong { font-size: 0.9rem; color: #1565c0; display: block; margin-bottom: 0.6rem; }
+.tabelaHistorico { width: auto; border-collapse: collapse; font-size: 0.85rem; }
+.tabelaHistorico th { padding: 5px 14px; background: #e3f2fd; color: #1565c0; text-align: left; font-weight: 600; border-bottom: 1px solid #90caf9; }
+.tabelaHistorico td { padding: 5px 14px; border-bottom: 1px solid #e3f0fb; }
+
+/* Cards de composição */
+.listaComposicoes { display: flex; flex-direction: column; gap: 10px; }
+.compCardAtiva { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #2e7d32; overflow: hidden; }
+.compCardAntiga { background: #fafafa; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-left: 4px solid #ccc; overflow: hidden; }
+.compCardHeader { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; cursor: pointer; flex-wrap: wrap; gap: 8px; }
+.compCardHeader:hover { background: #f9fff9; }
+.compCardLeft { display: flex; align-items: center; gap: 10px; }
+.compCardLeft strong { font-size: 1rem; color: #1a1a2e; }
+.compCardRight { display: flex; align-items: center; gap: 16px; font-size: 0.88rem; color: #666; }
+.expandIcon { font-size: 0.75rem; color: #999; }
+.compCardBody { padding: 0 1.2rem 1.2rem; border-top: 1px solid #eee; }
+.compNotes { font-size: 0.85rem; color: #888; font-style: italic; margin: 0.8rem 0 0.6rem; }
+.compResumo { font-size: 0.85rem; color: #555; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
+.tabelaComp { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 0.8rem; }
+.tabelaComp th { padding: 8px 12px; text-align: left; font-weight: 600; color: #555; background: #f5f5f5; border-bottom: 2px solid #eee; }
+.tabelaComp td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+
+.vazio { text-align: center; padding: 50px 20px; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+@media (max-width: 768px) { .row3 { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .row { grid-template-columns: 1fr; } .compCardRight { flex-direction: column; align-items: flex-start; gap: 4px; } }
