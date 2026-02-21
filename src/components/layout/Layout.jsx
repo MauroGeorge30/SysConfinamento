@@ -56,10 +56,11 @@ export default function Layout({ children }) {
             <Link href="/gado">Gado</Link>
 
             <DropdownMenu label="Controle Operacional" items={[
-              { href: '/racoes',      label: '🌾 Rações' },
-              { href: '/alimentacao', label: '🌿 Tratos Diários' },
-              { href: '/pesagens',    label: '⚖️ Pesagens' },
-              { href: '/ocorrencias', label: '🚨 Ocorrências' },
+              { href: '/racoes',         label: '🌾 Rações' },
+              { href: '/alimentacao',    label: '🌿 Tratos Diários' },
+              { href: '/pesagens',       label: '⚖️ Pesagens Individuais' },
+              { href: '/pesagens-lote',  label: '📦 Pesagens por Lote' },
+              { href: '/ocorrencias',    label: '🚨 Ocorrências' },
             ]} />
 
             <DropdownMenu label="Movimentação" items={[
