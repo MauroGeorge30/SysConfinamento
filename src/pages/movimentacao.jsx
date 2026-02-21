@@ -106,10 +106,10 @@ export default function Movimentacao() {
     <Layout>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1>🔄 Movimentação de Gado</h1>
+          <h1>🔄 Transferência de Gado</h1>
           {canCreate('pen_movements') && (
             <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
-              {showForm ? 'Cancelar' : '+ Nova Movimentação'}
+              {showForm ? 'Cancelar' : '+ Nova Transferência'}
             </button>
           )}
         </div>
@@ -135,7 +135,7 @@ export default function Movimentacao() {
 
         {showForm && (
           <div className={styles.formCard}>
-            <h2>➕ Registrar Movimentação</h2>
+            <h2>➕ Registrar Transferência</h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.row}>
                 <div>
@@ -185,7 +185,7 @@ export default function Movimentacao() {
 
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-                <button type="submit" disabled={loading}>{loading ? 'Salvando...' : 'Registrar Movimentação'}</button>
+                <button type="submit" disabled={loading}>{loading ? 'Salvando...' : 'Registrar Transferência'}</button>
               </div>
             </form>
           </div>
