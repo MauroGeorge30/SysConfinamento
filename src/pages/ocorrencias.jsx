@@ -87,6 +87,27 @@ export default function Ocorrencias() {
     e.preventDefault();
     if (!formData.type) return alert('Selecione o tipo de ocorrência.');
     if (!formData.quantity || parseInt(formData.quantity) < 1) return alert('Quantidade inválida.');
+
+    const qtd = parseInt(formData.quantity);
+    const ehBaixa = ['morte', 'refugo'].includes(formData.type);
+    const loteVinculado = lotes.find(l => l.id === formData.lot_id);
+
+    // Validar: não pode dar baixa de mais cabeças do que tem no lote
+    if (ehBaixa && loteVinculado && qtd > loteVinculado.head_count) {
+      return alert(`❌ Quantidade (${qtd}) maior que cabeças disponíveis no lote ${loteVinculado.lot_code} (${loteVinculado.head_count} cab.). Verifique.`);
+    }
+
+    // Confirmar baixa com impacto
+    if (ehBaixa && loteVinculado) {
+      const novoTotal = loteVinculado.head_count - qtd;
+      const ok = confirm(
+        `⚠️ Confirmar ${qtd} ${formData.type}(s) no lote ${loteVinculado.lot_code}?\n\n` +
+        `Cabeças: ${loteVinculado.head_count} → ${novoTotal}\n` +
+        `A ocupação da baia será atualizada automaticamente.`
+      );
+      if (!ok) return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.from('occurrences').insert([{
@@ -95,12 +116,15 @@ export default function Ocorrencias() {
         pen_id: formData.pen_id || null,
         occurrence_date: formData.occurrence_date,
         type: formData.type,
-        quantity: parseInt(formData.quantity),
+        quantity: qtd,
         description: formData.description || null,
         registered_by: user.id,
       }]);
       if (error) throw error;
-      alert('✅ Ocorrência registrada!');
+      alert(ehBaixa && loteVinculado
+        ? `✅ Ocorrência registrada! Lote ${loteVinculado.lot_code} atualizado para ${loteVinculado.head_count - qtd} cabeças.`
+        : '✅ Ocorrência registrada!'
+      );
       resetForm();
       loadDados();
     } catch (error) {
@@ -111,7 +135,12 @@ export default function Ocorrencias() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover esta ocorrência?')) return;
+    const oc = ocorrencias.find(o => o.id === id);
+    const ehBaixa = oc && ['morte', 'refugo'].includes(oc.type);
+    const msg = ehBaixa && oc.lots?.lot_code
+      ? `Remover esta ocorrência?\n\nIsso vai REVERTER a baixa e devolver ${oc.quantity} cabeça(s) ao lote ${oc.lots.lot_code}.`
+      : 'Remover esta ocorrência?';
+    if (!confirm(msg)) return;
     try {
       const { error } = await supabase.from('occurrences').delete().eq('id', id);
       if (error) throw error;
@@ -203,13 +232,47 @@ export default function Ocorrencias() {
               <div className={styles.row}>
                 <div>
                   <label>Quantidade *</label>
-                  <input type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} min="1" required />
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                    min="1"
+                    max={['morte','refugo'].includes(formData.type) && formData.lot_id
+                      ? lotes.find(l => l.id === formData.lot_id)?.head_count || undefined
+                      : undefined}
+                    required
+                  />
                 </div>
                 <div>
                   <label>Descrição / Observações</label>
                   <input type="text" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Ex: Animal encontrado morto pela manhã, tosse seca..." />
                 </div>
               </div>
+
+              {/* Aviso de impacto para morte/refugo */}
+              {['morte', 'refugo'].includes(formData.type) && formData.lot_id && (() => {
+                const lote = lotes.find(l => l.id === formData.lot_id);
+                const qtd = parseInt(formData.quantity) || 0;
+                if (!lote) return null;
+                const novoTotal = lote.head_count - qtd;
+                const invalido = qtd > lote.head_count;
+                return (
+                  <div style={{
+                    background: invalido ? '#ffebee' : '#fff8e1',
+                    border: `1px solid ${invalido ? '#ef9a9a' : '#ffe082'}`,
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    marginBottom: '1rem',
+                    fontSize: '0.88rem',
+                    color: invalido ? '#c62828' : '#795548',
+                  }}>
+                    {invalido
+                      ? `❌ Quantidade maior que cabeças no lote (${lote.head_count} cab.)`
+                      : `⚠️ Baixa definitiva: lote ${lote.lot_code} passará de ${lote.head_count} → ${novoTotal} cabeças. A baia será atualizada automaticamente.`
+                    }
+                  </div>
+                );
+              })()}
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
                 <button type="submit" disabled={loading} style={{ background: '#c62828' }}>{loading ? 'Salvando...' : 'Registrar Ocorrência'}</button>
