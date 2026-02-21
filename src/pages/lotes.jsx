@@ -84,6 +84,15 @@ export default function Lotes() {
     e.preventDefault();
     if (!formData.lot_code.trim()) return alert('Código do lote é obrigatório.');
     if (!formData.head_count || isNaN(formData.head_count)) return alert('Nº de cabeças inválido.');
+    if (formData.avg_entry_weight && parseFloat(formData.avg_entry_weight) > 9999) {
+      return alert('Peso médio de entrada inválido. Use kg com ponto decimal. Ex: 320.5');
+    }
+    if (formData.target_gmd && parseFloat(formData.target_gmd) > 99) {
+      return alert('Meta GMD inválida. Use ponto decimal. Ex: 1.200 (não 1200).');
+    }
+    if (formData.target_leftover_pct && parseFloat(formData.target_leftover_pct) > 100) {
+      return alert('Meta de Sobra deve ser entre 0 e 100%.');
+    }
     setLoading(true);
     try {
       const payload = {
@@ -322,16 +331,16 @@ export default function Lotes() {
               <div className={styles.row}>
                 <div>
                   <label>Peso Médio de Entrada (kg)</label>
-                  <input type="number" value={formData.avg_entry_weight} onChange={e => setFormData({ ...formData, avg_entry_weight: e.target.value })} placeholder="Ex: 320.0" step="0.1" min="0" />
+                  <input type="number" value={formData.avg_entry_weight} onChange={e => setFormData({ ...formData, avg_entry_weight: e.target.value })} placeholder="Ex: 320.5" step="0.1" min="0" max="9999" />
                 </div>
                 <div>
-                  <label>Meta GMD (kg/dia)</label>
-                  <input type="number" value={formData.target_gmd} onChange={e => setFormData({ ...formData, target_gmd: e.target.value })} placeholder="Ex: 1.200" step="0.001" min="0" />
+                  <label>Meta GMD (kg/dia) <span style={{color:'#888',fontWeight:400}}>use ponto decimal</span></label>
+                  <input type="number" value={formData.target_gmd} onChange={e => setFormData({ ...formData, target_gmd: e.target.value })} placeholder="Ex: 1.200" step="0.001" min="0" max="99.999" />
                 </div>
               </div>
               <div className={styles.row}>
                 <div>
-                  <label>Meta de Sobra (%)</label>
+                  <label>Meta de Sobra (%) <span style={{color:'#888',fontWeight:400}}>0 a 100</span></label>
                   <input type="number" value={formData.target_leftover_pct} onChange={e => setFormData({ ...formData, target_leftover_pct: e.target.value })} placeholder="Ex: 3.0" step="0.1" min="0" max="100" />
                 </div>
                 <div>
