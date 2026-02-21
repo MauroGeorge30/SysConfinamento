@@ -1,16 +1,44 @@
-.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+/* ── Layout ── */
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+
 .topBar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
 .topBar h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0 0 4px 0; }
 .sub { color: #888; font-size: 0.9rem; margin: 0; }
-.btnAtualizar { background: #fff; color: #2e7d32; border: 1px solid #2e7d32; padding: 8px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+
+.btnAtualizar { background: #fff; color: #2e7d32; border: 1px solid #2e7d32; padding: 8px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .btnAtualizar:hover { background: #f1f8e9; }
-.secaoTitulo { font-size: 1rem; font-weight: 700; color: #555; margin: 1.5rem 0 0.8rem 0; padding-bottom: 6px; border-bottom: 2px solid #eee; }
+
+.vazio { text-align: center; padding: 60px 20px; color: #888; }
+
+/* ── Seção título ── */
+.secaoTitulo { font-size: 0.95rem; font-weight: 700; color: #555; margin: 1.8rem 0 0.8rem 0; padding-bottom: 6px; border-bottom: 2px solid #eee; text-transform: uppercase; letter-spacing: 0.3px; }
+
+.linkVerTodos { font-size: 0.82rem; font-weight: 600; color: #1565c0; text-decoration: none; text-transform: none; letter-spacing: 0; }
+.linkVerTodos:hover { text-decoration: underline; }
+
+/* ── Grids ── */
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 0.5rem; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 0.5rem; }
-.card { background: #fff; border-radius: 10px; padding: 1.1rem 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 4px; border-left: 4px solid #2e7d32; }
-.card span { font-size: 0.82rem; color: #888; }
-.card strong { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.card small { font-size: 0.78rem; color: #aaa; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 0.5rem; }
+.grid2inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+/* ── Cards KPI ── */
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 4px solid #2e7d32;
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.11); }
+.card span { font-size: 0.8rem; color: #888; font-weight: 500; }
+.card strong { font-size: 1.45rem; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
+.card small { font-size: 0.76rem; color: #aaa; }
+
 .cardVerde { border-left-color: #2e7d32; }
 .cardVerde strong { color: #2e7d32; }
 .cardVermelho { border-left-color: #c62828; }
@@ -19,20 +47,112 @@
 .cardAzul strong { color: #1565c0; }
 .cardLaranja { border-left-color: #e65100; }
 .cardLaranja strong { color: #e65100; }
-/* Baias */
-.baiasGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
-.baiaCard { background: #fff; border-radius: 10px; padding: 1rem 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.baiaHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.baiaHeader strong { font-size: 0.95rem; color: #333; }
-.pctAlto { background: #ffebee; color: #c62828; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; }
-.pctMedio { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; }
-.pctBaixo { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; }
-.baiaBar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
-.baiaBarFill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+
+/* ── Alertas ── */
+.alertasBox { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.2rem; }
+
+.alerta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.alerta:hover { opacity: 0.85; }
+
+.alerta_danger { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+.alerta_warning { background: #fff8e1; color: #795548; border: 1px solid #ffe082; }
+.alerta_info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+.alertaLink { margin-left: auto; font-weight: 700; font-size: 0.8rem; white-space: nowrap; }
+
+/* ── Lotes Grid ── */
+.lotesGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+
+.loteCard {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  border-top: 3px solid #2e7d32;
+  transition: box-shadow 0.2s;
+}
+.loteCard:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+.loteCardTop { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; }
+.loteCodigo { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+.loteCategoria { font-size: 0.78rem; color: #888; margin-top: 2px; }
+.loteCabecas { display: flex; flex-direction: column; align-items: flex-end; }
+.loteCabecas strong { font-size: 1.4rem; font-weight: 700; color: #1565c0; line-height: 1; }
+.loteCabecas span { font-size: 0.72rem; color: #aaa; }
+
+.loteIndicadores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+
+.loteInd {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 7px;
+  background: #f5f5f5;
+  text-align: center;
+}
+.loteInd span { font-size: 0.68rem; color: #999; text-transform: uppercase; letter-spacing: 0.3px; }
+.loteInd strong { font-size: 0.92rem; font-weight: 700; color: #1a1a2e; }
+.loteInd small { font-size: 0.65rem; color: #bbb; }
+
+.indVerde { background: #e8f5e9; }
+.indVerde strong { color: #2e7d32; }
+.indVermelho { background: #ffebee; }
+.indVermelho strong { color: #c62828; }
+.indLaranja { background: #fff3e0; }
+.indLaranja strong { color: #e65100; }
+
+.semLotes { text-align: center; padding: 30px; background: #f9f9f9; border-radius: 12px; color: #888; font-size: 0.95rem; }
+.semLotes span { display: block; font-size: 2rem; margin-bottom: 8px; }
+.semLotes a { color: #2e7d32; font-weight: 600; text-decoration: none; }
+
+/* ── Baias ── */
+.baiasGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+
+.baiaCard { background: #fff; border-radius: 10px; padding: 1rem 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07); transition: box-shadow 0.2s; }
+.baiaCard:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.11); }
+.baiaSemTrato { border: 1px solid #ef9a9a; background: #fffafa; }
+
+.baiaHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 4px; flex-wrap: wrap; }
+.baiaHeader strong { font-size: 0.92rem; color: #333; }
+
+.badgeSemTrato { background: #ffebee; color: #c62828; font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; }
+
+.pctAlto { background: #ffebee; color: #c62828; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 700; }
+.pctMedio { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 700; }
+.pctBaixo { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 700; }
+
+.baiaBar { height: 7px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.baiaBarFill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
 .barVerde { background: #2e7d32; }
 .barLaranja { background: #e65100; }
 .barVermelho { background: #c62828; }
-.baiaInfo { font-size: 0.82rem; color: #888; }
-.vazio { text-align: center; padding: 60px 20px; color: #888; }
-@media (max-width: 900px) { .grid4 { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .grid4, .grid3 { grid-template-columns: repeat(2, 1fr); } }
+
+.baiaInfo { font-size: 0.78rem; color: #888; }
+.baiaBadgeLote { color: #1565c0; font-weight: 600; }
+
+/* ── Responsivo ── */
+@media (max-width: 1000px) {
+  .grid4 { grid-template-columns: repeat(2, 1fr); }
+  .lotesGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .grid4, .grid3, .grid2 { grid-template-columns: 1fr; }
+  .grid2inner { grid-template-columns: 1fr 1fr; }
+  .loteIndicadores { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .baiasGrid { grid-template-columns: 1fr 1fr; }
+}
