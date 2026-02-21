@@ -19,7 +19,10 @@ export default function Alimentacao() {
   const [filtroBaia, setFiltroBaia] = useState('');
   const [filtroData, setFiltroData] = useState('');
 
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
   const [formData, setFormData] = useState({
     pen_id: '', feed_type_id: '', quantity_kg: '', feeding_date: hoje, notes: '',
   });
