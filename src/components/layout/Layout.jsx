@@ -51,18 +51,20 @@ export default function Layout({ children }) {
           <div className={styles.logo}>🐂 Confinamento</div>
           <nav className={styles.nav}>
             <Link href="/dashboard">Dashboard</Link>
-            <Link href="/gado">Gado</Link>
+            <Link href="/lotes">Lotes</Link>
             <Link href="/baias">Baias</Link>
+            <Link href="/gado">Gado</Link>
 
             <DropdownMenu label="Controle Operacional" items={[
-              { href: '/racoes', label: '🌾 Rações' },
-              { href: '/alimentacao', label: '🌿 Alimentação' },
-              { href: '/pesagens', label: '⚖️ Pesagens' },
+              { href: '/racoes',      label: '🌾 Rações' },
+              { href: '/alimentacao', label: '🌿 Tratos Diários' },
+              { href: '/pesagens',    label: '⚖️ Pesagens' },
+              { href: '/ocorrencias', label: '🚨 Ocorrências' },
             ]} />
 
             <DropdownMenu label="Movimentação" items={[
               { href: '/movimentacao', label: '🔄 Transferência' },
-              { href: '/saidas', label: '🚪 Saídas' },
+              { href: '/saidas',       label: '🚪 Saídas' },
             ]} />
 
             <Link href="/financeiro">Financeiro</Link>
