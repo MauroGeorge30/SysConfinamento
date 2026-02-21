@@ -1,0 +1,37 @@
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+.header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.btnImprimir { background: #1565c0; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+.btnImprimir:hover { background: #0d47a1; }
+.abas { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.aba { background: #fff; color: #555; border: 1px solid #ddd; padding: 9px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.aba:hover { border-color: #2e7d32; color: #2e7d32; }
+.abaAtiva { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+.filtros { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.filtros > div { display: flex; flex-direction: column; gap: 4px; }
+.filtros label { font-size: 0.82rem; font-weight: 600; color: #555; }
+.filtros input { padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.93rem; outline: none; background: #fff; }
+.filtros input:focus { border-color: #2e7d32; }
+.btnGerar { background: #2e7d32; color: #fff; border: none; padding: 10px 22px; border-radius: 8px; font-size: 0.93rem; font-weight: 600; cursor: pointer; }
+.btnGerar:hover { background: #1b5e20; }
+.relatorio { background: #fff; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.relatorioHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 2px solid #eee; }
+.relatorioHeader h2 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.relatorioHeader span { font-size: 0.85rem; color: #888; background: #f5f5f5; padding: 4px 12px; border-radius: 20px; }
+.resumoRel { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 1.2rem; padding: 12px 16px; background: #f9f9f9; border-radius: 8px; font-size: 0.9rem; color: #555; }
+.resumoRel strong { color: #333; }
+.tabelaWrapper { overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tabela thead tr { background: #f5f5f5; }
+.tabela th { padding: 11px 14px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; }
+.tabela td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabela tfoot td { padding: 11px 14px; background: #f9f9f9; border-top: 2px solid #eee; }
+.tabela tbody tr:hover { background: #f9fff9; }
+.verde { color: #2e7d32; font-weight: 600; }
+.vermelho { color: #c62828; font-weight: 600; }
+.vazio { text-align: center; padding: 40px 20px; color: #888; }
+@media print {
+  .header button, .abas, .filtros { display: none !important; }
+  .container { padding: 0; }
+  .relatorio { box-shadow: none; padding: 0; }
+}
