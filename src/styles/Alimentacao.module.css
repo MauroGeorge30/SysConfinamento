@@ -39,3 +39,5 @@
 .vazio { text-align: center; padding: 60px 20px; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 @media (max-width: 768px) { .resumo { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .row { grid-template-columns: 1fr; } .filtros { flex-direction: column; } }
+.btnEditar { background: #fff; color: #1565c0; border: 1px solid #90caf9; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btnEditar:hover { background: #e3f2fd; }
