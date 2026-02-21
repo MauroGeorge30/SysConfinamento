@@ -1,0 +1,34 @@
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+.header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.btnAdd { background: #2e7d32; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btnAdd:hover { background: #1b5e20; }
+.resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.resumoCard { background: #fff; border-radius: 10px; padding: 1rem 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 4px; border-left: 4px solid #1565c0; }
+.resumoCard span { font-size: 0.82rem; color: #888; }
+.resumoCard strong { font-size: 1.5rem; font-weight: 700; color: #1565c0; }
+.formCard { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.formCard h2 { margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a1a2e; padding-bottom: 0.8rem; border-bottom: 1px solid #eee; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.row > div { display: flex; flex-direction: column; gap: 5px; }
+.row label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.row input, .row select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box; background: #fff; height: 42px; }
+.row input:focus, .row select:focus { border-color: #1565c0; }
+.infoMovimento { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 0.92rem; color: #1565c0; }
+.previewOk { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 0.92rem; color: #2e7d32; }
+.previewAlerta { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 0.92rem; color: #e65100; }
+.formAcoes { display: flex; gap: 10px; justify-content: flex-end; padding-top: 0.8rem; border-top: 1px solid #eee; }
+.formCard button[type="submit"] { background: #1565c0; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+.formCard button[type="submit"]:hover { background: #0d47a1; }
+.formCard button[type="submit"]:disabled { background: #aaa; cursor: not-allowed; }
+.btnCancelar { background: #fff; color: #444; border: 1px solid #ccc; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+.btnCancelar:hover { background: #f5f5f5; }
+.tabelaWrapper { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.tabela thead tr { background: #f5f5f5; }
+.tabela th { padding: 13px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; }
+.tabela td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabela tbody tr:hover { background: #f0f7ff; }
+.vazio { text-align: center; padding: 60px 20px; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+@media (max-width: 768px) { .resumo { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
