@@ -1,7 +1,36 @@
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import Link from 'next/link';
 import styles from '../../styles/Layout.module.css';
+
+function DropdownMenu({ label, items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className={styles.dropdown} ref={ref}>
+      <button className={styles.dropbtn} onClick={() => setOpen(!open)}>
+        {label} <span className={styles.arrow}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className={styles.dropMenu}>
+          {items.map(item => (
+            <Link key={item.href} href={item.href} className={styles.dropItem} onClick={() => setOpen(false)}>
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Layout({ children }) {
   const { userProfile, currentFarm, allFarms, switchFarm, signOut } = useAuth();
@@ -24,15 +53,27 @@ export default function Layout({ children }) {
             <Link href="/dashboard">Dashboard</Link>
             <Link href="/gado">Gado</Link>
             <Link href="/baias">Baias</Link>
-            <Link href="/racoes">Rações</Link>
-            <Link href="/alimentacao">Alimentação</Link>
-            <Link href="/pesagens">Pesagens</Link>
-            <Link href="/movimentacao">Movimentação</Link>
-            <Link href="/saidas">Saídas</Link>
+
+            <DropdownMenu label="Controle Operacional" items={[
+              { href: '/racoes', label: '🌾 Rações' },
+              { href: '/alimentacao', label: '🌿 Alimentação' },
+              { href: '/pesagens', label: '⚖️ Pesagens' },
+            ]} />
+
+            <DropdownMenu label="Movimentação" items={[
+              { href: '/movimentacao', label: '🔄 Transferência' },
+              { href: '/saidas', label: '🚪 Saídas' },
+            ]} />
+
             <Link href="/financeiro">Financeiro</Link>
             <Link href="/relatorios">Relatórios</Link>
-            {showAdminMenu && <Link href="/fazendas">Fazendas</Link>}
-            {showAdminMenu && <Link href="/usuarios">Usuários</Link>}
+
+            {showAdminMenu && (
+              <DropdownMenu label="Administração" items={[
+                ...(showAdminMenu ? [{ href: '/fazendas', label: '🏡 Fazendas' }] : []),
+                ...(showAdminMenu ? [{ href: '/usuarios', label: '👤 Usuários' }] : []),
+              ]} />
+            )}
           </nav>
         </div>
         <div className={styles.headerRight}>
@@ -43,8 +84,8 @@ export default function Layout({ children }) {
           ) : (
             currentFarm && <span className={styles.nomeFazenda}>{currentFarm.name}</span>
           )}
-          {userProfile && <span>{userProfile.name}</span>}
-          <button onClick={handleSignOut}>Sair</button>
+          {userProfile && <span className={styles.nomeUsuario}>{userProfile.name}</span>}
+          <button onClick={handleSignOut} className={styles.btnSair}>Sair</button>
         </div>
       </header>
       <main className={styles.main}>{children}</main>
