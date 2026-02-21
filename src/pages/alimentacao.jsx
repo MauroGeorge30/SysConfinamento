@@ -17,6 +17,7 @@ export default function Alimentacao() {
   const [lotes, setLotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [filtroBaia, setFiltroBaia] = useState('');
   const [filtroData, setFiltroData] = useState('');
 
@@ -62,6 +63,7 @@ export default function Alimentacao() {
 
   const resetForm = () => {
     setFormData({ pen_id: '', lot_id: '', feed_type_id: '', quantity_kg: '', leftover_kg: '', feeding_date: hoje, notes: '' });
+    setEditingId(null);
     setShowForm(false);
   };
 
@@ -85,7 +87,7 @@ export default function Alimentacao() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.from('feeding_records').insert([{
+      const payload = {
         pen_id: formData.pen_id,
         lot_id: formData.lot_id || null,
         feed_type_id: formData.feed_type_id,
@@ -95,9 +97,16 @@ export default function Alimentacao() {
         notes: formData.notes || null,
         farm_id: currentFarm.id,
         registered_by: user.id,
-      }]);
-      if (error) throw error;
-      alert('✅ Trato registrado!');
+      };
+      if (editingId) {
+        const { error } = await supabase.from('feeding_records').update(payload).eq('id', editingId);
+        if (error) throw error;
+        alert('✅ Trato atualizado!');
+      } else {
+        const { error } = await supabase.from('feeding_records').insert([payload]);
+        if (error) throw error;
+        alert('✅ Trato registrado!');
+      }
       resetForm();
       loadDados();
     } catch (error) {
@@ -116,6 +125,21 @@ export default function Alimentacao() {
     } catch (error) {
       alert('❌ Erro: ' + error.message);
     }
+  };
+
+  const handleEdit = (r) => {
+    setFormData({
+      pen_id: r.pen_id || '',
+      lot_id: r.lot_id || '',
+      feed_type_id: r.feed_type_id || '',
+      quantity_kg: r.quantity_kg || '',
+      leftover_kg: r.leftover_kg ?? '',
+      feeding_date: r.feeding_date || hoje,
+      notes: r.notes || '',
+    });
+    setEditingId(r.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (authLoading || !user) return <div className="loading">Carregando...</div>;
@@ -155,7 +179,7 @@ export default function Alimentacao() {
           <h1>🌿 Tratos Diários</h1>
           {canCreate('feeding_records') && (
             <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
-              {showForm ? 'Cancelar' : '+ Registrar Trato'}
+              {showForm && !editingId ? 'Cancelar' : '+ Registrar Trato'}
             </button>
           )}
         </div>
@@ -186,7 +210,7 @@ export default function Alimentacao() {
         {/* Formulário */}
         {showForm && (
           <div className={styles.formCard}>
-            <h2>➕ Registrar Trato</h2>
+            <h2>{editingId ? '✏️ Editar Trato' : '➕ Registrar Trato'}</h2>
             {racoes.length === 0 && (
               <div className={styles.aviso}>⚠️ Nenhuma ração cadastrada. Cadastre em <strong>Rações</strong> primeiro.</div>
             )}
@@ -289,7 +313,7 @@ export default function Alimentacao() {
 
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-                <button type="submit" disabled={loading}>{loading ? 'Salvando...' : 'Registrar Trato'}</button>
+                <button type="submit" disabled={loading}>{loading ? 'Salvando...' : editingId ? 'Atualizar Trato' : 'Registrar Trato'}</button>
               </div>
             </form>
           </div>
@@ -355,7 +379,12 @@ export default function Alimentacao() {
                       <td>{consumidoR.toFixed(1)} kg</td>
                       <td>R$ {custo.toFixed(2)}</td>
                       {canDelete('feeding_records') && (
-                        <td><button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
+                            <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
+                          </div>
+                        </td>
                       )}
                     </tr>
                   );
