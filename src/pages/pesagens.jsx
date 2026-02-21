@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -126,8 +127,13 @@ export default function Pesagens() {
   return (
     <Layout>
       <div className={styles.container}>
+        <div className={styles.abas}>
+          <span className={`${styles.aba} ${styles.abaAtiva}`}>⚖️ Individual</span>
+          <a href="/pesagens-lote" className={styles.aba}>📦 Por Lote</a>
+        </div>
+
         <div className={styles.header}>
-          <h1>⚖️ Registro de Pesagens</h1>
+          <h1>⚖️ Pesagem Individual</h1>
           {canCreate('weighing_records') && (
             <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
               {showForm ? 'Cancelar' : '+ Registrar Pesagem'}
