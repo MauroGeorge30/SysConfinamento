@@ -37,12 +37,12 @@ export default function PesagensLote() {
     try {
       const [{ data: lotesData }, { data: pesData, error: pesError }] = await Promise.all([
         supabase.from('lots')
-          .select('id, lot_code, category, head_count, entry_weight, entry_date, gmd_target, pen_id, pens(pen_number)')
+          .select('id, lot_code, category, head_count, avg_entry_weight, entry_date, target_gmd, pen_id, pens(pen_number)')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
           .order('lot_code'),
         supabase.from('lot_weighings')
-          .select('*, lots(lot_code, category, entry_weight, entry_date, gmd_target)')
+          .select('*, lots(lot_code, category, avg_entry_weight, entry_date, target_gmd)')
           .eq('farm_id', currentFarm.id)
           .order('weighing_date', { ascending: false })
           .limit(300),
@@ -90,7 +90,7 @@ export default function PesagensLote() {
       const ultima = ultimaPesagemDoLote(formData.lot_id);
 
       // GMD desde última pesagem (ou desde entrada)
-      const baseP = ultima ? Number(ultima.average_weight_kg) : Number(lote?.entry_weight);
+      const baseP = ultima ? Number(ultima.average_weight_kg) : Number(lote?.avg_entry_weight);
       const baseD = ultima ? ultima.weighing_date : lote?.entry_date;
       const gmd = calcGMD(Number(formData.average_weight_kg), baseP, baseD, formData.weighing_date);
 
@@ -131,7 +131,7 @@ export default function PesagensLote() {
   // Lote selecionado no formulário (preview)
   const loteSelecionado = lotes.find(l => l.id === formData.lot_id);
   const ultimaLoteSel = loteSelecionado ? ultimaPesagemDoLote(formData.lot_id) : null;
-  const basePreviewPeso = ultimaLoteSel ? Number(ultimaLoteSel.average_weight_kg) : Number(loteSelecionado?.entry_weight);
+  const basePreviewPeso = ultimaLoteSel ? Number(ultimaLoteSel.average_weight_kg) : Number(loteSelecionado?.avg_entry_weight);
   const basePreviewData = ultimaLoteSel ? ultimaLoteSel.weighing_date : loteSelecionado?.entry_date;
   const gmdPreview = formData.average_weight_kg && loteSelecionado
     ? calcGMD(Number(formData.average_weight_kg), basePreviewPeso, basePreviewData, formData.weighing_date)
@@ -260,7 +260,7 @@ export default function PesagensLote() {
                 <div className={styles.preview}>
                   <div className={styles.previewItem}>
                     <span>Peso entrada do lote</span>
-                    <strong>{Number(loteSelecionado.entry_weight).toFixed(1)} kg</strong>
+                    <strong>{Number(loteSelecionado.avg_entry_weight).toFixed(1)} kg</strong>
                   </div>
                   {ultimaLoteSel && (
                     <div className={styles.previewItem}>
@@ -278,14 +278,14 @@ export default function PesagensLote() {
                     <div className={styles.previewItem}>
                       <span>GMD estimado ({ultimaLoteSel ? 'desde última pesagem' : 'desde entrada'})</span>
                       <strong className={
-                        loteSelecionado.gmd_target && gmdPreview >= loteSelecionado.gmd_target
+                        loteSelecionado.target_gmd && gmdPreview >= loteSelecionado.target_gmd
                           ? styles.gmdOtimo
-                          : loteSelecionado.gmd_target && gmdPreview >= loteSelecionado.gmd_target * 0.85
+                          : loteSelecionado.target_gmd && gmdPreview >= loteSelecionado.target_gmd * 0.85
                           ? styles.gmdBom : styles.gmdAbaixo
                       }>
                         {gmdPreview.toFixed(3)} kg/dia
-                        {loteSelecionado.gmd_target && (
-                          <em> (meta: {Number(loteSelecionado.gmd_target).toFixed(3)})</em>
+                        {loteSelecionado.target_gmd && (
+                          <em> (meta: {Number(loteSelecionado.target_gmd).toFixed(3)})</em>
                         )}
                       </strong>
                     </div>
@@ -352,9 +352,9 @@ export default function PesagensLote() {
               </thead>
               <tbody>
                 {pesagensFiltradas.map((p) => {
-                  const entradaPeso = p.lots?.entry_weight ? Number(p.lots.entry_weight) : null;
+                  const entradaPeso = p.lots?.avg_entry_weight ? Number(p.lots.avg_entry_weight) : null;
                   const ganhoTotal = entradaPeso != null ? Number(p.average_weight_kg) - entradaPeso : null;
-                  const meta = p.lots?.gmd_target ? Number(p.lots.gmd_target) : null;
+                  const meta = p.lots?.target_gmd ? Number(p.lots.target_gmd) : null;
                   const gmd = p.gmd_kg != null ? Number(p.gmd_kg) : null;
 
                   return (
