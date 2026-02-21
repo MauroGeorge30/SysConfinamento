@@ -306,20 +306,25 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                       <button className={styles.btnHistorico} onClick={() => loadHistorico(ins.id)}>
                         {showHistorico === ins.id ? 'Fechar' : 'Histórico'}
                       </button>
-                      {canEdit('feed_ingredients') && (
-                        <button className={styles.btnEditar} onClick={() => {
-                          setFormData({ name: ins.name, unit: ins.unit, current_price: ins.current_price, notes: ins.notes || '' });
-                          setEditingId(ins.id); setShowForm(true);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}>Atualizar Preço</button>
-                      )}
-                      {canDelete('feed_ingredients') && (
-                        <button className={styles.btnDeletar} onClick={async () => {
-                          if (!confirm('Inativar este insumo?')) return;
-                          await supabase.from('feed_ingredients').update({ active: false }).eq('id', ins.id);
+                      <button className={styles.btnEditar} onClick={() => {
+                        setFormData({ name: ins.name, unit: ins.unit, current_price: ins.current_price, notes: ins.notes || '' });
+                        setEditingId(ins.id); setShowForm(true);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}>Editar</button>
+                      <button className={styles.btnDeletar} onClick={async () => {
+                        if (!confirm('Deletar permanentemente o insumo "' + ins.name + '"?\n\nSe estiver em composições, use Inativar.')) return;
+                        try {
+                          const { error } = await supabase.from('feed_ingredients').delete().eq('id', ins.id);
+                          if (error) {
+                            if (error.message.includes('foreign key') || error.message.includes('violates')) {
+                              if (confirm('Este insumo está em composições e não pode ser deletado.\nDeseja inativá-lo em vez disso?')) {
+                                await supabase.from('feed_ingredients').update({ active: false }).eq('id', ins.id);
+                              }
+                            } else { alert('Erro: ' + error.message); }
+                          }
                           loadInsumos();
-                        }}>Inativar</button>
-                      )}
+                        } catch (err) { alert('Erro: ' + err.message); }
+                      }}>Deletar</button>
                     </div></td>
                   </tr>
                   {showHistorico === ins.id && (
@@ -355,7 +360,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
 }
 
 // ─── ABA: COMPOSIÇÕES ───────────────────────────────────────
-function AbaComposicoes({ currentFarm, user, canCreate, canDelete }) {
+function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [racoes, setRacoes] = useState([]);
   const [insumos, setInsumos] = useState([]);
   const [composicoes, setComposicoes] = useState([]);
@@ -607,6 +612,12 @@ function AbaComposicoes({ currentFarm, user, canCreate, canDelete }) {
                 <div className={styles.compCardRight}>
                   <span>Vigência: {new Date(c.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   <strong className={styles.custoDestaque}>R$ {Number(c.cost_per_kg).toFixed(4)}/kg</strong>
+                  <button className={styles.btnDeletar} onClick={(e) => {
+                    e.stopPropagation();
+                    if (!confirm('Deletar esta composição v' + c.version + '?\n' + (c.is_current ? 'ATENÇÃO: Esta é a composição vigente!' : ''))) return;
+                    supabase.from('feed_compositions').delete().eq('id', c.id)
+                      .then(({ error }) => { if (error) alert('Erro: ' + error.message); else loadDados(); });
+                  }}>Deletar</button>
                   <span className={styles.expandIcon}>{expandedComp === c.id ? '▲' : '▼'}</span>
                 </div>
               </div>
