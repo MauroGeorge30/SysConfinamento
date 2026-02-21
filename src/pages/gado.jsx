@@ -13,6 +13,7 @@ export default function Gado() {
 
   const [gado, setGado] = useState([]);
   const [baias, setBaias] = useState([]);
+  const [lotes, setLotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [modoLote, setModoLote] = useState(false);
@@ -41,7 +42,11 @@ export default function Gado() {
   const loadDados = async () => {
     setLoading(true);
     try {
-      const [{ data: gadoData, error: gadoError }, { data: baiasData }] = await Promise.all([
+      const [
+        { data: gadoData, error: gadoError },
+        { data: baiasData },
+        { data: lotesData },
+      ] = await Promise.all([
         supabase.from('cattle')
           .select('*')
           .eq('farm_id', currentFarm.id)
@@ -51,11 +56,17 @@ export default function Gado() {
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
           .order('pen_number'),
+        supabase.from('lots')
+          .select('id, lot_code, pen_id, category, head_count, avg_entry_weight, entry_date, status, target_gmd, target_leftover_pct, lot_phases(phase_name, end_date, feed_types(name))')
+          .eq('farm_id', currentFarm.id)
+          .eq('status', 'active')
+          .order('lot_code'),
       ]);
       if (gadoError) throw gadoError;
       setGado(gadoData || []);
       setBaias(baiasData || []);
-      // Abrir todas as baias por padrão
+      setLotes(lotesData || []);
+
       const abertas = {};
       (baiasData || []).forEach(b => { abertas[b.id] = true; });
       abertas['sem_baia'] = true;
@@ -161,12 +172,15 @@ export default function Gado() {
     setBaiasAbertas(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const diasNoBaia = (entry_date) => {
+  const diasNoConfinamento = (entry_date) => {
     if (!entry_date) return '-';
-    const entrada = new Date(entry_date + 'T00:00:00');
-    const hoje = new Date();
-    const diff = Math.floor((hoje - entrada) / (1000 * 60 * 60 * 24));
+    const diff = Math.floor((new Date() - new Date(entry_date + 'T00:00:00')) / 86400000);
     return diff === 0 ? 'hoje' : diff === 1 ? '1 dia' : `${diff} dias`;
+  };
+
+  const getFaseAtiva = (lote) => {
+    const fases = lote.lot_phases || [];
+    return fases.find(f => !f.end_date) || fases[fases.length - 1] || null;
   };
 
   if (authLoading || !user) return <div className="loading">Carregando...</div>;
@@ -184,21 +198,37 @@ export default function Gado() {
   const totalAtivos = gado.filter(a => a.status === 'active').length;
   const totalMachos = gado.filter(a => a.sex === 'macho' && a.status === 'active').length;
   const totalFemeas = gado.filter(a => a.sex === 'femea' && a.status === 'active').length;
+  const totalCabLotes = lotes.reduce((acc, l) => acc + (l.head_count || 0), 0);
 
-  // Agrupar gado filtrado por baia
+  // Agrupar animais individuais por baia
   const grupoBaias = {};
-  // Baias com animais
   gadoFiltrado.forEach(animal => {
     const penData = baias.find(b => b.id === animal.current_pen_id) || null;
     const penId = animal.current_pen_id || 'sem_baia';
     const penNum = penData?.pen_number || null;
     if (!grupoBaias[penId]) {
-      grupoBaias[penId] = { pen_id: penId, pen_number: penNum, animais: [] };
+      grupoBaias[penId] = { pen_id: penId, pen_number: penNum, animais: [], lotesDaBaia: [] };
     }
     grupoBaias[penId].animais.push(animal);
   });
 
-  // Ordenar: baias com número primeiro, sem baia por último
+  // Adicionar baias que só têm lotes (sem animais individuais filtrados)
+  lotes.forEach(lote => {
+    if (!lote.pen_id) return;
+    const pen = baias.find(b => b.id === lote.pen_id);
+    if (!pen) return;
+    if (!grupoBaias[lote.pen_id]) {
+      grupoBaias[lote.pen_id] = { pen_id: lote.pen_id, pen_number: pen.pen_number, animais: [], lotesDaBaia: [] };
+    }
+    grupoBaias[lote.pen_id].lotesDaBaia.push(lote);
+  });
+
+  // Vincular lotes às baias que já existem no grupo
+  Object.keys(grupoBaias).forEach(penId => {
+    if (penId === 'sem_baia') return;
+    grupoBaias[penId].lotesDaBaia = lotes.filter(l => l.pen_id === penId);
+  });
+
   const gruposOrdenados = Object.values(grupoBaias).sort((a, b) => {
     if (a.pen_id === 'sem_baia') return 1;
     if (b.pen_id === 'sem_baia') return -1;
@@ -216,7 +246,7 @@ export default function Gado() {
 
         {/* Header */}
         <div className={styles.header}>
-          <h1>🐂 Cadastro de Gado ({totalAtivos} ativos)</h1>
+          <h1>🐂 Cadastro de Gado ({totalAtivos} individuais)</h1>
           {canCreate('cattle') && !showForm && (
             <div className={styles.headerBtns}>
               <button className={styles.btnAdd} onClick={() => { setModoLote(false); setShowForm(true); }}>+ Individual</button>
@@ -231,7 +261,7 @@ export default function Gado() {
         {/* Cards resumo */}
         <div className={styles.resumo}>
           <div className={styles.resumoCard}>
-            <span>Total Ativo</span>
+            <span>Individuais Ativos</span>
             <strong>{totalAtivos}</strong>
           </div>
           <div className={styles.resumoCard}>
@@ -242,9 +272,9 @@ export default function Gado() {
             <span>🐄 Fêmeas</span>
             <strong>{totalFemeas}</strong>
           </div>
-          <div className={styles.resumoCard}>
-            <span>Baias com Gado</span>
-            <strong>{gruposOrdenados.filter(g => g.pen_id !== 'sem_baia').length}</strong>
+          <div className={styles.resumoCard} style={{ borderLeftColor: '#1565c0' }}>
+            <span>Cabeças em Lotes</span>
+            <strong style={{ color: '#1565c0' }}>{totalCabLotes}</strong>
           </div>
         </div>
 
@@ -313,10 +343,10 @@ export default function Gado() {
           </div>
         )}
 
-        {/* Form Lote */}
+        {/* Form Lote individual (cadastro em série de brincos) */}
         {showForm && modoLote && (
           <div className={styles.formCard}>
-            <h2>📦 Cadastro em Lote</h2>
+            <h2>📦 Cadastro em Lote (brincos sequenciais)</h2>
             <form onSubmit={handleSubmitLote}>
               <div className={styles.row}>
                 <div>
@@ -392,12 +422,14 @@ export default function Gado() {
         {/* Listagem agrupada por baia */}
         {loading ? (
           <p className={styles.vazio}>Carregando...</p>
-        ) : gadoFiltrado.length === 0 ? (
-          <p className={styles.vazio}>{gado.length === 0 ? 'Nenhum animal cadastrado.' : 'Nenhum animal encontrado com os filtros aplicados.'}</p>
+        ) : gruposOrdenados.length === 0 ? (
+          <p className={styles.vazio}>{gado.length === 0 && lotes.length === 0 ? 'Nenhum animal cadastrado.' : 'Nenhum animal encontrado com os filtros aplicados.'}</p>
         ) : (
           gruposOrdenados.map(grupo => {
             const machos = grupo.animais.filter(a => a.sex === 'macho').length;
             const femeas = grupo.animais.filter(a => a.sex === 'femea').length;
+            const cabLotes = grupo.lotesDaBaia.reduce((acc, l) => acc + (l.head_count || 0), 0);
+            const totalGrupo = grupo.animais.length + cabLotes;
             const aberta = baiasAbertas[grupo.pen_id];
             const titulo = grupo.pen_id === 'sem_baia' ? 'Sem Baia Definida' : `Baia ${grupo.pen_number}`;
 
@@ -408,61 +440,113 @@ export default function Gado() {
                   <div className={styles.baiaTitulo}>
                     <span className={styles.baiaIcone}>{grupo.pen_id === 'sem_baia' ? '❓' : '🏠'}</span>
                     <strong>{titulo}</strong>
-                    <span className={styles.baiaTotal}>{grupo.animais.length} animal(is)</span>
+                    <span className={styles.baiaTotal}>{totalGrupo} animal(is)</span>
+                    {cabLotes > 0 && (
+                      <span className={styles.badgeLoteCount}>📦 {grupo.lotesDaBaia.length} lote(s)</span>
+                    )}
                   </div>
                   <div className={styles.baiaInfo}>
-                    <span className={styles.badgeMacho}>🐂 {machos} machos</span>
-                    <span className={styles.badgeFemea}>🐄 {femeas} fêmeas</span>
+                    {grupo.animais.length > 0 && <span className={styles.badgeMacho}>🐂 {machos} machos</span>}
+                    {grupo.animais.length > 0 && <span className={styles.badgeFemea}>🐄 {femeas} fêmeas</span>}
                     <span className={styles.baiaToggle}>{aberta ? '▲' : '▼'}</span>
                   </div>
                 </div>
 
-                {/* Tabela dos animais da baia */}
                 {aberta && (
-                  <div className={styles.tabelaWrapper}>
-                    <table className={styles.tabela}>
-                      <thead>
-                        <tr>
-                          <th>Brinco</th>
-                          <th>Nome</th>
-                          <th>Sexo</th>
-                          <th>Raça</th>
-                          <th>Peso Entrada</th>
-                          <th>Dias no Confinamento</th>
-                          <th>Status</th>
-                          {(canEdit('cattle') || canDelete('cattle')) && <th>Ações</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {grupo.animais.map(animal => (
-                          <tr key={animal.id}>
-                            <td><strong>{animal.tag_number}</strong></td>
-                            <td>{animal.name || '-'}</td>
-                            <td>
-                              <span className={animal.sex === 'macho' ? styles.badgeMacho : styles.badgeFemea}>
-                                {animal.sex === 'macho' ? '🐂 Macho' : '🐄 Fêmea'}
-                              </span>
-                            </td>
-                            <td>{animal.breed || '-'}</td>
-                            <td>{animal.entry_weight ? `${Number(animal.entry_weight).toFixed(1)} kg` : '-'}</td>
-                            <td>
-                              <span className={styles.diasBadge}>{diasNoBaia(animal.entry_date)}</span>
-                            </td>
-                            <td>
-                              <span className={styles[`status_${animal.status}`]}>
-                                {animal.status === 'active' ? 'Ativo' : animal.status === 'sold' ? 'Vendido' : 'Morto'}
-                              </span>
-                            </td>
-                            {(canEdit('cattle') || canDelete('cattle')) && (
-                              <td className={styles.acoes}>
-                                {canEdit('cattle') && <button className={styles.btnEditar} onClick={() => handleEdit(animal)}>Editar</button>}
-                                {canDelete('cattle') && <button className={styles.btnDeletar} onClick={() => setConfirmDelete(animal)}>Deletar</button>}
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div>
+                    {/* Bloco de Lotes da baia */}
+                    {grupo.lotesDaBaia.length > 0 && (
+                      <div className={styles.lotesNaBaia}>
+                        {grupo.lotesDaBaia.map(lote => {
+                          const faseAtiva = getFaseAtiva(lote);
+                          const dias = Math.floor((new Date() - new Date(lote.entry_date + 'T00:00:00')) / 86400000);
+                          return (
+                            <div key={lote.id} className={styles.loteNaBaiaCard}>
+                              <div className={styles.loteNaBaiaLeft}>
+                                <span className={styles.loteNaBaiaIcone}>📦</span>
+                                <div>
+                                  <strong>{lote.lot_code}</strong>
+                                  <span className={styles.loteNaBaiaCategoria}>{lote.category}</span>
+                                </div>
+                              </div>
+                              <div className={styles.loteNaBaiaInfo}>
+                                <span>🐂 <strong>{lote.head_count}</strong> cab.</span>
+                                {lote.avg_entry_weight && <span>⚖️ {Number(lote.avg_entry_weight).toFixed(0)} kg/cab entrada</span>}
+                                {faseAtiva && <span>🌿 {faseAtiva.phase_name}{faseAtiva.feed_types ? ` — ${faseAtiva.feed_types.name}` : ''}</span>}
+                                <span>📅 {dias}d confinamento</span>
+                                {lote.target_gmd && <span>🎯 Meta GMD: {Number(lote.target_gmd).toFixed(3)} kg/d</span>}
+                              </div>
+                              <a
+                                href="/lotes"
+                                className={styles.btnVerLote}
+                                onClick={e => { e.stopPropagation(); router.push('/lotes'); }}
+                              >
+                                Ver lote →
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Tabela animais individuais */}
+                    {grupo.animais.length > 0 && (
+                      <div className={styles.tabelaWrapper}>
+                        {grupo.lotesDaBaia.length > 0 && (
+                          <div className={styles.subtituloIndividuais}>👤 Animais Individuais</div>
+                        )}
+                        <table className={styles.tabela}>
+                          <thead>
+                            <tr>
+                              <th>Brinco</th>
+                              <th>Nome</th>
+                              <th>Sexo</th>
+                              <th>Raça</th>
+                              <th>Peso Entrada</th>
+                              <th>Dias no Confinamento</th>
+                              <th>Status</th>
+                              {(canEdit('cattle') || canDelete('cattle')) && <th>Ações</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {grupo.animais.map(animal => (
+                              <tr key={animal.id}>
+                                <td><strong>{animal.tag_number}</strong></td>
+                                <td>{animal.name || '-'}</td>
+                                <td>
+                                  <span className={animal.sex === 'macho' ? styles.badgeMacho : styles.badgeFemea}>
+                                    {animal.sex === 'macho' ? '🐂 Macho' : '🐄 Fêmea'}
+                                  </span>
+                                </td>
+                                <td>{animal.breed || '-'}</td>
+                                <td>{animal.entry_weight ? `${Number(animal.entry_weight).toFixed(1)} kg` : '-'}</td>
+                                <td>
+                                  <span className={styles.diasBadge}>{diasNoConfinamento(animal.entry_date)}</span>
+                                </td>
+                                <td>
+                                  <span className={styles[`status_${animal.status}`]}>
+                                    {animal.status === 'active' ? 'Ativo' : animal.status === 'sold' ? 'Vendido' : 'Morto'}
+                                  </span>
+                                </td>
+                                {(canEdit('cattle') || canDelete('cattle')) && (
+                                  <td className={styles.acoes}>
+                                    {canEdit('cattle') && <button className={styles.btnEditar} onClick={() => handleEdit(animal)}>Editar</button>}
+                                    {canDelete('cattle') && <button className={styles.btnDeletar} onClick={() => setConfirmDelete(animal)}>Deletar</button>}
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Caso baia só tenha lotes e nenhum individual */}
+                    {grupo.animais.length === 0 && grupo.lotesDaBaia.length > 0 && (
+                      <div className={styles.semIndividuais}>
+                        Nenhum animal individual nesta baia — ocupação gerenciada por lote(s).
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -470,7 +554,7 @@ export default function Gado() {
           })
         )}
 
-        <p className={styles.totalRegistros}>{gadoFiltrado.length} animal(is) exibido(s)</p>
+        <p className={styles.totalRegistros}>{gadoFiltrado.length} animal(is) individual(is) exibido(s)</p>
       </div>
 
       {/* Modal delete */}
