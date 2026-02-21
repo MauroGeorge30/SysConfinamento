@@ -15,7 +15,9 @@ export default function Racoes() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ name: '', composition: '', cost_per_kg: '' });
+  const [formData, setFormData] = useState({
+    name: '', composition: '', cost_per_kg: '', dry_matter_pct: '',
+  });
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/');
@@ -39,7 +41,7 @@ export default function Racoes() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', composition: '', cost_per_kg: '' });
+    setFormData({ name: '', composition: '', cost_per_kg: '', dry_matter_pct: '' });
     setEditingId(null);
     setShowForm(false);
   };
@@ -48,12 +50,16 @@ export default function Racoes() {
     e.preventDefault();
     if (!formData.name.trim()) return alert('Nome é obrigatório.');
     if (!formData.cost_per_kg || isNaN(formData.cost_per_kg)) return alert('Custo por kg inválido.');
+    if (formData.dry_matter_pct && (isNaN(formData.dry_matter_pct) || parseFloat(formData.dry_matter_pct) > 100)) {
+      return alert('MS% deve ser um número entre 0 e 100.');
+    }
     setLoading(true);
     try {
       const payload = {
         name: formData.name,
         composition: formData.composition || null,
         cost_per_kg: parseFloat(formData.cost_per_kg),
+        dry_matter_pct: formData.dry_matter_pct ? parseFloat(formData.dry_matter_pct) : null,
         farm_id: currentFarm.id,
       };
       if (editingId) {
@@ -75,7 +81,12 @@ export default function Racoes() {
   };
 
   const handleEdit = (r) => {
-    setFormData({ name: r.name, composition: r.composition || '', cost_per_kg: r.cost_per_kg });
+    setFormData({
+      name: r.name,
+      composition: r.composition || '',
+      cost_per_kg: r.cost_per_kg,
+      dry_matter_pct: r.dry_matter_pct || '',
+    });
     setEditingId(r.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -114,53 +125,122 @@ export default function Racoes() {
               <div className={styles.row}>
                 <div>
                   <label>Nome da Ração *</label>
-                  <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ex: Milho Moído, Silagem" required />
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ex: Silagem de Milho, Ração Terminação"
+                    required
+                  />
                 </div>
                 <div>
-                  <label>Custo por kg (R$) *</label>
-                  <input type="number" value={formData.cost_per_kg} onChange={(e) => setFormData({ ...formData, cost_per_kg: e.target.value })} placeholder="Ex: 1.50" step="0.01" min="0" required />
+                  <label>Custo por kg MN (R$) *</label>
+                  <input
+                    type="number"
+                    value={formData.cost_per_kg}
+                    onChange={(e) => setFormData({ ...formData, cost_per_kg: e.target.value })}
+                    placeholder="Ex: 0.73"
+                    step="0.01"
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+              <div className={styles.row}>
+                <div>
+                  <label>Matéria Seca — MS% <span style={{ color: '#888', fontWeight: 400 }}>(Fundamental para CMS)</span></label>
+                  <input
+                    type="number"
+                    value={formData.dry_matter_pct}
+                    onChange={(e) => setFormData({ ...formData, dry_matter_pct: e.target.value })}
+                    placeholder="Ex: 54.0"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                <div>
+                  {/* Preview de custo por kg MS */}
+                  {formData.cost_per_kg && formData.dry_matter_pct && (
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                      <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', color: '#2e7d32' }}>
+                        💡 Custo por kg MS: <strong>R$ {(parseFloat(formData.cost_per_kg) / (parseFloat(formData.dry_matter_pct) / 100)).toFixed(4)}</strong>
+                        <br />
+                        <small>(custo MN ÷ MS%)</small>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className={styles.rowFull}>
                 <div>
                   <label>Composição / Observações</label>
-                  <input type="text" value={formData.composition} onChange={(e) => setFormData({ ...formData, composition: e.target.value })} placeholder="Ex: 60% milho, 30% soja, 10% sal mineral" />
+                  <input
+                    type="text"
+                    value={formData.composition}
+                    onChange={(e) => setFormData({ ...formData, composition: e.target.value })}
+                    placeholder="Ex: 60% milho, 30% soja, 10% sal mineral"
+                  />
                 </div>
               </div>
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-                <button type="submit" disabled={loading}>{loading ? 'Salvando...' : editingId ? 'Atualizar' : 'Cadastrar Ração'}</button>
+                <button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : editingId ? 'Atualizar' : 'Cadastrar Ração'}
+                </button>
               </div>
             </form>
           </div>
         )}
 
         {loading ? <p className={styles.vazio}>Carregando...</p> :
-          racoes.length === 0 ? <p className={styles.vazio}>Nenhuma ração cadastrada.</p> : (
+          racoes.length === 0 ? (
+            <div className={styles.vazio}>
+              <p style={{ fontSize: '2rem' }}>🌾</p>
+              <p>Nenhuma ração cadastrada.</p>
+              <p style={{ fontSize: '0.85rem', color: '#aaa' }}>Cadastre os tipos de ração antes de criar lotes e registrar tratos.</p>
+            </div>
+          ) : (
           <div className={styles.tabelaWrapper}>
             <table className={styles.tabela}>
               <thead>
                 <tr>
                   <th>Nome</th>
+                  <th>MS%</th>
+                  <th>Custo MN (R$/kg)</th>
+                  <th>Custo MS (R$/kg)</th>
                   <th>Composição</th>
-                  <th>Custo por kg</th>
                   {(canEdit('feed_types') || canDelete('feed_types')) && <th>Ações</th>}
                 </tr>
               </thead>
               <tbody>
-                {racoes.map((r) => (
-                  <tr key={r.id}>
-                    <td><strong>{r.name}</strong></td>
-                    <td>{r.composition || '-'}</td>
-                    <td>R$ {Number(r.cost_per_kg).toFixed(2)}/kg</td>
-                    {(canEdit('feed_types') || canDelete('feed_types')) && (
-                      <td className={styles.acoes}>
-                        {canEdit('feed_types') && <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>}
-                        {canDelete('feed_types') && <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>}
+                {racoes.map((r) => {
+                  const custoMS = r.dry_matter_pct
+                    ? (r.cost_per_kg / (r.dry_matter_pct / 100)).toFixed(4)
+                    : null;
+                  return (
+                    <tr key={r.id}>
+                      <td><strong>{r.name}</strong></td>
+                      <td>
+                        {r.dry_matter_pct
+                          ? <span style={{ background: '#e3f2fd', color: '#1565c0', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem' }}>{Number(r.dry_matter_pct).toFixed(1)}%</span>
+                          : <span style={{ color: '#f57c00', fontSize: '0.82rem' }}>⚠️ Não informado</span>
+                        }
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      <td>R$ {Number(r.cost_per_kg).toFixed(2)}/kg</td>
+                      <td>{custoMS ? `R$ ${custoMS}/kg` : '—'}</td>
+                      <td style={{ fontSize: '0.88rem', color: '#666' }}>{r.composition || '—'}</td>
+                      {(canEdit('feed_types') || canDelete('feed_types')) && (
+                        <td>
+                          <div className={styles.acoes}>
+                            {canEdit('feed_types') && <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>}
+                            {canDelete('feed_types') && <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
