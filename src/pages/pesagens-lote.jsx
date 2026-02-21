@@ -22,8 +22,8 @@ export default function PesagensLote() {
   const [formData, setFormData] = useState({
     lot_id: '',
     weighing_date: hoje,
-    head_count: '',
-    average_weight_kg: '',
+    head_weighed: '',
+    avg_weight_kg: '',
     notes: '',
   });
 
@@ -58,7 +58,7 @@ export default function PesagensLote() {
   };
 
   const resetForm = () => {
-    setFormData({ lot_id: '', weighing_date: hoje, head_count: '', average_weight_kg: '', notes: '' });
+    setFormData({ lot_id: '', weighing_date: hoje, head_weighed: '', avg_weight_kg: '', notes: '' });
     setShowForm(false);
   };
 
@@ -79,9 +79,9 @@ export default function PesagensLote() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.lot_id) return alert('Selecione o lote.');
-    if (!formData.head_count || isNaN(formData.head_count) || Number(formData.head_count) <= 0)
+    if (!formData.head_weighed || isNaN(formData.head_weighed) || Number(formData.head_weighed) <= 0)
       return alert('Número de cabeças inválido.');
-    if (!formData.average_weight_kg || isNaN(formData.average_weight_kg) || Number(formData.average_weight_kg) <= 0)
+    if (!formData.avg_weight_kg || isNaN(formData.avg_weight_kg) || Number(formData.avg_weight_kg) <= 0)
       return alert('Peso médio inválido.');
 
     setLoading(true);
@@ -90,16 +90,16 @@ export default function PesagensLote() {
       const ultima = ultimaPesagemDoLote(formData.lot_id);
 
       // GMD desde última pesagem (ou desde entrada)
-      const baseP = ultima ? Number(ultima.average_weight_kg) : Number(lote?.avg_entry_weight);
+      const baseP = ultima ? Number(ultima.avg_weight_kg) : Number(lote?.avg_entry_weight);
       const baseD = ultima ? ultima.weighing_date : lote?.entry_date;
-      const gmd = calcGMD(Number(formData.average_weight_kg), baseP, baseD, formData.weighing_date);
+      const gmd = calcGMD(Number(formData.avg_weight_kg), baseP, baseD, formData.weighing_date);
 
       const { error } = await supabase.from('lot_weighings').insert([{
         lot_id: formData.lot_id,
         farm_id: currentFarm.id,
         weighing_date: formData.weighing_date,
-        head_count: parseInt(formData.head_count),
-        average_weight_kg: parseFloat(formData.average_weight_kg),
+        head_weighed: parseInt(formData.head_weighed),
+        avg_weight_kg: parseFloat(formData.avg_weight_kg),
         gmd_kg: gmd !== null ? parseFloat(gmd.toFixed(4)) : null,
         notes: formData.notes || null,
         registered_by: user.id,
@@ -131,10 +131,10 @@ export default function PesagensLote() {
   // Lote selecionado no formulário (preview)
   const loteSelecionado = lotes.find(l => l.id === formData.lot_id);
   const ultimaLoteSel = loteSelecionado ? ultimaPesagemDoLote(formData.lot_id) : null;
-  const basePreviewPeso = ultimaLoteSel ? Number(ultimaLoteSel.average_weight_kg) : Number(loteSelecionado?.avg_entry_weight);
+  const basePreviewPeso = ultimaLoteSel ? Number(ultimaLoteSel.avg_weight_kg) : Number(loteSelecionado?.avg_entry_weight);
   const basePreviewData = ultimaLoteSel ? ultimaLoteSel.weighing_date : loteSelecionado?.entry_date;
-  const gmdPreview = formData.average_weight_kg && loteSelecionado
-    ? calcGMD(Number(formData.average_weight_kg), basePreviewPeso, basePreviewData, formData.weighing_date)
+  const gmdPreview = formData.avg_weight_kg && loteSelecionado
+    ? calcGMD(Number(formData.avg_weight_kg), basePreviewPeso, basePreviewData, formData.weighing_date)
     : null;
   const diasConfinado = loteSelecionado?.entry_date
     ? Math.floor((new Date(formData.weighing_date) - new Date(loteSelecionado.entry_date)) / (1000 * 60 * 60 * 24))
@@ -234,8 +234,8 @@ export default function PesagensLote() {
                   <label>Cabeças Pesadas *</label>
                   <input
                     type="number"
-                    value={formData.head_count}
-                    onChange={(e) => setFormData({ ...formData, head_count: e.target.value })}
+                    value={formData.head_weighed}
+                    onChange={(e) => setFormData({ ...formData, head_weighed: e.target.value })}
                     placeholder="Ex: 50"
                     min="1"
                     required
@@ -245,8 +245,8 @@ export default function PesagensLote() {
                   <label>Peso Médio (kg) *</label>
                   <input
                     type="number"
-                    value={formData.average_weight_kg}
-                    onChange={(e) => setFormData({ ...formData, average_weight_kg: e.target.value })}
+                    value={formData.avg_weight_kg}
+                    onChange={(e) => setFormData({ ...formData, avg_weight_kg: e.target.value })}
                     placeholder="Ex: 380.5"
                     step="0.1"
                     min="0"
@@ -265,7 +265,7 @@ export default function PesagensLote() {
                   {ultimaLoteSel && (
                     <div className={styles.previewItem}>
                       <span>Última pesagem ({new Date(ultimaLoteSel.weighing_date + 'T00:00:00').toLocaleDateString('pt-BR')})</span>
-                      <strong>{Number(ultimaLoteSel.average_weight_kg).toFixed(1)} kg</strong>
+                      <strong>{Number(ultimaLoteSel.avg_weight_kg).toFixed(1)} kg</strong>
                     </div>
                   )}
                   {diasConfinado != null && (
@@ -353,7 +353,7 @@ export default function PesagensLote() {
               <tbody>
                 {pesagensFiltradas.map((p) => {
                   const entradaPeso = p.lots?.avg_entry_weight ? Number(p.lots.avg_entry_weight) : null;
-                  const ganhoTotal = entradaPeso != null ? Number(p.average_weight_kg) - entradaPeso : null;
+                  const ganhoTotal = entradaPeso != null ? Number(p.avg_weight_kg) - entradaPeso : null;
                   const meta = p.lots?.target_gmd ? Number(p.lots.target_gmd) : null;
                   const gmd = p.gmd_kg != null ? Number(p.gmd_kg) : null;
 
@@ -362,9 +362,9 @@ export default function PesagensLote() {
                       <td>{new Date(p.weighing_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                       <td><strong>{p.lots?.lot_code || '-'}</strong></td>
                       <td>{p.lots?.category || '-'}</td>
-                      <td>{p.head_count}</td>
+                      <td>{p.head_weighed}</td>
                       <td>{entradaPeso != null ? `${entradaPeso.toFixed(1)} kg` : '-'}</td>
-                      <td><strong>{Number(p.average_weight_kg).toFixed(1)} kg</strong></td>
+                      <td><strong>{Number(p.avg_weight_kg).toFixed(1)} kg</strong></td>
                       <td>
                         {ganhoTotal != null && (
                           <span className={ganhoTotal >= 0 ? styles.ganhoPositivo : styles.ganhoNegativo}>
