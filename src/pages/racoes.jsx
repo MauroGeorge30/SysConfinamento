@@ -21,7 +21,7 @@ function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     try {
       const { data, error } = await supabase
         .from('feed_types')
-        .select('*, feed_compositions(id, version, effective_date, cost_per_kg, base_qty_kg, is_current)')
+        .select('*, feed_compositions!feed_compositions_feed_type_id_fkey(id, version, effective_date, cost_per_kg, base_qty_kg, is_current)')
         .eq('farm_id', currentFarm.id)
         .order('name');
       if (error) throw error;
