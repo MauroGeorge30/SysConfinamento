@@ -484,3 +484,118 @@
   .header { flex-direction: column; align-items: flex-start; }
   .filtros { flex-direction: column; }
 }
+
+/* ── Lotes dentro da baia ── */
+.badgeLoteCount {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.lotesNaBaia {
+  background: #f0f7ff;
+  border-bottom: 1px solid #e3eeff;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.loteNaBaiaCard {
+  background: #fff;
+  border: 1px solid #c5d8f8;
+  border-left: 4px solid #1565c0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.loteNaBaiaLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.loteNaBaiaIcone {
+  font-size: 1.2rem;
+}
+
+.loteNaBaiaLeft > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loteNaBaiaLeft strong {
+  font-size: 0.95rem;
+  color: #1a1a2e;
+}
+
+.loteNaBaiaCategoria {
+  font-size: 0.78rem;
+  color: #1565c0;
+  background: #e3f2fd;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.loteNaBaiaInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1;
+  font-size: 0.84rem;
+  color: #555;
+}
+
+.loteNaBaiaInfo span {
+  white-space: nowrap;
+}
+
+.loteNaBaiaInfo strong {
+  color: #1a1a2e;
+}
+
+.btnVerLote {
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.btnVerLote:hover { background: #0d47a1; }
+
+.subtituloIndividuais {
+  background: #f5f5f5;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #777;
+  border-bottom: 1px solid #eee;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.semIndividuais {
+  background: #fff;
+  padding: 14px 18px;
+  font-size: 0.88rem;
+  color: #999;
+  text-align: center;
+  font-style: italic;
+}
