@@ -193,7 +193,9 @@ export default function Dashboard() {
         if (tratosLote.length === 0) return;
         const fornLote = tratosLote.reduce((a, r) => a + Number(r.quantity_kg), 0);
         const sobrLote = tratosLote.reduce((a, r) => a + Number(r.leftover_kg || 0), 0);
-        const pct = fornLote > 0 ? (sobrLote / fornLote) * 100 : null;
+        // Só calcula % se pelo menos um trato do lote teve sobra informada
+        const algumComSobra = tratosLote.some(r => r.leftover_kg != null);
+        const pct = fornLote > 0 && algumComSobra ? (sobrLote / fornLote) * 100 : null;
         if (pct === null) return;
         const meta = Number(l.target_leftover_pct);
         if (pct > meta * 1.5) {
