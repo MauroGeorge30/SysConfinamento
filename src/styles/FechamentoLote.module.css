@@ -76,3 +76,6 @@
 
 /* Label de sugestão de preço */
 .sugestaoLabel { font-size: 0.78rem; color: rgba(255,255,255,0.6); font-weight: 400; font-style: italic; }
+
+/* Separador de seções na tabela */
+.trSeparador td { background: #e8f5e9; color: #2e7d32; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 5px 12px; border-bottom: none; }
