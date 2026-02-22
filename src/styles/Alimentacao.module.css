@@ -72,3 +72,14 @@
 .linhaAlerta:hover { background: #fff9c4 !important; }
 .linhaAlerta td { border-bottom-color: #ffe082 !important; }
 .alertaIcone { margin-right: 4px; font-size: 0.85rem; }
+
+/* Nº do Trato — formulário */
+.tratoOrdemBox { display: flex; align-items: center; gap: 10px; height: 42px; background: #f0f7f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 0 12px; }
+.tratoOrdemNum { font-size: 1.1rem; font-weight: 700; color: #1b5e20; min-width: 70px; }
+.tratoOrdemBtns { display: flex; gap: 4px; }
+.tratoOrdemBtns button { width: 28px; height: 28px; border: 1px solid #a5d6a7; background: #fff; border-radius: 6px; font-size: 1rem; font-weight: 700; color: #2e7d32; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.tratoOrdemBtns button:hover { background: #e8f5e9; }
+.tratoOrdemInfo { font-size: 0.75rem; color: #888; font-style: italic; }
+
+/* Nº do Trato — badge na tabela */
+.tratoOrdemBadge { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; padding: 2px 8px; border-radius: 12px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
