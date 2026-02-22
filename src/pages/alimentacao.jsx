@@ -67,14 +67,17 @@ export default function Alimentacao() {
     setShowForm(false);
   };
 
-  // Ao selecionar baia, auto-preenche lote ativo da baia
+  // Ao selecionar baia → filtra e auto-preenche lote da baia
   const handleBaiaChange = (penId) => {
-    const loteNaBaia = lotes.find(l => l.pen_id === penId);
-    setFormData(prev => ({
-      ...prev,
-      pen_id: penId,
-      lot_id: loteNaBaia?.id || '',
-    }));
+    const lotesNaBaia = lotes.filter(l => l.pen_id === penId);
+    const loteAuto = lotesNaBaia.length === 1 ? lotesNaBaia[0].id : '';
+    setFormData(prev => ({ ...prev, pen_id: penId, lot_id: loteAuto }));
+  };
+
+  // Ao selecionar lote → auto-preenche baia correspondente
+  const handleLoteChange = (lotId) => {
+    const lote = lotes.find(l => l.id === lotId);
+    setFormData(prev => ({ ...prev, lot_id: lotId, pen_id: lote?.pen_id || prev.pen_id }));
   };
 
   const handleSubmit = async (e) => {
@@ -230,10 +233,13 @@ export default function Alimentacao() {
               </div>
               <div className={styles.row}>
                 <div>
-                  <label>Lote (auto-preenchido pela baia)</label>
-                  <select value={formData.lot_id} onChange={(e) => setFormData({ ...formData, lot_id: e.target.value })}>
+                  <label>Lote</label>
+                  <select value={formData.lot_id} onChange={(e) => handleLoteChange(e.target.value)}>
                     <option value="">— Sem lote —</option>
-                    {lotes.map(l => <option key={l.id} value={l.id}>{l.lot_code} ({l.head_count} cab.)</option>)}
+                    {(formData.pen_id
+                      ? lotes.filter(l => l.pen_id === formData.pen_id)
+                      : lotes
+                    ).map(l => <option key={l.id} value={l.id}>{l.lot_code} ({l.head_count} cab.)</option>)}
                   </select>
                 </div>
                 <div>
