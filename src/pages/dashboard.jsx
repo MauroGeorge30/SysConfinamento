@@ -186,7 +186,7 @@ export default function Dashboard() {
         });
       }
 
-      // Sobra fora da meta
+      // Sobra fora da meta do lote (target_leftover_pct)
       lotesAtivos.forEach(l => {
         if (!l.target_leftover_pct) return;
         const tratosLote = th.filter(t => t.lot_id === l.id);
@@ -200,8 +200,6 @@ export default function Dashboard() {
         const meta = Number(l.target_leftover_pct);
         if (pct > meta * 1.5) {
           alertas.push({ tipo: 'warning', icone: '⚠️', msg: `Lote ${l.lot_code}: sobra alta ${pct.toFixed(1)}% (meta ${meta}%)`, link: '/alimentacao' });
-        } else if (pct < 0.5) {
-          alertas.push({ tipo: 'warning', icone: '⚠️', msg: `Lote ${l.lot_code}: cocho zerado — risco de compulsão`, link: '/alimentacao' });
         }
       });
 
