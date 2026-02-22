@@ -68,7 +68,10 @@ export default function Layout({ children }) {
               { href: '/saidas',       label: '🚪 Saídas' },
             ]} />
 
-            <Link href="/financeiro">Financeiro</Link>
+            <DropdownMenu label="Financeiro" items={[
+              { href: '/financeiro',      label: '💵 Lançamentos' },
+              { href: '/fechamento-lote', label: '📊 Fechamento de Lote' },
+            ]} />
             <Link href="/relatorios">Relatórios</Link>
 
             {showAdminMenu && (
