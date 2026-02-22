@@ -288,3 +288,12 @@
     gap: 10px;
   }
 }
+
+/* Limites de alerta */
+.limitesSectionTitle { font-size: 0.92rem; font-weight: 700; color: #e65100; margin: 1rem 0 0.3rem; padding-top: 1rem; border-top: 1px solid #eee; }
+.limitesInfo { font-size: 0.82rem; color: #888; margin-bottom: 0.8rem; }
+.limitesCard { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 0.6rem 0.8rem; margin-top: 4px; }
+.limitesTitulo { font-size: 0.78rem; font-weight: 700; color: #e65100; display: block; margin-bottom: 4px; }
+.limitesGrid { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.limitesGrid span { font-size: 0.78rem; color: #555; }
+.limitesGrid strong { color: #bf360c; }
