@@ -61,3 +61,8 @@
 .totalGeral .grupoStat strong { color: #1a1a2e; }
 .totalGeral .custoDest { color: #1b5e20 !important; }
 @media (max-width: 768px) { .grupoCabecalho { flex-direction: column; align-items: flex-start; } .grupoCabecalhoRight { gap: 1rem; } }
+
+/* Alertas de limites */
+.alertasBox { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.8rem; }
+.alertaErro { background: #ffebee; border: 1px solid #ef9a9a; border-left: 4px solid #c62828; color: #b71c1c; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
+.alertaWarn { background: #fff8e1; border: 1px solid #ffe082; border-left: 4px solid #f57c00; color: #e65100; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
