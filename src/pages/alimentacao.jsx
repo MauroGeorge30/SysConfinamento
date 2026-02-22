@@ -350,7 +350,7 @@ export default function Alimentacao() {
 
             return (
               <div className={styles.gruposWrapper}>
-                {Object.entries(grupos).map(([penId, grupo]) => {
+                {Object.entries(grupos).sort((a, b) => { const nA = a[1].pen?.pen_number || ""; const nB = b[1].pen?.pen_number || ""; return nA.localeCompare(nB, "pt-BR", { numeric: true, sensitivity: "base" }); }).map(([penId, grupo]) => {
                   const totalForn = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg), 0);
                   const totalSobra = grupo.registros.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0);
                   const totalCons = totalForn - totalSobra;
