@@ -337,79 +337,150 @@ export default function Alimentacao() {
           )}
         </div>
 
-        {/* Tabela */}
+        {/* Tabela agrupada por baia */}
         {loading ? <p className={styles.vazio}>Carregando...</p> :
-          registrosFiltrados.length === 0 ? <p className={styles.vazio}>Nenhum registro encontrado.</p> : (
-          <div className={styles.tabelaWrapper}>
-            <table className={styles.tabela}>
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Baia</th>
-                  <th>Lote</th>
-                  <th>Ração</th>
-                  <th>Fornecido</th>
-                  <th>Sobra</th>
-                  <th>Sobra%</th>
-                  <th>Consumido</th>
-                  <th>Custo</th>
-                  {canDelete('feeding_records') && <th>Ações</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {registrosFiltrados.map((r) => {
-                  const fornecido = Number(r.quantity_kg);
-                  const sobra = Number(r.leftover_kg || 0);
-                  const consumidoR = fornecido - sobra;
-                  const sobraP = fornecido > 0 && r.leftover_kg != null ? ((sobra / fornecido) * 100).toFixed(1) : null;
-                  const custo = fornecido * Number(r.feed_types?.cost_per_kg || 0);
+          registrosFiltrados.length === 0 ? <p className={styles.vazio}>Nenhum registro encontrado.</p> : (() => {
+            // Agrupa registros por baia
+            const grupos = {};
+            registrosFiltrados.forEach(r => {
+              const key = r.pen_id || 'sem-baia';
+              if (!grupos[key]) grupos[key] = { pen: r.pens, registros: [] };
+              grupos[key].registros.push(r);
+            });
+
+            return (
+              <div className={styles.gruposWrapper}>
+                {Object.entries(grupos).map(([penId, grupo]) => {
+                  const totalForn = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg), 0);
+                  const totalSobra = grupo.registros.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0);
+                  const totalCons = totalForn - totalSobra;
+                  const totalCusto = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.feed_types?.cost_per_kg || 0), 0);
+                  // Cabeças: pega do lote vinculado (maior valor entre os registros do grupo)
+                  const cabecas = grupo.registros.reduce((max, r) => {
+                    const lote = lotes.find(l => l.id === r.lot_id);
+                    return lote?.head_count > max ? lote.head_count : max;
+                  }, 0);
+                  const sobraPctGrupo = totalForn > 0 && totalSobra > 0
+                    ? ((totalSobra / totalForn) * 100).toFixed(1) : null;
+
                   return (
-                    <tr key={r.id}>
-                      <td>{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                      <td>{r.pens?.pen_number ? `${r.pens.pen_number}` : '—'}</td>
-                      <td style={{ fontSize: '0.85rem', color: '#555' }}>{r.lots?.lot_code || '—'}</td>
-                      <td>{r.feed_types?.name || '—'}</td>
-                      <td>{fornecido.toFixed(1)} kg</td>
-                      <td>{r.leftover_kg != null ? `${sobra.toFixed(1)} kg` : <span style={{ color: '#aaa' }}>—</span>}</td>
-                      <td>
-                        {sobraP != null ? (
-                          <span style={{
-                            background: parseFloat(sobraP) > 5 ? '#ffebee' : parseFloat(sobraP) < 1 ? '#fff8e1' : '#e8f5e9',
-                            color: parseFloat(sobraP) > 5 ? '#c62828' : parseFloat(sobraP) < 1 ? '#f57c00' : '#2e7d32',
-                            padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem'
-                          }}>
-                            {sobraP}%
-                          </span>
-                        ) : <span style={{ color: '#aaa' }}>—</span>}
-                      </td>
-                      <td>{consumidoR.toFixed(1)} kg</td>
-                      <td>R$ {custo.toFixed(2)}</td>
-                      {canDelete('feeding_records') && (
-                        <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
-                            <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
+                    <div key={penId} className={styles.grupoCard}>
+                      {/* Cabeçalho da baia */}
+                      <div className={styles.grupoCabecalho}>
+                        <div className={styles.grupoCabecalhoLeft}>
+                          <strong>Baia {grupo.pen?.pen_number || '—'}</strong>
+                          {cabecas > 0 && <span className={styles.cabecasBadge}>{cabecas} cabeças</span>}
+                        </div>
+                        <div className={styles.grupoCabecalhoRight}>
+                          <div className={styles.grupoStat}>
+                            <span>Fornecido</span>
+                            <strong>{totalForn.toFixed(1)} kg</strong>
                           </div>
-                        </td>
-                      )}
-                    </tr>
+                          <div className={styles.grupoStat}>
+                            <span>Sobra</span>
+                            <strong style={{ color: sobraPctGrupo && parseFloat(sobraPctGrupo) > 5 ? '#c62828' : '#2e7d32' }}>
+                              {totalSobra.toFixed(1)} kg
+                              {sobraPctGrupo && <em> ({sobraPctGrupo}%)</em>}
+                            </strong>
+                          </div>
+                          <div className={styles.grupoStat}>
+                            <span>Consumido</span>
+                            <strong>{totalCons.toFixed(1)} kg</strong>
+                          </div>
+                          <div className={styles.grupoStat}>
+                            <span>Custo Total</span>
+                            <strong className={styles.custoDest}>R$ {totalCusto.toFixed(2)}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Registros da baia */}
+                      <div className={styles.tabelaWrapper}>
+                        <table className={styles.tabela}>
+                          <thead>
+                            <tr>
+                              <th>Data</th>
+                              <th>Lote</th>
+                              <th>Ração</th>
+                              <th>Fornecido</th>
+                              <th>Sobra</th>
+                              <th>Sobra%</th>
+                              <th>Consumido</th>
+                              <th>Custo</th>
+                              {canDelete('feeding_records') && <th>Ações</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {grupo.registros.map((r) => {
+                              const fornecido = Number(r.quantity_kg);
+                              const sobra = Number(r.leftover_kg || 0);
+                              const consumidoR = fornecido - sobra;
+                              const sobraP = fornecido > 0 && r.leftover_kg != null ? ((sobra / fornecido) * 100).toFixed(1) : null;
+                              const custo = fornecido * Number(r.feed_types?.cost_per_kg || 0);
+                              return (
+                                <tr key={r.id}>
+                                  <td>{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                  <td style={{ fontSize: '0.85rem', color: '#555' }}>{r.lots?.lot_code || '—'}</td>
+                                  <td>{r.feed_types?.name || '—'}</td>
+                                  <td>{fornecido.toFixed(1)} kg</td>
+                                  <td>{r.leftover_kg != null ? `${sobra.toFixed(1)} kg` : <span style={{ color: '#aaa' }}>—</span>}</td>
+                                  <td>
+                                    {sobraP != null ? (
+                                      <span style={{
+                                        background: parseFloat(sobraP) > 5 ? '#ffebee' : parseFloat(sobraP) < 1 ? '#fff8e1' : '#e8f5e9',
+                                        color: parseFloat(sobraP) > 5 ? '#c62828' : parseFloat(sobraP) < 1 ? '#f57c00' : '#2e7d32',
+                                        padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem'
+                                      }}>
+                                        {sobraP}%
+                                      </span>
+                                    ) : <span style={{ color: '#aaa' }}>—</span>}
+                                  </td>
+                                  <td>{consumidoR.toFixed(1)} kg</td>
+                                  <td>R$ {custo.toFixed(2)}</td>
+                                  {canDelete('feeding_records') && (
+                                    <td>
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
+                                        <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
+                                      </div>
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan="4"><strong>Total filtrado</strong></td>
-                  <td><strong>{registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg), 0).toFixed(1)} kg</strong></td>
-                  <td><strong>{registrosFiltrados.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0).toFixed(1)} kg</strong></td>
-                  <td></td>
-                  <td><strong>{registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg) - Number(r.leftover_kg || 0), 0).toFixed(1)} kg</strong></td>
-                  <td><strong>R$ {registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.feed_types?.cost_per_kg || 0), 0).toFixed(2)}</strong></td>
-                  {canDelete('feeding_records') && <td></td>}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+
+                {/* Rodapé total geral */}
+                <div className={styles.totalGeral}>
+                  <span>Total geral ({registrosFiltrados.length} registros)</span>
+                  <div className={styles.grupoCabecalhoRight}>
+                    <div className={styles.grupoStat}>
+                      <span>Fornecido</span>
+                      <strong>{registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg), 0).toFixed(1)} kg</strong>
+                    </div>
+                    <div className={styles.grupoStat}>
+                      <span>Sobra</span>
+                      <strong>{registrosFiltrados.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0).toFixed(1)} kg</strong>
+                    </div>
+                    <div className={styles.grupoStat}>
+                      <span>Consumido</span>
+                      <strong>{registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg) - Number(r.leftover_kg || 0), 0).toFixed(1)} kg</strong>
+                    </div>
+                    <div className={styles.grupoStat}>
+                      <span>Custo Total</span>
+                      <strong className={styles.custoDest}>R$ {registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.feed_types?.cost_per_kg || 0), 0).toFixed(2)}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        }
       </div>
     </Layout>
   );
