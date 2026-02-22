@@ -91,10 +91,15 @@ export default function FechamentoLote() {
       const gmd = pesoFinal && pesoInicial ? ((pesoFinal - pesoInicial) / dias) : null;
 
       // ── Arrobas ────────────────────────────────────────────
-      // @ negociada = peso ÷ divisor (padrão 30, que embute rendimento de carcaça)
-      const arrobaInicial = pesoInicial / arrobaDivisor;
+      const arrobaInicial = pesoInicial / arrobaDivisor;         // @ líquida compra (÷ divisor)
+      const arrobaInicialBruto = pesoInicial / 15;               // @ bruta vivo (÷ 15)
       const arrobaFinal = pesoFinal ? pesoFinal / arrobaDivisor : null;
+      const arrobaFinalBruto = pesoFinal ? pesoFinal / 15 : null;
       const arrobaProduzida = arrobaFinal ? arrobaFinal - arrobaInicial : null;
+      const rendCarcaca = Number(lote.carcass_yield_pct || 52);
+      const pesoCarcacaFinal = pesoFinal ? pesoFinal * (rendCarcaca / 100) : null;
+      const totalArrobaCompraDivisor = arrobaInicial * lote.head_count;
+      const totalArrobaVendaDivisor = arrobaFinal ? arrobaFinal * lote.head_count : null;
 
       // ── Consumo ────────────────────────────────────────────
       const t = tratos || [];
@@ -139,18 +144,19 @@ export default function FechamentoLote() {
       const precoCpTotal = precoCpCab ? precoCpCab * lote.head_count : null;
 
       // ── Preço sugerido de venda ────────────────────────────
-      // Base: custo total de confinamento por @ produzida + preço de compra por @
-      // Ou seja: para não ter prejuízo, precisa recuperar o custo de compra + confinamento
-      // Sugestão = (custo confinamento/cab + custo compra/cab) ÷ @ final/cab
-      const arrobaFinalCab = arrobaFinal; // @ final por cabeça
-      const precoVendaSugerido = arrobaFinalCab && arrobaFinalCab > 0
-        ? (custoPorCab + (precoCpCab || 0)) / arrobaFinalCab
+      // Usa o mesmo valor de @ da compra como base de referência
+      // Preço sugerido = preço de compra + custo de confinamento por @ final
+      const precoVendaSugerido = precoCpArr > 0 && arrobaFinal
+        ? precoCpArr + (custoPorCab / arrobaFinal)
         : null;
 
       setDados({
         lote, dias, pesoInicial, pesoFinal, gmd,
-        arrobaInicial, arrobaFinal, arrobaProduzida,
+        arrobaInicial, arrobaInicialBruto,
+        arrobaFinal, arrobaFinalBruto,
+        arrobaProduzida, rendCarcaca, pesoCarcacaFinal,
         totalKgCompra, totalKgVenda,
+        totalArrobaCompraDivisor, totalArrobaVendaDivisor,
         consumoTotalMN, consumoTotalMS, consumoMSPctPV,
         custoAlimentarTotal, custoAlimentarDia,
         custOpDia, custoOpTotal, totalExtras, extraPorCab,
@@ -271,13 +277,24 @@ export default function FechamentoLote() {
                     <tr><td>Cabeças</td><td>{dados.lote.head_count}</td></tr>
                     <tr><td>Categoria</td><td>{dados.lote.category}</td></tr>
                     <tr><td>Dias de Confinamento</td><td><strong>{dados.dias}</strong></td></tr>
+
+                    <tr className={styles.trSeparador}><td colSpan={2}>Entrada / Compra</td></tr>
                     <tr className={styles.trDestaque}><td>Peso Inicial (kg)</td><td>{fmt(dados.pesoInicial, 1)} kg</td></tr>
+                    <tr><td>@ Inicial Bruto (vivo ÷15)</td><td>{fmt(dados.arrobaInicialBruto, 2)} @</td></tr>
+                    <tr><td>@ Inicial Líquido (÷{dados.arrobaDivisor})</td><td>{fmt(dados.arrobaInicial, 2)} @</td></tr>
                     <tr><td>Total kg Compra ({dados.lote.head_count} cab.)</td><td><strong>{fmt(dados.totalKgCompra, 0)} kg</strong></td></tr>
+                    <tr><td>Total @ Compra (÷{dados.arrobaDivisor})</td><td><strong>{fmt(dados.totalArrobaCompraDivisor, 2)} @</strong></td></tr>
+
+                    <tr className={styles.trSeparador}><td colSpan={2}>Saída / Venda</td></tr>
                     <tr className={styles.trDestaque}><td>Peso Final (kg)</td><td>{dados.pesoFinal ? `${fmt(dados.pesoFinal, 1)} kg` : <span className={styles.semDado}>Sem pesagem</span>}</td></tr>
+                    <tr><td>@ Final Bruto (vivo ÷15)</td><td>{dados.arrobaFinalBruto ? `${fmt(dados.arrobaFinalBruto, 2)} @` : <span className={styles.semDado}>—</span>}</td></tr>
+                    <tr><td>@ Final Líquido (÷{dados.arrobaDivisor})</td><td>{dados.arrobaFinal ? `${fmt(dados.arrobaFinal, 2)} @` : <span className={styles.semDado}>—</span>}</td></tr>
                     <tr><td>Total kg Venda ({dados.lote.head_count} cab.)</td><td>{dados.totalKgVenda ? <strong>{fmt(dados.totalKgVenda, 0)} kg</strong> : <span className={styles.semDado}>—</span>}</td></tr>
+                    <tr><td>Total @ Venda (÷{dados.arrobaDivisor})</td><td>{dados.totalArrobaVendaDivisor ? <strong>{fmt(dados.totalArrobaVendaDivisor, 2)} @</strong> : <span className={styles.semDado}>—</span>}</td></tr>
+                    <tr><td>Peso Carcaça Final ({dados.rendCarcaca}%)</td><td>{dados.pesoCarcacaFinal ? `${fmt(dados.pesoCarcacaFinal, 1)} kg` : <span className={styles.semDado}>—</span>}</td></tr>
+
+                    <tr className={styles.trSeparador}><td colSpan={2}>Desempenho</td></tr>
                     <tr><td>GMD (kg/dia)</td><td>{dados.gmd ? <strong>{fmt(dados.gmd, 3)}</strong> : <span className={styles.semDado}>—</span>}</td></tr>
-                    <tr><td>@ Inicial</td><td>{fmt(dados.arrobaInicial, 2)} @</td></tr>
-                    <tr><td>@ Final</td><td>{dados.arrobaFinal ? `${fmt(dados.arrobaFinal, 2)} @` : <span className={styles.semDado}>—</span>}</td></tr>
                     <tr className={styles.trDestaque}><td>@ Produzida / cab</td><td>{dados.arrobaProduzida ? <strong>{fmt(dados.arrobaProduzida, 2)} @</strong> : <span className={styles.semDado}>—</span>}</td></tr>
                   </tbody>
                 </table>
