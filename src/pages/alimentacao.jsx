@@ -45,7 +45,7 @@ export default function Alimentacao() {
           .eq('farm_id', currentFarm.id)
           .order('feeding_date', { ascending: false })
           .limit(200),
-        supabase.from('pens').select('id, pen_number').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
+        supabase.from('pens').select('id, pen_number, min_feed_kg, max_feed_kg, min_leftover_kg, max_leftover_kg').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
         supabase.from('lots').select('id, lot_code, pen_id, head_count').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
       ]);
@@ -149,6 +149,7 @@ export default function Alimentacao() {
 
   // Preview de cálculos no formulário
   const racaoSelecionada = racoes.find(r => r.id === formData.feed_type_id);
+  const baiaAtual = baias.find(b => b.id === formData.pen_id);
   const loteAtual = lotes.find(l => l.id === formData.lot_id);
   const qtd = parseFloat(formData.quantity_kg) || 0;
   const sob = parseFloat(formData.leftover_kg) || 0;
@@ -160,6 +161,21 @@ export default function Alimentacao() {
   const consumidoMS = msPct && consumidoPorCab ? ((parseFloat(consumidoPorCab) * msPct) / 100).toFixed(3) : null;
   const custoKgMS = msPct ? (Number(racaoSelecionada.cost_per_kg) / (msPct / 100)) : null;
   const diariaCab = consumidoMS && custoKgMS ? (parseFloat(consumidoMS) * custoKgMS).toFixed(2) : null;
+
+  // Alertas de limites
+  const alertas = [];
+  if (baiaAtual && qtd > 0) {
+    if (baiaAtual.min_feed_kg && qtd < Number(baiaAtual.min_feed_kg))
+      alertas.push({ tipo: 'warn', msg: `⚠️ Fornecido abaixo do mínimo (mín: ${Number(baiaAtual.min_feed_kg).toFixed(0)} kg)` });
+    if (baiaAtual.max_feed_kg && qtd > Number(baiaAtual.max_feed_kg))
+      alertas.push({ tipo: 'erro', msg: `🚨 Fornecido acima do máximo (máx: ${Number(baiaAtual.max_feed_kg).toFixed(0)} kg)` });
+  }
+  if (baiaAtual && sob > 0) {
+    if (baiaAtual.min_leftover_kg && sob < Number(baiaAtual.min_leftover_kg))
+      alertas.push({ tipo: 'warn', msg: `⚠️ Sobra abaixo do mínimo (mín: ${Number(baiaAtual.min_leftover_kg).toFixed(0)} kg)` });
+    if (baiaAtual.max_leftover_kg && sob > Number(baiaAtual.max_leftover_kg))
+      alertas.push({ tipo: 'erro', msg: `🚨 Sobra acima do máximo (máx: ${Number(baiaAtual.max_leftover_kg).toFixed(0)} kg)` });
+  }
 
   const registrosFiltrados = registros.filter((r) => {
     const baiaMatch = !filtroBaia || r.pen_id === filtroBaia;
@@ -264,6 +280,17 @@ export default function Alimentacao() {
                   <input type="number" value={formData.leftover_kg} onChange={(e) => setFormData({ ...formData, leftover_kg: e.target.value })} placeholder="Ex: 96" step="0.1" min="0" />
                 </div>
               </div>
+
+              {/* Alertas de limites da baia */}
+              {alertas.length > 0 && (
+                <div className={styles.alertasBox}>
+                  {alertas.map((a, i) => (
+                    <div key={i} className={a.tipo === 'erro' ? styles.alertaErro : styles.alertaWarn}>
+                      {a.msg}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Preview de indicadores */}
               {qtd > 0 && (
