@@ -28,7 +28,7 @@ export default function Alimentacao() {
 
   const [formData, setFormData] = useState({
     pen_id: '', lot_id: '', feed_type_id: '',
-    quantity_kg: '', leftover_kg: '', feeding_date: hoje, notes: '',
+    quantity_kg: '', leftover_kg: '', feeding_date: hoje, notes: '', feeding_order: 1,
   });
 
   useEffect(() => {
@@ -62,22 +62,47 @@ export default function Alimentacao() {
   };
 
   const resetForm = () => {
-    setFormData({ pen_id: '', lot_id: '', feed_type_id: '', quantity_kg: '', leftover_kg: '', feeding_date: hoje, notes: '' });
+    setFormData({ pen_id: '', lot_id: '', feed_type_id: '', quantity_kg: '', leftover_kg: '', feeding_date: hoje, notes: '', feeding_order: 1 });
     setEditingId(null);
     setShowForm(false);
   };
 
+  // Busca o próximo número de trato da baia na data selecionada
+  const detectarProximoTrato = async (penId, data) => {
+    if (!penId || !data) return 1;
+    try {
+      const { data: existentes } = await supabase
+        .from('feeding_records')
+        .select('feeding_order')
+        .eq('pen_id', penId)
+        .eq('feeding_date', data)
+        .eq('farm_id', currentFarm.id);
+      if (!existentes || existentes.length === 0) return 1;
+      const max = Math.max(...existentes.map(r => r.feeding_order || 1));
+      return max + 1;
+    } catch { return 1; }
+  };
+
   // Ao selecionar baia → filtra e auto-preenche lote da baia
-  const handleBaiaChange = (penId) => {
+  const handleBaiaChange = async (penId) => {
     const lotesNaBaia = lotes.filter(l => l.pen_id === penId);
     const loteAuto = lotesNaBaia.length === 1 ? lotesNaBaia[0].id : '';
-    setFormData(prev => ({ ...prev, pen_id: penId, lot_id: loteAuto }));
+    const proximoTrato = await detectarProximoTrato(penId, formData.feeding_date);
+    setFormData(prev => ({ ...prev, pen_id: penId, lot_id: loteAuto, feeding_order: proximoTrato }));
   };
 
   // Ao selecionar lote → auto-preenche baia correspondente
-  const handleLoteChange = (lotId) => {
+  const handleLoteChange = async (lotId) => {
     const lote = lotes.find(l => l.id === lotId);
-    setFormData(prev => ({ ...prev, lot_id: lotId, pen_id: lote?.pen_id || prev.pen_id }));
+    const penId = lote?.pen_id || formData.pen_id;
+    const proximoTrato = await detectarProximoTrato(penId, formData.feeding_date);
+    setFormData(prev => ({ ...prev, lot_id: lotId, pen_id: penId, feeding_order: proximoTrato }));
+  };
+
+  // Ao mudar a data → recalcula o número do trato se já tiver baia selecionada
+  const handleDataChange = async (novaData) => {
+    const proximoTrato = formData.pen_id ? await detectarProximoTrato(formData.pen_id, novaData) : 1;
+    setFormData(prev => ({ ...prev, feeding_date: novaData, feeding_order: proximoTrato }));
   };
 
   const handleSubmit = async (e) => {
@@ -97,6 +122,7 @@ export default function Alimentacao() {
         quantity_kg: parseFloat(formData.quantity_kg),
         leftover_kg: formData.leftover_kg ? parseFloat(formData.leftover_kg) : null,
         feeding_date: formData.feeding_date,
+        feeding_order: formData.feeding_order || 1,
         notes: formData.notes || null,
         farm_id: currentFarm.id,
         registered_by: user.id,
@@ -138,6 +164,7 @@ export default function Alimentacao() {
       quantity_kg: r.quantity_kg || '',
       leftover_kg: r.leftover_kg ?? '',
       feeding_date: r.feeding_date || hoje,
+      feeding_order: r.feeding_order || 1,
       notes: r.notes || '',
     });
     setEditingId(r.id);
@@ -237,7 +264,8 @@ export default function Alimentacao() {
               <div className={styles.row}>
                 <div>
                   <label>Data *</label>
-                  <input type="date" value={formData.feeding_date} onChange={(e) => setFormData({ ...formData, feeding_date: e.target.value })} required />
+                  <input type="date" value={formData.feeding_date}
+                    onChange={(e) => handleDataChange(e.target.value)} required />
                 </div>
                 <div>
                   <label>Baia *</label>
@@ -258,6 +286,23 @@ export default function Alimentacao() {
                     ).map(l => <option key={l.id} value={l.id}>{l.lot_code} ({l.head_count} cab.)</option>)}
                   </select>
                 </div>
+                <div>
+                  <label>Nº do Trato no Dia</label>
+                  <div className={styles.tratoOrdemBox}>
+                    <span className={styles.tratoOrdemNum}>{formData.feeding_order}º Trato</span>
+                    <div className={styles.tratoOrdemBtns}>
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, feeding_order: Math.max(1, p.feeding_order - 1) }))}>−</button>
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, feeding_order: p.feeding_order + 1 }))}>+</button>
+                    </div>
+                    <span className={styles.tratoOrdemInfo}>
+                      {formData.pen_id
+                        ? `(detectado automaticamente pela baia e data)`
+                        : `(selecione a baia para detecção automática)`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.row}>
                 <div>
                   <label>Ração *</label>
                   <select value={formData.feed_type_id} onChange={(e) => setFormData({ ...formData, feed_type_id: e.target.value })} required>
@@ -427,6 +472,7 @@ export default function Alimentacao() {
                           <thead>
                             <tr>
                               <th>Data</th>
+                              <th>Trato</th>
                               <th>Lote</th>
                               <th>Ração</th>
                               <th>Fornecido</th>
@@ -455,6 +501,7 @@ export default function Alimentacao() {
                               return (
                                 <tr key={r.id} className={foraNosLimites ? styles.linhaAlerta : ''}>
                                   <td>{foraNosLimites && <span className={styles.alertaIcone} title="Trato fora dos limites">⚠️</span>}{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                  <td><span className={styles.tratoOrdemBadge}>{r.feeding_order || 1}º</span></td>
                                   <td style={{ fontSize: '0.85rem', color: '#555' }}>{r.lots?.lot_code || '—'}</td>
                                   <td>{r.feed_types?.name || '—'}</td>
                                   <td>{fornecido.toFixed(1)} kg</td>
