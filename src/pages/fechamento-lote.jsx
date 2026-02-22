@@ -129,20 +129,36 @@ export default function FechamentoLote() {
       const custoPorArrobaProd = arrobaProduzida && arrobaProduzida > 0 && lote.head_count > 0
         ? custoTotal / (arrobaProduzida * lote.head_count) : null;
 
+      // ── Kg totais ──────────────────────────────────────────
+      const totalKgCompra = pesoInicial * lote.head_count;
+      const totalKgVenda = pesoFinal ? pesoFinal * lote.head_count : null;
+
       // ── Preço de Compra ────────────────────────────────────
       const precoCpArr = Number(lote.purchase_price_arroba || 0);
       const precoCpCab = precoCpArr > 0 ? precoCpArr * arrobaInicial : null;
       const precoCpTotal = precoCpCab ? precoCpCab * lote.head_count : null;
 
+      // ── Preço sugerido de venda ────────────────────────────
+      // Base: custo total de confinamento por @ produzida + preço de compra por @
+      // Ou seja: para não ter prejuízo, precisa recuperar o custo de compra + confinamento
+      // Sugestão = (custo confinamento/cab + custo compra/cab) ÷ @ final/cab
+      const arrobaFinalCab = arrobaFinal; // @ final por cabeça
+      const precoVendaSugerido = arrobaFinalCab && arrobaFinalCab > 0
+        ? (custoPorCab + (precoCpCab || 0)) / arrobaFinalCab
+        : null;
+
       setDados({
         lote, dias, pesoInicial, pesoFinal, gmd,
         arrobaInicial, arrobaFinal, arrobaProduzida,
+        totalKgCompra, totalKgVenda,
         consumoTotalMN, consumoTotalMS, consumoMSPctPV,
         custoAlimentarTotal, custoAlimentarDia,
         custOpDia, custoOpTotal, totalExtras, extraPorCab,
         custoTotal, custoPorCab, custoPorArrobaProd,
         precoCpArr, precoCpCab, precoCpTotal,
+        precoVendaSugerido,
         totalTratos: t.length,
+        arrobaDivisor,
       });
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
@@ -151,10 +167,17 @@ export default function FechamentoLote() {
   const handleSelectLote = (loteId) => {
     const lote = lotes.find(l => l.id === loteId);
     setLoteSelecionado(lote || null);
-    setPrecoVenda('');
+    setPrecoVenda(''); // será preenchido após loadDadosLote via useEffect
     if (loteId) loadDadosLote(loteId);
     else setDados(null);
   };
+
+  // Auto-preenche o preço sugerido quando dados carregam
+  useEffect(() => {
+    if (dados?.precoVendaSugerido && !precoVenda) {
+      setPrecoVenda(dados.precoVendaSugerido.toFixed(2));
+    }
+  }, [dados]);
 
   const handleSaveCusto = async (e) => {
     e.preventDefault();
@@ -249,7 +272,9 @@ export default function FechamentoLote() {
                     <tr><td>Categoria</td><td>{dados.lote.category}</td></tr>
                     <tr><td>Dias de Confinamento</td><td><strong>{dados.dias}</strong></td></tr>
                     <tr className={styles.trDestaque}><td>Peso Inicial (kg)</td><td>{fmt(dados.pesoInicial, 1)} kg</td></tr>
+                    <tr><td>Total kg Compra ({dados.lote.head_count} cab.)</td><td><strong>{fmt(dados.totalKgCompra, 0)} kg</strong></td></tr>
                     <tr className={styles.trDestaque}><td>Peso Final (kg)</td><td>{dados.pesoFinal ? `${fmt(dados.pesoFinal, 1)} kg` : <span className={styles.semDado}>Sem pesagem</span>}</td></tr>
+                    <tr><td>Total kg Venda ({dados.lote.head_count} cab.)</td><td>{dados.totalKgVenda ? <strong>{fmt(dados.totalKgVenda, 0)} kg</strong> : <span className={styles.semDado}>—</span>}</td></tr>
                     <tr><td>GMD (kg/dia)</td><td>{dados.gmd ? <strong>{fmt(dados.gmd, 3)}</strong> : <span className={styles.semDado}>—</span>}</td></tr>
                     <tr><td>@ Inicial</td><td>{fmt(dados.arrobaInicial, 2)} @</td></tr>
                     <tr><td>@ Final</td><td>{dados.arrobaFinal ? `${fmt(dados.arrobaFinal, 2)} @` : <span className={styles.semDado}>—</span>}</td></tr>
@@ -364,7 +389,14 @@ export default function FechamentoLote() {
               <div className={styles.simuladorTitulo}>🎯 Simulador de Venda</div>
               <div className={styles.simuladorForm}>
                 <div>
-                  <label>Preço de Venda (R$/@)</label>
+                  <label>
+                    Preço de Venda (R$/@)
+                    {dados.precoVendaSugerido && (
+                      <span className={styles.sugestaoLabel}>
+                        &nbsp;— ponto de equilíbrio: R$ {dados.precoVendaSugerido.toFixed(2)}/@
+                      </span>
+                    )}
+                  </label>
                   <input type="number" value={precoVenda}
                     onChange={e => setPrecoVenda(e.target.value)}
                     placeholder="Ex: 323.00" step="0.01" min="0" />
@@ -378,8 +410,16 @@ export default function FechamentoLote() {
                 {pvArr > 0 && dados.arrobaFinal && (
                   <div className={styles.simuladorResultado}>
                     <div className={styles.simItem}>
-                      <span>@ de Venda/cab (÷{dados.lote.arroba_divisor || 30})</span>
-                      <strong>{fmt(dados.pesoFinal / (dados.lote.arroba_divisor || 30), 2)} @</strong>
+                      <span>@ de Venda/cab (÷{dados.arrobaDivisor || 30})</span>
+                      <strong>{fmt(dados.pesoFinal / (dados.arrobaDivisor || 30), 2)} @</strong>
+                    </div>
+                    <div className={styles.simItem}>
+                      <span>Total kg Compra</span>
+                      <strong>{fmt(dados.totalKgCompra, 0)} kg</strong>
+                    </div>
+                    <div className={styles.simItem}>
+                      <span>Total kg Venda</span>
+                      <strong>{dados.totalKgVenda ? fmt(dados.totalKgVenda, 0) + ' kg' : '—'}</strong>
                     </div>
                     <div className={styles.simItem}>
                       <span>Preço de Venda/cab</span>
@@ -401,7 +441,7 @@ export default function FechamentoLote() {
                 )}
               </div>
               {pvArr > 0 && !dados.arrobaFinal && (
-                <p style={{color:'#888',fontSize:'0.88rem',marginTop:'8px'}}>⚠️ Registre uma pesagem para usar o simulador.</p>
+                <p style={{color:'rgba(255,255,255,0.6)',fontSize:'0.88rem',marginTop:'8px'}}>⚠️ Registre uma pesagem para usar o simulador.</p>
               )}
             </div>
           </>
