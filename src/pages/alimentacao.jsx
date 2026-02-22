@@ -115,6 +115,7 @@ export default function Alimentacao() {
     }
     setLoading(true);
     try {
+      const racaoAtual = racoes.find(r => r.id === formData.feed_type_id);
       const payload = {
         pen_id: formData.pen_id,
         lot_id: formData.lot_id || null,
@@ -126,6 +127,7 @@ export default function Alimentacao() {
         notes: formData.notes || null,
         farm_id: currentFarm.id,
         registered_by: user.id,
+        cost_per_kg: racaoAtual ? Number(racaoAtual.cost_per_kg) : null, // travado no momento do registro
       };
       if (editingId) {
         const { error } = await supabase.from('feeding_records').update(payload).eq('id', editingId);
@@ -215,7 +217,7 @@ export default function Alimentacao() {
   const totalSobraHoje = registrosHoje.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0);
   const totalConsumoHoje = totalFornecidoHoje - totalSobraHoje;
   const sobraPctHoje = totalFornecidoHoje > 0 ? ((totalSobraHoje / totalFornecidoHoje) * 100).toFixed(1) : null;
-  const totalCustoHoje = registrosHoje.reduce((acc, r) => acc + (Number(r.quantity_kg) * Number(r.feed_types?.cost_per_kg || 0)), 0);
+  const totalCustoHoje = registrosHoje.reduce((acc, r) => acc + (Number(r.quantity_kg) * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0)), 0);
   const baiasAlimentadasHoje = new Set(registrosHoje.map(r => r.pen_id)).size;
 
   return (
@@ -430,7 +432,7 @@ export default function Alimentacao() {
                   const totalForn = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg), 0);
                   const totalSobra = grupo.registros.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0);
                   const totalCons = totalForn - totalSobra;
-                  const totalCusto = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.feed_types?.cost_per_kg || 0), 0);
+                  const totalCusto = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0), 0);
                   // Cabeças: pega do lote vinculado (maior valor entre os registros do grupo)
                   const cabecas = grupo.registros.reduce((max, r) => {
                     const lote = lotes.find(l => l.id === r.lot_id);
@@ -493,7 +495,7 @@ export default function Alimentacao() {
                               const sobra = Number(r.leftover_kg || 0);
                               const consumidoR = fornecido - sobra;
                               const sobraP = fornecido > 0 && r.leftover_kg != null ? ((sobra / fornecido) * 100).toFixed(1) : null;
-                              const custo = fornecido * Number(r.feed_types?.cost_per_kg || 0);
+                              const custo = fornecido * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0);
                               // Verifica limites da baia
                               const baia = baias.find(b => b.id === r.pen_id);
                               const foraNosLimites = baia && (
@@ -561,7 +563,7 @@ export default function Alimentacao() {
                     </div>
                     <div className={styles.grupoStat}>
                       <span>Custo Total</span>
-                      <strong className={styles.custoDest}>R$ {registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.feed_types?.cost_per_kg || 0), 0).toFixed(2)}</strong>
+                      <strong className={styles.custoDest}>R$ {registrosFiltrados.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0), 0).toFixed(2)}</strong>
                     </div>
                   </div>
                 </div>
