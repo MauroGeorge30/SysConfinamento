@@ -19,6 +19,10 @@ export default function Baias() {
     pen_number: '',
     capacity: '',
     status: 'active',
+    min_feed_kg: '',
+    max_feed_kg: '',
+    min_leftover_kg: '',
+    max_leftover_kg: '',
   });
 
   useEffect(() => {
@@ -79,6 +83,10 @@ export default function Baias() {
             pen_number: formData.pen_number,
             capacity: parseInt(formData.capacity),
             status: formData.status,
+            min_feed_kg: formData.min_feed_kg ? parseFloat(formData.min_feed_kg) : null,
+            max_feed_kg: formData.max_feed_kg ? parseFloat(formData.max_feed_kg) : null,
+            min_leftover_kg: formData.min_leftover_kg ? parseFloat(formData.min_leftover_kg) : null,
+            max_leftover_kg: formData.max_leftover_kg ? parseFloat(formData.max_leftover_kg) : null,
           })
           .eq('id', editingId);
 
@@ -93,6 +101,10 @@ export default function Baias() {
             current_occupancy: 0,
             status: 'active',
             farm_id: currentFarm.id,
+            min_feed_kg: formData.min_feed_kg ? parseFloat(formData.min_feed_kg) : null,
+            max_feed_kg: formData.max_feed_kg ? parseFloat(formData.max_feed_kg) : null,
+            min_leftover_kg: formData.min_leftover_kg ? parseFloat(formData.min_leftover_kg) : null,
+            max_leftover_kg: formData.max_leftover_kg ? parseFloat(formData.max_leftover_kg) : null,
           }]);
 
         if (error) throw error;
@@ -117,6 +129,10 @@ export default function Baias() {
       pen_number: baia.pen_number,
       capacity: baia.capacity,
       status: baia.status,
+      min_feed_kg: baia.min_feed_kg || '',
+      max_feed_kg: baia.max_feed_kg || '',
+      min_leftover_kg: baia.min_leftover_kg || '',
+      max_leftover_kg: baia.max_leftover_kg || '',
     });
     setEditingId(baia.id);
     setShowForm(true);
@@ -241,6 +257,51 @@ export default function Baias() {
                 </div>
               )}
 
+              <div className={styles.limitesSectionTitle}>⚠️ Limites de Alerta — Trato Diário</div>
+              <div className={styles.limitesInfo}>
+                Quando o fornecido ou a sobra ultrapassar esses limites, um aviso será exibido no registro do trato.
+              </div>
+              <div className={styles.row}>
+                <div>
+                  <label>Fornecido Mínimo (kg)</label>
+                  <input
+                    type="number" step="0.1" min="0"
+                    value={formData.min_feed_kg}
+                    onChange={(e) => setFormData({ ...formData, min_feed_kg: e.target.value })}
+                    placeholder="Ex: 2800"
+                  />
+                </div>
+                <div>
+                  <label>Fornecido Máximo (kg)</label>
+                  <input
+                    type="number" step="0.1" min="0"
+                    value={formData.max_feed_kg}
+                    onChange={(e) => setFormData({ ...formData, max_feed_kg: e.target.value })}
+                    placeholder="Ex: 3500"
+                  />
+                </div>
+              </div>
+              <div className={styles.row}>
+                <div>
+                  <label>Sobra Mínima (kg)</label>
+                  <input
+                    type="number" step="0.1" min="0"
+                    value={formData.min_leftover_kg}
+                    onChange={(e) => setFormData({ ...formData, min_leftover_kg: e.target.value })}
+                    placeholder="Ex: 50"
+                  />
+                </div>
+                <div>
+                  <label>Sobra Máxima (kg)</label>
+                  <input
+                    type="number" step="0.1" min="0"
+                    value={formData.max_leftover_kg}
+                    onChange={(e) => setFormData({ ...formData, max_leftover_kg: e.target.value })}
+                    placeholder="Ex: 300"
+                  />
+                </div>
+              </div>
+
               <div className={styles.formAcoes}>
                 <button type="button" className={styles.btnCancelar} onClick={resetForm}>
                   Cancelar
@@ -300,6 +361,17 @@ export default function Baias() {
                     <p className={styles.vagas}>
                       {baia.capacity - (baia.current_occupancy || 0)} vagas disponíveis
                     </p>
+                    {(baia.min_feed_kg || baia.max_feed_kg || baia.min_leftover_kg || baia.max_leftover_kg) && (
+                      <div className={styles.limitesCard}>
+                        <span className={styles.limitesTitulo}>⚠️ Limites de alerta</span>
+                        <div className={styles.limitesGrid}>
+                          {baia.min_feed_kg && <span>Forn. mín: <strong>{Number(baia.min_feed_kg).toFixed(0)} kg</strong></span>}
+                          {baia.max_feed_kg && <span>Forn. máx: <strong>{Number(baia.max_feed_kg).toFixed(0)} kg</strong></span>}
+                          {baia.min_leftover_kg && <span>Sobra mín: <strong>{Number(baia.min_leftover_kg).toFixed(0)} kg</strong></span>}
+                          {baia.max_leftover_kg && <span>Sobra máx: <strong>{Number(baia.max_leftover_kg).toFixed(0)} kg</strong></span>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
