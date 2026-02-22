@@ -66,3 +66,9 @@
 .alertasBox { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.8rem; }
 .alertaErro { background: #ffebee; border: 1px solid #ef9a9a; border-left: 4px solid #c62828; color: #b71c1c; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
 .alertaWarn { background: #fff8e1; border: 1px solid #ffe082; border-left: 4px solid #f57c00; color: #e65100; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
+
+/* Linha com trato fora dos limites */
+.linhaAlerta { background: #fffde7 !important; }
+.linhaAlerta:hover { background: #fff9c4 !important; }
+.linhaAlerta td { border-bottom-color: #ffe082 !important; }
+.alertaIcone { margin-right: 4px; font-size: 0.85rem; }
