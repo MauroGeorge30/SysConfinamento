@@ -444,9 +444,17 @@ export default function Alimentacao() {
                               const consumidoR = fornecido - sobra;
                               const sobraP = fornecido > 0 && r.leftover_kg != null ? ((sobra / fornecido) * 100).toFixed(1) : null;
                               const custo = fornecido * Number(r.feed_types?.cost_per_kg || 0);
+                              // Verifica limites da baia
+                              const baia = baias.find(b => b.id === r.pen_id);
+                              const foraNosLimites = baia && (
+                                (baia.min_feed_kg && fornecido < Number(baia.min_feed_kg)) ||
+                                (baia.max_feed_kg && fornecido > Number(baia.max_feed_kg)) ||
+                                (r.leftover_kg != null && baia.min_leftover_kg && sobra < Number(baia.min_leftover_kg)) ||
+                                (r.leftover_kg != null && baia.max_leftover_kg && sobra > Number(baia.max_leftover_kg))
+                              );
                               return (
-                                <tr key={r.id}>
-                                  <td>{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                <tr key={r.id} className={foraNosLimites ? styles.linhaAlerta : ''}>
+                                  <td>{foraNosLimites && <span className={styles.alertaIcone} title="Trato fora dos limites">⚠️</span>}{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                                   <td style={{ fontSize: '0.85rem', color: '#555' }}>{r.lots?.lot_code || '—'}</td>
                                   <td>{r.feed_types?.name || '—'}</td>
                                   <td>{fornecido.toFixed(1)} kg</td>
@@ -467,7 +475,9 @@ export default function Alimentacao() {
                                   {canDelete('feeding_records') && (
                                     <td>
                                       <div style={{ display: 'flex', gap: '6px' }}>
-                                        <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
+                                        {(canDelete('feeding_records') || foraNosLimites) && (
+                                          <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
+                                        )}
                                         <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
                                       </div>
                                     </td>
