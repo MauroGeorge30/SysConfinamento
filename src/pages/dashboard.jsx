@@ -52,7 +52,7 @@ export default function Dashboard() {
           .order('entry_date'),
 
         supabase.from('pens')
-          .select('id, pen_number, capacity, current_occupancy, status')
+          .select('id, pen_number, capacity, current_occupancy, status, min_feed_kg, max_feed_kg, min_leftover_kg, max_leftover_kg')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
           .order('pen_number'),
@@ -156,6 +156,32 @@ export default function Dashboard() {
           tipo: 'danger',
           icone: '🚨',
           msg: `${lotesComBaiaSemTrato.length} lote(s) sem trato hoje: ${lotesComBaiaSemTrato.map(l => l.lot_code).join(', ')}`,
+          link: '/alimentacao',
+        });
+      }
+
+      // Tratos de hoje fora dos limites da baia
+      const tratosForaLimite = th.filter(t => {
+        const baia = (baias || []).find(b => b.id === t.pen_id);
+        if (!baia) return false;
+        const forn = Number(t.quantity_kg);
+        const sobr = Number(t.leftover_kg || 0);
+        return (
+          (baia.min_feed_kg && forn < Number(baia.min_feed_kg)) ||
+          (baia.max_feed_kg && forn > Number(baia.max_feed_kg)) ||
+          (t.leftover_kg != null && baia.min_leftover_kg && sobr < Number(baia.min_leftover_kg)) ||
+          (t.leftover_kg != null && baia.max_leftover_kg && sobr > Number(baia.max_leftover_kg))
+        );
+      });
+      if (tratosForaLimite.length > 0) {
+        const baiasAfetadas = [...new Set(tratosForaLimite.map(t => {
+          const b = (baias || []).find(b => b.id === t.pen_id);
+          return b ? `Baia ${b.pen_number}` : '';
+        }).filter(Boolean))];
+        alertas.push({
+          tipo: 'danger',
+          icone: '🚨',
+          msg: `${tratosForaLimite.length} trato(s) fora dos limites hoje: ${baiasAfetadas.join(', ')} — corrija imediatamente`,
           link: '/alimentacao',
         });
       }
