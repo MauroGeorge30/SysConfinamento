@@ -419,6 +419,10 @@ export default function Alimentacao() {
               if (!grupos[key]) grupos[key] = { pen: r.pens, registros: [] };
               grupos[key].registros.push(r);
             });
+            // Ordena registros de cada grupo por trato decrescente
+            Object.values(grupos).forEach(g => {
+              g.registros.sort((a, b) => (b.feeding_order || 1) - (a.feeding_order || 1));
+            });
 
             return (
               <div className={styles.gruposWrapper}>
