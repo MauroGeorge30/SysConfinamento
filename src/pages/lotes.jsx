@@ -34,7 +34,7 @@ export default function Lotes() {
     lot_code: '', pen_id: '', category: 'Macho', origin: '',
     entry_date: hoje, head_count: '', avg_entry_weight: '',
     target_gmd: '', target_leftover_pct: '', notes: '', status: 'active',
-    purchase_price_arroba: '', carcass_yield_pct: '52', cost_per_head_day: '',
+    purchase_price_arroba: '', carcass_yield_pct: '52', cost_per_head_day: '', arroba_divisor: '30',
   });
 
   const [faseData, setFaseData] = useState({
@@ -113,6 +113,7 @@ export default function Lotes() {
         purchase_price_arroba: formData.purchase_price_arroba ? parseFloat(formData.purchase_price_arroba) : null,
         carcass_yield_pct: formData.carcass_yield_pct ? parseFloat(formData.carcass_yield_pct) : 52,
         cost_per_head_day: formData.cost_per_head_day ? parseFloat(formData.cost_per_head_day) : null,
+        arroba_divisor: formData.arroba_divisor ? parseFloat(formData.arroba_divisor) : 30,
       };
       if (editingId) {
         const { error } = await supabase.from('lots').update(payload).eq('id', editingId);
@@ -148,6 +149,7 @@ export default function Lotes() {
       purchase_price_arroba: lote.purchase_price_arroba || '',
       carcass_yield_pct: lote.carcass_yield_pct || '52',
       cost_per_head_day: lote.cost_per_head_day || '',
+      arroba_divisor: lote.arroba_divisor || '30',
     });
     setEditingId(lote.id);
     setShowForm(true);
@@ -364,35 +366,46 @@ export default function Lotes() {
                 <div className={styles.secaoCustosTitulo}>💰 Dados de Custo e Fechamento</div>
                 <div className={styles.row}>
                   <div>
-                    <label>Preço de Compra (R$/@) *</label>
+                    <label>Preço de Compra (R$/@)</label>
                     <input type="number" value={formData.purchase_price_arroba}
                       onChange={e => setFormData({ ...formData, purchase_price_arroba: e.target.value })}
-                      placeholder="Ex: 300.00" step="0.01" min="0" />
+                      placeholder="Ex: 310.00" step="0.01" min="0" />
                   </div>
+                  <div>
+                    <label>Divisor da @ negociada <span style={{color:'#888',fontWeight:400}}>(padrão 30)</span></label>
+                    <input type="number" value={formData.arroba_divisor}
+                      onChange={e => setFormData({ ...formData, arroba_divisor: e.target.value })}
+                      placeholder="Ex: 30" step="0.1" min="1" />
+                  </div>
+                </div>
+                <div className={styles.row}>
                   <div>
                     <label>Rendimento de Carcaça (%) <span style={{color:'#888',fontWeight:400}}>padrão 52%</span></label>
                     <input type="number" value={formData.carcass_yield_pct}
                       onChange={e => setFormData({ ...formData, carcass_yield_pct: e.target.value })}
                       placeholder="Ex: 52" step="0.1" min="40" max="70" />
                   </div>
-                </div>
-                <div className={styles.row}>
                   <div>
                     <label>Custo Operacional (R$/cab/dia)</label>
                     <input type="number" value={formData.cost_per_head_day}
                       onChange={e => setFormData({ ...formData, cost_per_head_day: e.target.value })}
                       placeholder="Ex: 1.00" step="0.01" min="0" />
                   </div>
-                  <div>
-                    {formData.purchase_price_arroba && formData.avg_entry_weight && (
-                      <div className={styles.previewCompra}>
-                        <span>Preço de compra estimado/cab</span>
-                        <strong>R$ {(parseFloat(formData.purchase_price_arroba) * (parseFloat(formData.avg_entry_weight) / 15)).toFixed(2)}</strong>
-                        <small>({formData.avg_entry_weight} kg ÷ 15 = {(parseFloat(formData.avg_entry_weight)/15).toFixed(2)} @)</small>
-                      </div>
-                    )}
-                  </div>
                 </div>
+                {formData.purchase_price_arroba && formData.avg_entry_weight && (() => {
+                  const div = parseFloat(formData.arroba_divisor) || 30;
+                  const arrobaNegocia = parseFloat(formData.avg_entry_weight) / div;
+                  const precoCab = arrobaNegocia * parseFloat(formData.purchase_price_arroba);
+                  return (
+                    <div className={styles.previewCompra}>
+                      <span>@ negociada/cab</span>
+                      <strong>{arrobaNegocia.toFixed(2)} @</strong>
+                      <span style={{marginLeft:'1.5rem'}}>Preço de compra/cab</span>
+                      <strong>R$ {precoCab.toFixed(2)}</strong>
+                      <small style={{marginLeft:'1rem'}}>({formData.avg_entry_weight} kg ÷ {div} = {arrobaNegocia.toFixed(2)} @ × R$ {formData.purchase_price_arroba})</small>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className={styles.rowFull}>
