@@ -56,6 +56,7 @@ export default function FechamentoLote() {
       if (!lote) return;
 
       setRendCarcacaEdit(String(lote.carcass_yield_pct || 52));
+      const arrobaDivisor = Number(lote.arroba_divisor || 30);
 
       const [
         { data: tratos },
@@ -90,8 +91,9 @@ export default function FechamentoLote() {
       const gmd = pesoFinal && pesoInicial ? ((pesoFinal - pesoInicial) / dias) : null;
 
       // ── Arrobas ────────────────────────────────────────────
-      const arrobaInicial = pesoInicial / ARROBA;
-      const arrobaFinal = pesoFinal ? pesoFinal / ARROBA : null;
+      // @ negociada = peso ÷ divisor (padrão 30, que embute rendimento de carcaça)
+      const arrobaInicial = pesoInicial / arrobaDivisor;
+      const arrobaFinal = pesoFinal ? pesoFinal / arrobaDivisor : null;
       const arrobaProduzida = arrobaFinal ? arrobaFinal - arrobaInicial : null;
 
       // ── Consumo ────────────────────────────────────────────
@@ -186,8 +188,10 @@ export default function FechamentoLote() {
   const pvArr = parseFloat(precoVenda) || 0;
   let margemAnimal = null, precoVendaCab = null, resultadoTotal = null;
   if (dados && pvArr > 0 && dados.arrobaFinal) {
-    const arrobaCarcaca = dados.arrobaFinal * (rendEdit / 100) * 2; // @ carcaça = peso vivo × rend × 2 (porque @ = 15kg e carcaça em @)
-    precoVendaCab = pvArr * (dados.pesoFinal * rendEdit / 100 / ARROBA);
+    const divisor = Number(dados.lote.arroba_divisor || 30);
+    // @ de venda usa o mesmo divisor do negócio
+    const arrobaVenda = dados.pesoFinal / divisor;
+    precoVendaCab = pvArr * arrobaVenda;
     margemAnimal = precoVendaCab - dados.custoPorCab - (dados.precoCpCab || 0);
     resultadoTotal = margemAnimal * dados.lote.head_count;
   }
@@ -374,15 +378,15 @@ export default function FechamentoLote() {
                 {pvArr > 0 && dados.arrobaFinal && (
                   <div className={styles.simuladorResultado}>
                     <div className={styles.simItem}>
-                      <span>@ Carcaça/cab</span>
-                      <strong>{fmt(dados.pesoFinal * rendEdit / 100 / ARROBA, 2)} @</strong>
+                      <span>@ de Venda/cab (÷{dados.lote.arroba_divisor || 30})</span>
+                      <strong>{fmt(dados.pesoFinal / (dados.lote.arroba_divisor || 30), 2)} @</strong>
                     </div>
                     <div className={styles.simItem}>
                       <span>Preço de Venda/cab</span>
                       <strong>{fmtR(precoVendaCab)}</strong>
                     </div>
                     <div className={styles.simItem}>
-                      <span>Custo Total/cab</span>
+                      <span>Custo Total/cab (conf. + compra)</span>
                       <strong>{fmtR(dados.custoPorCab + (dados.precoCpCab || 0))}</strong>
                     </div>
                     <div className={`${styles.simItem} ${margemAnimal >= 0 ? styles.simPositivo : styles.simNegativo}`}>
