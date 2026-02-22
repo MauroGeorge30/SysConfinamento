@@ -1,0 +1,75 @@
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+
+/* Seletor */
+.selectorCard { background: #fff; border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 6px; }
+.selectorCard label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.selectorCard select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; max-width: 500px; }
+.selectorCard select:focus { border-color: #2e7d32; }
+
+/* Avisos */
+.avisoConfig { background: #fff8e1; border: 1px solid #ffe082; border-left: 4px solid #f57c00; color: #e65100; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 1rem; }
+.avisoConfig a { color: #e65100; font-weight: 700; }
+
+/* Grid planilha */
+.planilhaGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-bottom: 1.5rem; }
+.secao { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+.secaoTitulo { background: #1a1a2e; color: #fff; padding: 0.7rem 1rem; font-size: 0.92rem; font-weight: 700; }
+
+/* Tabela de dados */
+.tabelaDados { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tabelaDados td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabelaDados td:first-child { color: #666; width: 55%; }
+.tabelaDados td:last-child { font-weight: 500; text-align: right; }
+.tabelaDados tr:last-child td { border-bottom: none; }
+.trDestaque { background: #f9fff9; }
+.trDestaque td { color: #1a1a2e !important; }
+.semDado { color: #bbb; font-style: italic; font-weight: 400; }
+.valorTotal { color: #1b5e20; font-size: 1rem; }
+
+/* Seção card (custos extras e simulador) */
+.secaoCard { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; }
+.secaoCardHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.secaoCardHeader strong { font-size: 1rem; color: #1a1a2e; }
+.btnAdd { background: #2e7d32; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+.btnAdd:hover { background: #1b5e20; }
+.semCustos { color: #aaa; font-size: 0.88rem; text-align: center; padding: 1rem 0; }
+
+/* Form de custo extra */
+.formCusto { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+.formCustoRow { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.8rem; align-items: end; }
+.formCustoRow label { font-size: 0.82rem; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.formCustoRow input { width: 100%; padding: 9px 10px; border: 1px solid #ddd; border-radius: 7px; font-size: 0.9rem; box-sizing: border-box; }
+.formCustoBtnWrap { display: flex; align-items: flex-end; }
+.btnSalvar { background: #2e7d32; color: #fff; border: none; padding: 9px 20px; border-radius: 7px; font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btnSalvar:hover { background: #1b5e20; }
+
+/* Tabela custos extras */
+.tabelaCustos { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tabelaCustos th { padding: 8px 12px; text-align: left; font-weight: 600; color: #555; background: #f5f5f5; border-bottom: 2px solid #eee; }
+.tabelaCustos td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+.tabelaCustos tfoot td { padding: 8px 12px; border-top: 2px solid #c8e6c9; background: #f0f7f0; }
+.btnDeletar { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 3px 8px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; }
+.btnDeletar:hover { background: #ffcdd2; }
+
+/* Simulador */
+.simuladorCard { background: linear-gradient(135deg, #1a1a2e 0%, #2e7d32 100%); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; color: #fff; }
+.simuladorTitulo { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 1.2rem; }
+.simuladorForm { display: flex; flex-direction: column; gap: 1rem; }
+.simuladorForm label { font-size: 0.82rem; color: rgba(255,255,255,0.75); display: block; margin-bottom: 4px; }
+.simuladorForm input { padding: 10px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 0.95rem; background: rgba(255,255,255,0.1); color: #fff; width: 200px; }
+.simuladorForm input::placeholder { color: rgba(255,255,255,0.4); }
+.simuladorForm > div:first-child, .simuladorForm > div:nth-child(2) { display: inline-block; margin-right: 1.5rem; }
+.simuladorResultado { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.2); }
+.simItem { display: flex; flex-direction: column; gap: 4px; }
+.simItem span { font-size: 0.75rem; color: rgba(255,255,255,0.65); }
+.simItem strong { font-size: 1rem; color: #fff; }
+.simPositivo strong { color: #a5d6a7; }
+.simNegativo strong { color: #ef9a9a; }
+.resultadoGrande { font-size: 1.3rem !important; }
+
+.vazio { text-align: center; padding: 3rem; color: #888; }
+
+@media (max-width: 900px) { .planilhaGrid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .formCustoRow { grid-template-columns: 1fr 1fr; } }
