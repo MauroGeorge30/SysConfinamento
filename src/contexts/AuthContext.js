@@ -63,21 +63,32 @@ export const AuthProvider = ({ children }) => {
           const farmIds = new Set();
           if (profile.farm_id) farmIds.add(profile.farm_id);
 
-          // Busca fazendas extras concedidas pelo admin
-          const { data: extras } = await supabase
-            .from('user_farm_access')
-            .select('farm_id')
-            .eq('user_id', userId);
+          // Busca fazendas extras — tolerante a falha (tabela pode não existir ou RLS bloquear)
+          try {
+            const { data: extras, error: extrasError } = await supabase
+              .from('user_farm_access')
+              .select('farm_id')
+              .eq('user_id', userId);
 
-          (extras || []).forEach(r => farmIds.add(r.farm_id));
+            if (extrasError) {
+              console.warn('[AuthContext] user_farm_access indisponível:', extrasError.message);
+            } else {
+              (extras || []).forEach(r => farmIds.add(r.farm_id));
+            }
+          } catch (e) {
+            console.warn('[AuthContext] Erro ao buscar user_farm_access:', e.message);
+          }
 
           if (farmIds.size > 0) {
-            const { data: farms } = await supabase
+            const { data: farms, error: farmsError } = await supabase
               .from('farms')
               .select('*')
               .in('id', Array.from(farmIds))
-              .eq('status', 'active')
               .order('name');
+
+            if (farmsError) {
+              console.warn('[AuthContext] Erro ao buscar farms:', farmsError.message);
+            }
             farmsCarregadas = farms || [];
           }
         }
