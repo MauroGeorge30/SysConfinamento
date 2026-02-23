@@ -1,0 +1,110 @@
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+.header { margin-bottom: 1.5rem; }
+.header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0 0 4px; }
+.subtitle { font-size: 0.9rem; color: #888; margin: 0; }
+
+/* Seletor */
+.selectorCard { background: #fff; border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 6px; }
+.selectorCard label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.selectorCard select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; max-width: 540px; cursor: pointer; }
+.selectorCard select:focus { border-color: #2e7d32; }
+
+/* Card do lote */
+.loteCard { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1.5rem; overflow: hidden; border-top: 4px solid #2e7d32; }
+.loteCardHeader { display: flex; justify-content: space-between; align-items: flex-start; padding: 1.2rem 1.5rem; gap: 1rem; flex-wrap: wrap; }
+.loteInfo { display: flex; flex-direction: column; gap: 8px; }
+.loteCode { font-size: 1.3rem; font-weight: 700; color: #1a1a2e; }
+.loteMeta { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.loteIndicadores { display: flex; gap: 12px; flex-wrap: wrap; }
+.indItem { display: flex; flex-direction: column; gap: 2px; background: #f5f5f5; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px; }
+.indItem span { font-size: 0.72rem; color: #888; }
+.indItem strong { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+
+/* Totais rápidos */
+.totaisRapidos { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border-top: 1px solid #f0f0f0; }
+.totalItem { padding: 12px 16px; border-left: 3px solid #2e7d32; background: #f9fff9; }
+.totalItem:not(:first-child) { border-left: 1px solid #e8e8e8; border-left-width: 1px; }
+.totalItem:first-child { border-left-width: 3px; }
+.totalItem span { font-size: 0.72rem; color: #888; display: block; margin-bottom: 3px; }
+.totalItem strong { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+.totalItem em { font-size: 0.78rem; font-style: normal; color: #888; }
+
+/* Bloco de fase */
+.faseBlock { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 1rem; overflow: hidden; border-left: 5px solid #2e7d32; }
+
+/* Cabeçalho da fase */
+.faseHeader { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; cursor: pointer; gap: 1rem; flex-wrap: wrap; transition: filter 0.15s; }
+.faseHeader:hover { filter: brightness(0.97); }
+.faseHeaderLeft { display: flex; align-items: flex-start; gap: 12px; }
+.faseDot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.faseNome { font-size: 1rem; font-weight: 700; color: #1a1a2e; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.fasePeriodo { font-size: 0.8rem; color: #777; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.faseDias { background: #f0f0f0; padding: 1px 7px; border-radius: 8px; font-size: 0.75rem; color: #555; font-weight: 600; }
+.faseRacao { background: #e8f5e9; color: #2e7d32; padding: 1px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; }
+
+.badgeConcluida { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+.badgeEmProcesso { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+.badgeCinza { background: #f5f5f5; color: #757575; border: 1px solid #ddd; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+
+.faseHeaderKpis { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.kpi { display: flex; flex-direction: column; gap: 2px; text-align: right; }
+.kpi span { font-size: 0.68rem; color: #888; }
+.kpi strong { font-size: 0.9rem; font-weight: 700; color: #1a1a2e; white-space: nowrap; }
+.chevron { font-size: 0.75rem; color: #bbb; flex-shrink: 0; }
+
+/* Corpo expandido da fase */
+.faseBody { padding: 1rem 1.2rem; border-top: 1px solid rgba(0,0,0,0.06); background: #fafafa; }
+
+/* Grid de métricas */
+.metricasGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.2rem; }
+.metricaCard { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+.metricaTitulo { background: #1a1a2e; color: #fff; padding: 8px 14px; font-size: 0.85rem; font-weight: 700; }
+.metricaTabela { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.metricaTabela td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.metricaTabela td:first-child { color: #666; }
+.metricaTabela td:last-child { text-align: right; font-weight: 500; }
+.metricaTabela tr:last-child td { border-bottom: none; }
+.trDestaque { background: #f9fff9; }
+.trDestaque td { color: #1a1a2e !important; }
+
+/* Seção de tratos */
+.tratosSection { margin-top: 0.5rem; }
+.tratosHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.tratosHeader strong { font-size: 0.88rem; color: #333; }
+.tratosHeader span { font-size: 0.78rem; color: #888; background: #f0f0f0; padding: 2px 8px; border-radius: 8px; }
+.tabelaWrapper { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow-x: auto; }
+.tabelaTratos { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.tabelaTratos thead tr { background: #f0f0f0; }
+.tabelaTratos th { padding: 9px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+.tabelaTratos td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabelaTratos tbody tr:hover { background: #f9fff9; }
+.tabelaTratos tfoot td { padding: 9px 12px; background: #f0f7f0; border-top: 2px solid #c8e6c9; font-size: 0.85rem; }
+.tratoBadge { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; padding: 1px 7px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; }
+.sobraBadge { padding: 2px 7px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
+.semTratos { color: #aaa; font-size: 0.85rem; font-style: italic; padding: 1rem 0; }
+
+/* Resumo comparativo */
+.resumoCard { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 1.5rem; overflow: hidden; }
+.resumoTitulo { background: #1a1a2e; color: #fff; padding: 0.8rem 1.2rem; font-size: 0.95rem; font-weight: 700; }
+.tabelaResumo { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.tabelaResumo thead tr { background: #f0f0f0; }
+.tabelaResumo th { padding: 10px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #ddd; white-space: nowrap; }
+.tabelaResumo td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabelaResumo tbody tr:hover { background: #f9fff9; }
+.tabelaResumo tfoot td { padding: 10px 12px; background: #f0f7f0; border-top: 2px solid #c8e6c9; font-size: 0.85rem; }
+.faseTag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; border: 1px solid; white-space: nowrap; }
+
+/* Avisos */
+.avisoSemFase { background: #fff8e1; border: 1px solid #ffe082; border-left: 4px solid #f57c00; color: #e65100; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 1rem; }
+.vazio { text-align: center; padding: 4rem 2rem; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+@media (max-width: 900px) {
+  .metricasGrid { grid-template-columns: 1fr; }
+  .totaisRapidos { grid-template-columns: repeat(3, 1fr); }
+  .loteCardHeader { flex-direction: column; }
+}
+@media (max-width: 600px) {
+  .totaisRapidos { grid-template-columns: repeat(2, 1fr); }
+  .faseHeaderKpis { gap: 10px; }
+}
