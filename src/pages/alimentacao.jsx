@@ -511,7 +511,7 @@ export default function Alimentacao() {
                     const lote = lotes.find(l => l.id === r.lot_id);
                     return lote?.head_count > max ? lote.head_count : max;
                   }, 0);
-                  const isExpanded = expandedBaias[penId] !== false; // expandido por padrão
+                  const isExpanded = expandedBaias[penId] === true; // retraído por padrão
 
                   // Agrupa registros por fase dentro da baia
                   const faseMap = {};
