@@ -439,7 +439,10 @@ export default function Alimentacao() {
             });
             // Ordena registros de cada grupo por trato decrescente
             Object.values(grupos).forEach(g => {
-              g.registros.sort((a, b) => (b.feeding_order || 1) - (a.feeding_order || 1));
+              g.registros.sort((a, b) => {
+                if (b.feeding_date !== a.feeding_date) return b.feeding_date.localeCompare(a.feeding_date);
+                return (b.feeding_order || 1) - (a.feeding_order || 1);
+              });
             });
 
             // Função de renderização de linha de trato
