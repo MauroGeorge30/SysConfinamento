@@ -580,24 +580,61 @@ export default function Lotes() {
                         </div>
                       </div>
 
-                      {/* Fases */}
-                      {lote.lot_phases && lote.lot_phases.length > 0 && (
-                        <div className={styles.faseSection}>
-                          <h4>Fases de Dieta</h4>
-                          <div className={styles.fasesGrid}>
-                            {[...lote.lot_phases].sort((a, b) => new Date(b.start_date) - new Date(a.start_date)).map(fase => (
-                              <div key={fase.id} className={`${styles.faseChip} ${!fase.end_date ? styles.faseAtiva : ''}`}>
-                                <strong>{fase.phase_name}</strong>
-                                <span>{fase.feed_types?.name}</span>
-                                {fase.feed_types?.dry_matter_pct && <span>MS: {fase.feed_types.dry_matter_pct}%</span>}
-                                {fase.cms_pct_pv && <span>CMS: {fase.cms_pct_pv}% PV</span>}
-                                <span>{new Date(fase.start_date + 'T12:00:00').toLocaleDateString('pt-BR')} {fase.end_date ? `→ ${new Date(fase.end_date + 'T12:00:00').toLocaleDateString('pt-BR')}` : '→ atual'}</span>
-                                {!fase.end_date && <span className={styles.badgeFaseAtiva}>Ativa</span>}
-                              </div>
-                            ))}
+                      {/* Fases — timeline completa */}
+                      {lote.lot_phases && lote.lot_phases.length > 0 && (() => {
+                        const fasesSorted = [...lote.lot_phases].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                        return (
+                          <div className={styles.faseSection}>
+                            <h4>📋 Histórico de Fases de Dieta ({fasesSorted.length})</h4>
+                            <div className={styles.fasesTimeline}>
+                              {fasesSorted.map((fase, idx) => {
+                                const isAtiva = !fase.end_date;
+                                const diasFase = fase.end_date
+                                  ? Math.floor((new Date(fase.end_date) - new Date(fase.start_date)) / 86400000)
+                                  : Math.floor((new Date() - new Date(fase.start_date)) / 86400000);
+                                return (
+                                  <div key={fase.id} className={`${styles.faseTimelineItem} ${isAtiva ? styles.faseTimelineAtiva : styles.faseTimelineAnt}`}>
+                                    <div className={styles.faseTimelineMarcador}>
+                                      <div className={styles.faseTimelineDot} style={{ background: isAtiva ? '#e65100' : '#9e9e9e' }} />
+                                      {idx < fasesSorted.length - 1 && <div className={styles.faseTimelineLine} />}
+                                    </div>
+                                    <div className={styles.faseTimelineConteudo}>
+                                      <div className={styles.faseTimelineHeader}>
+                                        <strong>{fase.phase_name}</strong>
+                                        {isAtiva
+                                          ? <span className={styles.badgeFaseAtiva}>● ATUAL</span>
+                                          : <span className={styles.badgeFaseHistorico}>✓ Concluída</span>
+                                        }
+                                        <span className={styles.faseTimelineDias}>{diasFase}d</span>
+                                      </div>
+                                      <div className={styles.faseTimelineDetalhes}>
+                                        {fase.feed_types?.name && (
+                                          <span className={styles.faseDetalheRacao}>🌾 {fase.feed_types.name}</span>
+                                        )}
+                                        {fase.feed_types?.dry_matter_pct && (
+                                          <span className={styles.faseDetalheInfo}>MS: {fase.feed_types.dry_matter_pct}%</span>
+                                        )}
+                                        {fase.cms_pct_pv && (
+                                          <span className={styles.faseDetalheInfo}>CMS: {fase.cms_pct_pv}% PV</span>
+                                        )}
+                                      </div>
+                                      <div className={styles.faseTimelinePeriodo}>
+                                        📅 {new Date(fase.start_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                        {' → '}
+                                        {fase.end_date
+                                          ? new Date(fase.end_date + 'T12:00:00').toLocaleDateString('pt-BR')
+                                          : <em style={{ color: '#e65100' }}>em andamento</em>
+                                        }
+                                      </div>
+                                      {fase.notes && <div className={styles.faseTimelineObs}>{fase.notes}</div>}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Notas */}
                       {lote.notes && (
