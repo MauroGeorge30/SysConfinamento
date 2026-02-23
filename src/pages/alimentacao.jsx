@@ -21,6 +21,7 @@ export default function Alimentacao() {
   const [filtroBaia, setFiltroBaia] = useState('');
   const [filtroData, setFiltroData] = useState('');
   const [expandedBaias, setExpandedBaias] = useState({});
+  const [alturaTabela, setAlturaTabela] = useState(410); // ~10 linhas
 
   const toggleBaia = (penId) => {
     setExpandedBaias(prev => ({ ...prev, [penId]: !prev[penId] }));
@@ -626,8 +627,27 @@ export default function Alimentacao() {
                                   </div>
                                 </div>
 
-                                {/* Tabela dos tratos da fase */}
-                                <div className={styles.tabelaWrapper}>
+                                {/* Tabela dos tratos da fase — estilo planilha */}
+                                <div className={styles.tabelaPlHeader}>
+                                  <span className={styles.tabelaPlCount}>{faseGrupo.registros.length} registro(s)</span>
+                                  <label className={styles.tabelaPlLabel}>
+                                    Altura:
+                                    <select
+                                      className={styles.tabelaPlSelect}
+                                      value={alturaTabela}
+                                      onChange={e => setAlturaTabela(Number(e.target.value))}
+                                    >
+                                      <option value={410}>10 linhas</option>
+                                      <option value={820}>20 linhas</option>
+                                      <option value={1230}>30 linhas</option>
+                                      <option value={99999}>Todas</option>
+                                    </select>
+                                  </label>
+                                </div>
+                                <div
+                                  className={styles.tabelaScrollBox}
+                                  style={{ maxHeight: alturaTabela === 99999 ? 'none' : `${alturaTabela}px` }}
+                                >
                                   <table className={styles.tabela}>
                                     <thead>
                                       <tr>
@@ -647,6 +667,15 @@ export default function Alimentacao() {
                                       {faseGrupo.registros.map(r => renderLinha(r))}
                                     </tbody>
                                   </table>
+                                </div>
+                                <div className={styles.tabelaPlRodape}>
+                                  <span className={styles.tabelaPlRodapeLabel}>TOTAL DA FASE</span>
+                                  <div className={styles.tabelaPlRodapeTotais}>
+                                    <span><em>Forn:</em> {resumoFase.forn.toFixed(1)} kg</span>
+                                    <span><em>Sobra:</em> {resumoFase.sobra.toFixed(1)} kg{resumoFase.sobraPct ? ` (${resumoFase.sobraPct}%)` : ''}</span>
+                                    <span><em>Cons:</em> {resumoFase.cons.toFixed(1)} kg</span>
+                                    <strong>R$ {resumoFase.custo.toFixed(2)}</strong>
+                                  </div>
                                 </div>
                               </div>
                             );
