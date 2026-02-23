@@ -56,7 +56,8 @@ export default function CustoTratos() {
         supabase.from('feeding_records')
           .select('id, feeding_date, quantity_kg, leftover_kg, cost_per_kg, feeding_order, feed_types(name, cost_per_kg, dry_matter_pct)')
           .eq('lot_id', loteId)
-          .order('feeding_date', { ascending: true }),
+          .order('feeding_date', { ascending: false })
+          .order('feeding_order', { ascending: false }),
         supabase.from('lot_phases')
           .select('id, phase_name, start_date, end_date, feed_type_id, cms_pct_pv, feed_types(name, dry_matter_pct)')
           .eq('lot_id', loteId)
