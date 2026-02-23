@@ -213,7 +213,7 @@ export default function Layout({ children }) {
         {/* Fazenda */}
         {!collapsed && (
           <div className={styles.sidebarFarm}>
-            {isAdminGeral && allFarms?.length > 1 ? (
+            {allFarms?.length > 1 ? (
               <select
                 className={styles.seletorFazenda}
                 value={currentFarm?.id || ''}
