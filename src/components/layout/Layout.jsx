@@ -77,7 +77,7 @@ const NAV_GROUPS = (showAdmin) => [
   }] : []),
 ];
 
-function NavItem({ item, collapsed, currentPath }) {
+function NavItem({ item, collapsed, currentPath, onNavigate }) {
   const isActive = item.type === 'link'
     ? currentPath === item.href
     : item.items?.some(i => currentPath === i.href);
@@ -95,6 +95,7 @@ function NavItem({ item, collapsed, currentPath }) {
         href={item.href}
         className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
         title={collapsed ? item.label : undefined}
+        onClick={onNavigate}
       >
         <span className={styles.navIcon}>{item.icon}</span>
         {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
@@ -127,6 +128,7 @@ function NavItem({ item, collapsed, currentPath }) {
               key={sub.href}
               href={sub.href}
               className={`${styles.navSubLink} ${currentPath === sub.href ? styles.navSubLinkActive : ''}`}
+              onClick={onNavigate}
             >
               <span className={styles.subIcon}>{sub.icon}</span>
               <span>{sub.label}</span>
@@ -143,6 +145,7 @@ function NavItem({ item, collapsed, currentPath }) {
               key={sub.href}
               href={sub.href}
               className={`${styles.collapsedDropItem} ${currentPath === sub.href ? styles.collapsedDropItemActive : ''}`}
+              onClick={onNavigate}
             >
               <span>{sub.icon}</span>
               <span>{sub.label}</span>
@@ -221,6 +224,7 @@ export default function Layout({ children }) {
               item={item}
               collapsed={collapsed}
               currentPath={currentPath}
+              onNavigate={() => setMobileOpen(false)}
             />
           ))}
         </nav>
