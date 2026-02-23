@@ -563,13 +563,17 @@ export default function Lotes() {
                           {lote.target_gmd && <small>Meta: {Number(lote.target_gmd).toFixed(3)}</small>}
                         </div>
                       )}
-                      {faseAtiva && (
-                        <div className={styles.indicador}>
-                          <span>Fase</span>
-                          <strong>{faseAtiva.phase_name}</strong>
-                          <small>{faseAtiva.feed_types?.name || '—'}</small>
-                        </div>
-                      )}
+                      {faseAtiva && (() => {
+                        const fimFase = faseAtiva.end_date ? new Date(faseAtiva.end_date) : null;
+                        const faseJaConcluida = fimFase && fimFase < new Date(hoje);
+                        return (
+                          <div className={styles.indicador}>
+                            <span>Fase</span>
+                            <strong style={{ color: faseJaConcluida ? '#2e7d32' : '#e65100' }}>{faseAtiva.phase_name}</strong>
+                            <small>{faseJaConcluida ? '✓ Concluída' : '⏳ Em Processo'}</small>
+                          </div>
+                        );
+                      })()}
                       {ultimaPesagem && (
                         <div className={styles.indicador}>
                           <span>Último Peso</span>
@@ -619,22 +623,26 @@ export default function Lotes() {
                             <h4>📋 Histórico de Fases de Dieta ({fasesSorted.length})</h4>
                             <div className={styles.fasesTimeline}>
                               {fasesSorted.map((fase, idx) => {
-                                const isAtiva = !fase.end_date;
+                                // Status real: concluída se end_date existe E já passou; em processo se não tem end_date OU end_date ainda não chegou
+                                const hojeTs = new Date(hoje);
+                                const fimTs = fase.end_date ? new Date(fase.end_date) : null;
+                                const isConcluida = fimTs && fimTs < hojeTs;
+                                const isEmProcesso = !isConcluida; // ainda dentro do período
                                 const diasFase = fase.end_date
                                   ? Math.floor((new Date(fase.end_date) - new Date(fase.start_date)) / 86400000)
                                   : Math.floor((new Date() - new Date(fase.start_date)) / 86400000);
                                 return (
-                                  <div key={fase.id} className={`${styles.faseTimelineItem} ${isAtiva ? styles.faseTimelineAtiva : styles.faseTimelineAnt}`}>
+                                  <div key={fase.id} className={`${styles.faseTimelineItem} ${isEmProcesso ? styles.faseTimelineAtiva : styles.faseTimelineAnt}`}>
                                     <div className={styles.faseTimelineMarcador}>
-                                      <div className={styles.faseTimelineDot} style={{ background: isAtiva ? '#e65100' : '#9e9e9e' }} />
+                                      <div className={styles.faseTimelineDot} style={{ background: isConcluida ? '#2e7d32' : '#e65100' }} />
                                       {idx < fasesSorted.length - 1 && <div className={styles.faseTimelineLine} />}
                                     </div>
                                     <div className={styles.faseTimelineConteudo}>
                                       <div className={styles.faseTimelineHeader}>
                                         <strong>{fase.phase_name}</strong>
-                                        {isAtiva
-                                          ? <span className={styles.badgeFaseAtiva}>● ATUAL</span>
-                                          : <span className={styles.badgeFaseHistorico}>✓ Concluída</span>
+                                        {isConcluida
+                                          ? <span className={styles.badgeFaseConcluida}>✓ Concluída</span>
+                                          : <span className={styles.badgeFaseEmProcesso}>⏳ Em Processo</span>
                                         }
                                         <span className={styles.faseTimelineDias}>{diasFase}d</span>
                                         {canEdit && (
