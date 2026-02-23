@@ -48,25 +48,47 @@ export const AuthProvider = ({ children }) => {
       if (profile) {
         setUserProfile(profile);
 
-        // Admin Geral (level 1) carrega todas as fazendas
+        let farmsCarregadas = [];
+
+        // Admin Geral (level 1): carrega TODAS as fazendas ativas
         if (profile.role?.level === 1) {
           const { data: farms } = await supabase
             .from('farms')
             .select('*')
             .eq('status', 'active')
             .order('name');
-          setAllFarms(farms || []);
+          farmsCarregadas = farms || [];
+        } else {
+          // Outros usuários: fazenda principal + extras via user_farm_access
+          const farmIds = new Set();
+          if (profile.farm_id) farmIds.add(profile.farm_id);
+
+          // Busca fazendas extras concedidas pelo admin
+          const { data: extras } = await supabase
+            .from('user_farm_access')
+            .select('farm_id')
+            .eq('user_id', userId);
+
+          (extras || []).forEach(r => farmIds.add(r.farm_id));
+
+          if (farmIds.size > 0) {
+            const { data: farms } = await supabase
+              .from('farms')
+              .select('*')
+              .in('id', Array.from(farmIds))
+              .eq('status', 'active')
+              .order('name');
+            farmsCarregadas = farms || [];
+          }
         }
 
-        // Carregar fazenda padrão
-        if (profile.default_farm_id) {
-          const { data: farm } = await supabase
-            .from('farms')
-            .select('*')
-            .eq('id', profile.default_farm_id)
-            .single();
-          if (farm) setCurrentFarm(farm);
-        }
+        setAllFarms(farmsCarregadas);
+
+        // Fazenda ativa: preferência pela farm_id principal, ou a primeira disponível
+        const farmPrincipal = farmsCarregadas.find(f => f.id === profile.farm_id)
+          || farmsCarregadas[0]
+          || null;
+        if (farmPrincipal) setCurrentFarm(farmPrincipal);
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
