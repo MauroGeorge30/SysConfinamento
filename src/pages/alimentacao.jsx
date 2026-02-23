@@ -20,6 +20,22 @@ export default function Alimentacao() {
   const [editingId, setEditingId] = useState(null);
   const [filtroBaia, setFiltroBaia] = useState('');
   const [filtroData, setFiltroData] = useState('');
+  const [expandedBaias, setExpandedBaias] = useState({});
+
+  const toggleBaia = (penId) => {
+    setExpandedBaias(prev => ({ ...prev, [penId]: !prev[penId] }));
+  };
+
+  // Detecta a fase do lote em uma data específica
+  const getFasePorData = (lotId, data) => {
+    const lote = lotes.find(l => l.id === lotId);
+    if (!lote || !lote.lot_phases) return null;
+    return lote.lot_phases.find(f => {
+      const inicio = f.start_date;
+      const fim = f.end_date;
+      return data >= inicio && (!fim || data <= fim);
+    }) || null;
+  };
 
   const hoje = (() => {
     const d = new Date();
@@ -47,7 +63,7 @@ export default function Alimentacao() {
           .limit(200),
         supabase.from('pens').select('id, pen_number, min_feed_kg, max_feed_kg, min_leftover_kg, max_leftover_kg').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
-        supabase.from('lots').select('id, lot_code, pen_id, head_count').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
+        supabase.from('lots').select('id, lot_code, pen_id, head_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name))').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
       ]);
       if (regError) throw regError;
       setRegistros(regData || []);
@@ -426,121 +442,212 @@ export default function Alimentacao() {
               g.registros.sort((a, b) => (b.feeding_order || 1) - (a.feeding_order || 1));
             });
 
+            // Função de renderização de linha de trato
+            const renderLinha = (r) => {
+              const fornecido = Number(r.quantity_kg);
+              const sobra = Number(r.leftover_kg || 0);
+              const consumidoR = fornecido - sobra;
+              const sobraP = fornecido > 0 && r.leftover_kg != null ? ((sobra / fornecido) * 100).toFixed(1) : null;
+              const custo = fornecido * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0);
+              const baia = baias.find(b => b.id === r.pen_id);
+              const foraNosLimites = baia && (
+                (baia.min_feed_kg && fornecido < Number(baia.min_feed_kg)) ||
+                (baia.max_feed_kg && fornecido > Number(baia.max_feed_kg)) ||
+                (r.leftover_kg != null && baia.min_leftover_kg && sobra < Number(baia.min_leftover_kg)) ||
+                (r.leftover_kg != null && baia.max_leftover_kg && sobra > Number(baia.max_leftover_kg))
+              );
+              return (
+                <tr key={r.id} className={foraNosLimites ? styles.linhaAlerta : ''}>
+                  <td>{foraNosLimites && <span className={styles.alertaIcone} title="Trato fora dos limites">⚠️</span>}{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                  <td><span className={styles.tratoOrdemBadge}>{r.feeding_order || 1}º</span></td>
+                  <td style={{ fontSize: '0.85rem', color: '#555' }}>{r.lots?.lot_code || '—'}</td>
+                  <td>{r.feed_types?.name || '—'}</td>
+                  <td>{fornecido.toFixed(1)} kg</td>
+                  <td>{r.leftover_kg != null ? `${sobra.toFixed(1)} kg` : <span style={{ color: '#aaa' }}>—</span>}</td>
+                  <td>
+                    {sobraP != null ? (
+                      <span style={{
+                        background: parseFloat(sobraP) > 5 ? '#ffebee' : parseFloat(sobraP) < 1 ? '#fff8e1' : '#e8f5e9',
+                        color: parseFloat(sobraP) > 5 ? '#c62828' : parseFloat(sobraP) < 1 ? '#f57c00' : '#2e7d32',
+                        padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem'
+                      }}>
+                        {sobraP}%
+                      </span>
+                    ) : <span style={{ color: '#aaa' }}>—</span>}
+                  </td>
+                  <td>{consumidoR.toFixed(1)} kg</td>
+                  <td>R$ {custo.toFixed(2)}</td>
+                  {canDelete('feeding_records') && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
+                        <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            };
+
+            // Função de resumo de uma lista de registros
+            const calcResumo = (regs) => {
+              const forn = regs.reduce((acc, r) => acc + Number(r.quantity_kg), 0);
+              const sobra = regs.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0);
+              const cons = forn - sobra;
+              const custo = regs.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0), 0);
+              const sobraPct = forn > 0 && sobra > 0 ? ((sobra / forn) * 100).toFixed(1) : null;
+              return { forn, sobra, cons, custo, sobraPct };
+            };
+
             return (
               <div className={styles.gruposWrapper}>
-                {Object.entries(grupos).sort((a, b) => { const nA = a[1].pen?.pen_number || ""; const nB = b[1].pen?.pen_number || ""; return nA.localeCompare(nB, "pt-BR", { numeric: true, sensitivity: "base" }); }).map(([penId, grupo]) => {
-                  const totalForn = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg), 0);
-                  const totalSobra = grupo.registros.reduce((acc, r) => acc + Number(r.leftover_kg || 0), 0);
-                  const totalCons = totalForn - totalSobra;
-                  const totalCusto = grupo.registros.reduce((acc, r) => acc + Number(r.quantity_kg) * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0), 0);
-                  // Cabeças: pega do lote vinculado (maior valor entre os registros do grupo)
+                {Object.entries(grupos).sort((a, b) => {
+                  const nA = a[1].pen?.pen_number || "";
+                  const nB = b[1].pen?.pen_number || "";
+                  return nA.localeCompare(nB, "pt-BR", { numeric: true, sensitivity: "base" });
+                }).map(([penId, grupo]) => {
+                  const resumoTotal = calcResumo(grupo.registros);
                   const cabecas = grupo.registros.reduce((max, r) => {
                     const lote = lotes.find(l => l.id === r.lot_id);
                     return lote?.head_count > max ? lote.head_count : max;
                   }, 0);
-                  const sobraPctGrupo = totalForn > 0 && totalSobra > 0
-                    ? ((totalSobra / totalForn) * 100).toFixed(1) : null;
+                  const isExpanded = expandedBaias[penId] !== false; // expandido por padrão
+
+                  // Agrupa registros por fase dentro da baia
+                  const faseMap = {};
+                  grupo.registros.forEach(r => {
+                    const fase = getFasePorData(r.lot_id, r.feeding_date);
+                    const faseKey = fase ? `${fase.phase_name}|||${fase.id}` : 'sem-fase|||';
+                    const faseLbl = fase ? fase.phase_name : 'Sem fase';
+                    const faseRacao = fase?.feed_types?.name || null;
+                    const faseInicio = fase?.start_date || null;
+                    const faseFim = fase?.end_date || null;
+                    const faseAtiva = fase && !fase.end_date;
+                    if (!faseMap[faseKey]) faseMap[faseKey] = { label: faseLbl, racao: faseRacao, inicio: faseInicio, fim: faseFim, ativa: faseAtiva, registros: [] };
+                    faseMap[faseKey].registros.push(r);
+                  });
+
+                  // Ordena fases: ativa primeiro, depois por data de início decrescente
+                  const fasesOrdenadas = Object.entries(faseMap).sort((a, b) => {
+                    if (a[1].ativa && !b[1].ativa) return -1;
+                    if (!a[1].ativa && b[1].ativa) return 1;
+                    return (b[1].inicio || '') > (a[1].inicio || '') ? 1 : -1;
+                  });
+
+                  const temMultiFases = fasesOrdenadas.length > 1;
 
                   return (
                     <div key={penId} className={styles.grupoCard}>
-                      {/* Cabeçalho da baia */}
-                      <div className={styles.grupoCabecalho}>
+                      {/* Cabeçalho colapsável da baia */}
+                      <div className={styles.grupoCabecalho} onClick={() => toggleBaia(penId)} style={{ cursor: 'pointer' }}>
                         <div className={styles.grupoCabecalhoLeft}>
+                          <span className={styles.expandToggle}>{isExpanded ? '▼' : '▶'}</span>
                           <strong>Baia {grupo.pen?.pen_number || '—'}</strong>
                           {cabecas > 0 && <span className={styles.cabecasBadge}>{cabecas} cabeças</span>}
+                          {!isExpanded && temMultiFases && <span className={styles.faseBadgeHeader}>
+                            {fasesOrdenadas.length} fase(s)
+                          </span>}
                         </div>
                         <div className={styles.grupoCabecalhoRight}>
                           <div className={styles.grupoStat}>
                             <span>Fornecido</span>
-                            <strong>{totalForn.toFixed(1)} kg</strong>
+                            <strong>{resumoTotal.forn.toFixed(1)} kg</strong>
                           </div>
                           <div className={styles.grupoStat}>
                             <span>Sobra</span>
-                            <strong style={{ color: sobraPctGrupo && parseFloat(sobraPctGrupo) > 5 ? '#c62828' : '#2e7d32' }}>
-                              {totalSobra.toFixed(1)} kg
-                              {sobraPctGrupo && <em> ({sobraPctGrupo}%)</em>}
+                            <strong style={{ color: resumoTotal.sobraPct && parseFloat(resumoTotal.sobraPct) > 5 ? '#f87171' : '#86efac' }}>
+                              {resumoTotal.sobra.toFixed(1)} kg
+                              {resumoTotal.sobraPct && <em> ({resumoTotal.sobraPct}%)</em>}
                             </strong>
                           </div>
                           <div className={styles.grupoStat}>
                             <span>Consumido</span>
-                            <strong>{totalCons.toFixed(1)} kg</strong>
+                            <strong>{resumoTotal.cons.toFixed(1)} kg</strong>
                           </div>
                           <div className={styles.grupoStat}>
                             <span>Custo Total</span>
-                            <strong className={styles.custoDest}>R$ {totalCusto.toFixed(2)}</strong>
+                            <strong className={styles.custoDest}>R$ {resumoTotal.custo.toFixed(2)}</strong>
                           </div>
                         </div>
                       </div>
 
-                      {/* Registros da baia */}
-                      <div className={styles.tabelaWrapper}>
-                        <table className={styles.tabela}>
-                          <thead>
-                            <tr>
-                              <th>Data</th>
-                              <th>Trato</th>
-                              <th>Lote</th>
-                              <th>Ração</th>
-                              <th>Fornecido</th>
-                              <th>Sobra</th>
-                              <th>Sobra%</th>
-                              <th>Consumido</th>
-                              <th>Custo</th>
-                              {canDelete('feeding_records') && <th>Ações</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {grupo.registros.map((r) => {
-                              const fornecido = Number(r.quantity_kg);
-                              const sobra = Number(r.leftover_kg || 0);
-                              const consumidoR = fornecido - sobra;
-                              const sobraP = fornecido > 0 && r.leftover_kg != null ? ((sobra / fornecido) * 100).toFixed(1) : null;
-                              const custo = fornecido * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0);
-                              // Verifica limites da baia
-                              const baia = baias.find(b => b.id === r.pen_id);
-                              const foraNosLimites = baia && (
-                                (baia.min_feed_kg && fornecido < Number(baia.min_feed_kg)) ||
-                                (baia.max_feed_kg && fornecido > Number(baia.max_feed_kg)) ||
-                                (r.leftover_kg != null && baia.min_leftover_kg && sobra < Number(baia.min_leftover_kg)) ||
-                                (r.leftover_kg != null && baia.max_leftover_kg && sobra > Number(baia.max_leftover_kg))
-                              );
-                              return (
-                                <tr key={r.id} className={foraNosLimites ? styles.linhaAlerta : ''}>
-                                  <td>{foraNosLimites && <span className={styles.alertaIcone} title="Trato fora dos limites">⚠️</span>}{new Date(r.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                                  <td><span className={styles.tratoOrdemBadge}>{r.feeding_order || 1}º</span></td>
-                                  <td style={{ fontSize: '0.85rem', color: '#555' }}>{r.lots?.lot_code || '—'}</td>
-                                  <td>{r.feed_types?.name || '—'}</td>
-                                  <td>{fornecido.toFixed(1)} kg</td>
-                                  <td>{r.leftover_kg != null ? `${sobra.toFixed(1)} kg` : <span style={{ color: '#aaa' }}>—</span>}</td>
-                                  <td>
-                                    {sobraP != null ? (
-                                      <span style={{
-                                        background: parseFloat(sobraP) > 5 ? '#ffebee' : parseFloat(sobraP) < 1 ? '#fff8e1' : '#e8f5e9',
-                                        color: parseFloat(sobraP) > 5 ? '#c62828' : parseFloat(sobraP) < 1 ? '#f57c00' : '#2e7d32',
-                                        padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem'
-                                      }}>
-                                        {sobraP}%
+                      {/* Conteúdo colapsável */}
+                      {isExpanded && (
+                        <div>
+                          {fasesOrdenadas.map(([faseKey, faseGrupo]) => {
+                            const resumoFase = calcResumo(faseGrupo.registros);
+                            const corFase = faseGrupo.ativa ? '#e65100' : '#6b7280';
+                            const bgFase = faseGrupo.ativa ? '#fff3e0' : '#f3f4f6';
+
+                            return (
+                              <div key={faseKey}>
+                                {/* Sub-cabeçalho de fase */}
+                                <div className={styles.faseCabecalho} style={{ borderLeftColor: corFase, background: bgFase }}>
+                                  <div className={styles.faseCabecalhoLeft}>
+                                    {faseGrupo.ativa
+                                      ? <span className={styles.faseBadgeAtiva}>● FASE ATUAL</span>
+                                      : <span className={styles.faseBadgeAnt}>◌ FASE ANTERIOR</span>
+                                    }
+                                    <strong style={{ color: corFase }}>{faseGrupo.label}</strong>
+                                    {faseGrupo.racao && <span className={styles.faseRacaoLabel}>{faseGrupo.racao}</span>}
+                                    {faseGrupo.inicio && (
+                                      <span className={styles.fasePeriodo}>
+                                        {new Date(faseGrupo.inicio + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                        {faseGrupo.fim ? ` → ${new Date(faseGrupo.fim + 'T12:00:00').toLocaleDateString('pt-BR')}` : ' → atual'}
                                       </span>
-                                    ) : <span style={{ color: '#aaa' }}>—</span>}
-                                  </td>
-                                  <td>{consumidoR.toFixed(1)} kg</td>
-                                  <td>R$ {custo.toFixed(2)}</td>
-                                  {canDelete('feeding_records') && (
-                                    <td>
-                                      <div style={{ display: 'flex', gap: '6px' }}>
-                                        {(canDelete('feeding_records') || foraNosLimites) && (
-                                          <button className={styles.btnEditar} onClick={() => handleEdit(r)}>Editar</button>
-                                        )}
-                                        <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
-                                      </div>
-                                    </td>
-                                  )}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                                    )}
+                                  </div>
+                                  <div className={styles.faseCabecalhoRight}>
+                                    <div className={styles.faseStat}>
+                                      <span>Tratos</span>
+                                      <strong>{faseGrupo.registros.length}</strong>
+                                    </div>
+                                    <div className={styles.faseStat}>
+                                      <span>Fornecido</span>
+                                      <strong>{resumoFase.forn.toFixed(1)} kg</strong>
+                                    </div>
+                                    <div className={styles.faseStat}>
+                                      <span>Sobra</span>
+                                      <strong>{resumoFase.sobra.toFixed(1)} kg{resumoFase.sobraPct ? ` (${resumoFase.sobraPct}%)` : ''}</strong>
+                                    </div>
+                                    <div className={styles.faseStat}>
+                                      <span>Consumido</span>
+                                      <strong>{resumoFase.cons.toFixed(1)} kg</strong>
+                                    </div>
+                                    <div className={styles.faseStat}>
+                                      <span>Custo Fase</span>
+                                      <strong>R$ {resumoFase.custo.toFixed(2)}</strong>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Tabela dos tratos da fase */}
+                                <div className={styles.tabelaWrapper}>
+                                  <table className={styles.tabela}>
+                                    <thead>
+                                      <tr>
+                                        <th>Data</th>
+                                        <th>Trato</th>
+                                        <th>Lote</th>
+                                        <th>Ração</th>
+                                        <th>Fornecido</th>
+                                        <th>Sobra</th>
+                                        <th>Sobra%</th>
+                                        <th>Consumido</th>
+                                        <th>Custo</th>
+                                        {canDelete('feeding_records') && <th>Ações</th>}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {faseGrupo.registros.map(r => renderLinha(r))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
