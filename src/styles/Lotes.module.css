@@ -136,3 +136,5 @@
 
 .badgeFaseAtiva { background: #e65100; color: #fff; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
 .badgeFaseHistorico { background: #e0e0e0; color: #555; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+.btnEditarFase { background: #fff; color: #1565c0; border: 1px solid #90caf9; padding: 2px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; margin-left: auto; white-space: nowrap; }
+.btnEditarFase:hover { background: #e3f2fd; }
