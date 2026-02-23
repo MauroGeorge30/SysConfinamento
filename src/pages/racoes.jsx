@@ -367,6 +367,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expandedComp, setExpandedComp] = useState(null);
+  const [editingCompId, setEditingCompId] = useState(null);
 
   const hoje = new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0];
   const [formComp, setFormComp] = useState({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje, notes: '' });
@@ -421,6 +422,27 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     setFormComp({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje, notes: '' });
     setItens([{ ingredient_id: '', proportion_pct: '', quantity_kg: '', price_per_unit: '' }]);
     setShowForm(false);
+    setEditingCompId(null);
+  };
+
+  const handleEditComp = (c) => {
+    setFormComp({
+      feed_type_id: c.feed_type_id,
+      base_qty_kg: String(c.base_qty_kg),
+      effective_date: c.effective_date,
+      notes: c.notes || '',
+    });
+    const itensCarregados = (c.feed_composition_items || []).map(item => ({
+      id: item.id,
+      ingredient_id: item.ingredient_id,
+      proportion_pct: String(item.proportion_pct),
+      quantity_kg: String(item.quantity_kg),
+      price_per_unit: String(item.price_per_unit),
+    }));
+    setItens(itensCarregados.length > 0 ? itensCarregados : [{ ingredient_id: '', proportion_pct: '', quantity_kg: '', price_per_unit: '' }]);
+    setEditingCompId(c.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSubmitComp = async (e) => {
@@ -430,44 +452,80 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     if (itensValidos.length === 0) return alert('Adicione pelo menos um ingrediente completo.');
     setLoading(true);
     try {
-      const { data: versoes } = await supabase
-        .from('feed_compositions').select('version')
-        .eq('feed_type_id', formComp.feed_type_id)
-        .order('version', { ascending: false }).limit(1);
-      const proximaVersao = versoes && versoes.length > 0 ? versoes[0].version + 1 : 1;
-
       const totalCustoCalc = itensValidos.reduce((acc, i) => acc + (parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)), 0);
       const custoPorKgCalc = totalCustoCalc / parseFloat(formComp.base_qty_kg);
 
-      const { data: novaComp, error: errComp } = await supabase
-        .from('feed_compositions')
-        .insert([{
-          feed_type_id: formComp.feed_type_id,
+      if (editingCompId) {
+        // ── MODO EDIÇÃO: atualiza composição existente ──
+        const { error: errComp } = await supabase
+          .from('feed_compositions')
+          .update({
+            feed_type_id: formComp.feed_type_id,
+            base_qty_kg: parseFloat(formComp.base_qty_kg),
+            cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)),
+            total_cost: parseFloat(totalCustoCalc.toFixed(2)),
+            effective_date: formComp.effective_date,
+            notes: formComp.notes || null,
+          })
+          .eq('id', editingCompId);
+        if (errComp) throw errComp;
+
+        // Deleta itens antigos e reinserem os novos
+        const { error: errDel } = await supabase.from('feed_composition_items').delete().eq('composition_id', editingCompId);
+        if (errDel) throw errDel;
+
+        const itemsPayload = itensValidos.map(i => ({
+          composition_id: editingCompId,
+          ingredient_id: i.ingredient_id,
           farm_id: currentFarm.id,
-          version: proximaVersao,
-          base_qty_kg: parseFloat(formComp.base_qty_kg),
-          cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)),
-          total_cost: parseFloat(totalCustoCalc.toFixed(2)),
-          effective_date: formComp.effective_date,
-          is_current: true,
-          notes: formComp.notes || null,
-          registered_by: user.id,
-        }]).select().single();
-      if (errComp) throw errComp;
+          proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
+          quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
+          price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
+          total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
+        }));
+        const { error: errItems } = await supabase.from('feed_composition_items').insert(itemsPayload);
+        if (errItems) throw errItems;
 
-      const itemsPayload = itensValidos.map(i => ({
-        composition_id: novaComp.id,
-        ingredient_id: i.ingredient_id,
-        farm_id: currentFarm.id,
-        proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
-        quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
-        price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
-        total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
-      }));
-      const { error: errItems } = await supabase.from('feed_composition_items').insert(itemsPayload);
-      if (errItems) throw errItems;
+        alert('Composição atualizada!\nNovo custo por kg: R$ ' + custoPorKgCalc.toFixed(4));
+      } else {
+        // ── MODO CRIAÇÃO: nova versão ──
+        const { data: versoes } = await supabase
+          .from('feed_compositions').select('version')
+          .eq('feed_type_id', formComp.feed_type_id)
+          .order('version', { ascending: false }).limit(1);
+        const proximaVersao = versoes && versoes.length > 0 ? versoes[0].version + 1 : 1;
 
-      alert('Composição v' + proximaVersao + ' cadastrada!\nCusto por kg: R$ ' + custoPorKgCalc.toFixed(4));
+        const { data: novaComp, error: errComp } = await supabase
+          .from('feed_compositions')
+          .insert([{
+            feed_type_id: formComp.feed_type_id,
+            farm_id: currentFarm.id,
+            version: proximaVersao,
+            base_qty_kg: parseFloat(formComp.base_qty_kg),
+            cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)),
+            total_cost: parseFloat(totalCustoCalc.toFixed(2)),
+            effective_date: formComp.effective_date,
+            is_current: true,
+            notes: formComp.notes || null,
+            registered_by: user.id,
+          }]).select().single();
+        if (errComp) throw errComp;
+
+        const itemsPayload = itensValidos.map(i => ({
+          composition_id: novaComp.id,
+          ingredient_id: i.ingredient_id,
+          farm_id: currentFarm.id,
+          proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
+          quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
+          price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
+          total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
+        }));
+        const { error: errItems } = await supabase.from('feed_composition_items').insert(itemsPayload);
+        if (errItems) throw errItems;
+
+        alert('Composição v' + proximaVersao + ' cadastrada!\nCusto por kg: R$ ' + custoPorKgCalc.toFixed(4));
+      }
+
       resetForm(); loadDados();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
@@ -478,7 +536,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
       <div className={styles.subHeader}>
         <span>{composicoes.length} composição(ões) registrada(s)</span>
         {canCreate('feed_compositions') && (
-          <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          <button className={styles.btnAdd} onClick={() => { if (showForm) { resetForm(); } else { setShowForm(true); } }}>
             {showForm ? 'Cancelar' : '+ Nova Composição'}
           </button>
         )}
@@ -486,7 +544,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
 
       {showForm && (
         <div className={styles.formCard}>
-          <h2>Nova Composição de Ração</h2>
+          <h2>{editingCompId ? '✏️ Editar Composição' : 'Nova Composição de Ração'}</h2>
           <form onSubmit={handleSubmitComp}>
             <div className={styles.row3}>
               <div>
@@ -590,7 +648,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
 
             <div className={styles.formAcoes}>
               <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-              <button type="submit" disabled={loading}>{loading ? 'Salvando...' : 'Salvar Composição'}</button>
+              <button type="submit" disabled={loading}>{loading ? 'Salvando...' : editingCompId ? 'Salvar Alterações' : 'Salvar Composição'}</button>
             </div>
           </form>
         </div>
@@ -612,12 +670,17 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                 <div className={styles.compCardRight}>
                   <span>Vigência: {new Date(c.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   <strong className={styles.custoDestaque}>R$ {Number(c.cost_per_kg).toFixed(4)}/kg</strong>
-                  <button className={styles.btnDeletar} onClick={(e) => {
-                    e.stopPropagation();
-                    if (!confirm('Deletar esta composição v' + c.version + '?\n' + (c.is_current ? 'ATENÇÃO: Esta é a composição vigente!' : ''))) return;
-                    supabase.from('feed_compositions').delete().eq('id', c.id)
-                      .then(({ error }) => { if (error) alert('Erro: ' + error.message); else loadDados(); });
-                  }}>Deletar</button>
+                  {canEdit('feed_compositions') && (
+                    <button className={styles.btnEditar} onClick={(e) => { e.stopPropagation(); handleEditComp(c); }}>Editar</button>
+                  )}
+                  {canDelete('feed_compositions') && (
+                    <button className={styles.btnDeletar} onClick={(e) => {
+                      e.stopPropagation();
+                      if (!confirm('Deletar esta composição v' + c.version + '?\n' + (c.is_current ? 'ATENÇÃO: Esta é a composição vigente!' : ''))) return;
+                      supabase.from('feed_compositions').delete().eq('id', c.id)
+                        .then(({ error }) => { if (error) alert('Erro: ' + error.message); else loadDados(); });
+                    }}>Deletar</button>
+                  )}
                   <span className={styles.expandIcon}>{expandedComp === c.id ? '▲' : '▼'}</span>
                 </div>
               </div>
