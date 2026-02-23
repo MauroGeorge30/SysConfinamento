@@ -78,28 +78,53 @@
 .linhasSelect { padding: 2px 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.78rem; background: #fff; cursor: pointer; outline: none; }
 .linhasSelect:focus { border-color: #2e7d32; }
 .tabelaWrapper { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow-x: auto; }
-/* Caixa de scroll vertical para a tabela de tratos */
+/* ── Tabela estilo Excel: thead fixo, tbody com scroll vertical ── */
 .tabelaScrollBox {
   overflow-y: auto;
   overflow-x: auto;
-  max-height: calc(20 * 41px); /* ~20 linhas × altura da linha */
+  /* max-height injetado via style inline (dinâmico) */
   border-radius: 10px 10px 0 0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border: 1px solid #e0e0e0;
   scrollbar-width: thin;
-  scrollbar-color: #c8e6c9 #f5f5f5;
+  scrollbar-color: #a5d6a7 #f5f5f5;
+  background: #fff;
 }
-.tabelaScrollBox::-webkit-scrollbar { width: 7px; }
-.tabelaScrollBox::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 4px; }
+.tabelaScrollBox::-webkit-scrollbar { width: 8px; height: 8px; }
+.tabelaScrollBox::-webkit-scrollbar-track { background: #f5f5f5; }
 .tabelaScrollBox::-webkit-scrollbar-thumb { background: #a5d6a7; border-radius: 4px; }
 .tabelaScrollBox::-webkit-scrollbar-thumb:hover { background: #66bb6a; }
-/* thead sticky dentro do scroll */
-.tabelaScrollBox .tabelaTratos thead tr { position: sticky; top: 0; z-index: 2; }
-.tabelaTratos { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-.tabelaTratos thead tr { background: #f0f0f0; }
-.tabelaTratos th { padding: 9px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
-.tabelaTratos td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #333; }
-.tabelaTratos tbody tr:hover { background: #f9fff9; }
-.tabelaTratos tfoot td { padding: 9px 12px; background: #f0f7f0; border-top: 2px solid #c8e6c9; font-size: 0.85rem; }
+
+.tabelaTratos {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.84rem;
+}
+/* thead STICKY — fica parado enquanto tbody rola */
+.tabelaTratos thead tr {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #e8e8e8;
+}
+.tabelaTratos th {
+  padding: 9px 13px;
+  text-align: left;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+  border-bottom: 2px solid #bdbdbd;
+  /* sombra sutil para separar visualmente do tbody */
+  box-shadow: 0 2px 3px rgba(0,0,0,0.08);
+}
+.tabelaTratos td {
+  padding: 8px 13px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  background: #fff;
+}
+.tabelaTratos tbody tr:nth-child(even) td { background: #fafafa; }
+.tabelaTratos tbody tr:hover td { background: #f0faf0 !important; }
 .tratoBadge { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; padding: 1px 7px; border-radius: 10px; font-size: 0.78rem; font-weight: 700; }
 .sobraBadge { padding: 2px 7px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
 .semTratos { color: #aaa; font-size: 0.85rem; font-style: italic; padding: 1rem 0; }
@@ -130,7 +155,19 @@
 }
 
 /* Rodapé fora do scroll */
-.tabelaRodape { background: #f0f7f0; border: 1px solid #c8e6c9; border-top: 2px solid #a5d6a7; border-radius: 0 0 10px 10px; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.tabelaRodape {
+  background: #f0f7f0;
+  border: 1px solid #c8e6c9;
+  border-top: 2px solid #81c784;
+  border-radius: 0 0 10px 10px;
+  padding: 9px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .rodapeInfo { font-size: 0.75rem; color: #888; font-style: italic; }
-.rodapeTotais { display: flex; gap: 24px; flex-wrap: wrap; font-size: 0.84rem; font-weight: 600; color: #1a1a2e; }
-.rodapeTotais span:first-child { color: #555; font-weight: 700; text-transform: uppercase; font-size: 0.75px; letter-spacing: 0.3px; }
+.rodapeTotais { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.84rem; font-weight: 600; color: #1a1a2e; align-items: center; }
+.rodapeTotais em { font-style: normal; font-size: 0.72rem; color: #888; margin-right: 2px; }
+.rodapeLabel { font-size: 0.75rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.4px; background: #c8e6c9; padding: 2px 8px; border-radius: 6px; }
