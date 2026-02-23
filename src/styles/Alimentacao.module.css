@@ -30,8 +30,8 @@
 .tabelaWrapper { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
 .tabela { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
 .tabela thead tr { background: #eeeeee; }
-.tabela th { padding: 13px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; }
-.tabela td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #333; }
+.tabela th { padding: 10px 10px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #eee; white-space: nowrap; font-size: 0.85rem; }
+.tabela td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; color: #333; white-space: nowrap; font-size: 0.88rem; }
 .tabela tfoot td { padding: 12px 16px; background: #f9f9f9; border-top: 2px solid #eee; }
 .tabela tbody tr:hover { background: #f9fff9; }
 .btnDeletar { background: #fff; color: #c62828; border: 1px solid #e57373; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
