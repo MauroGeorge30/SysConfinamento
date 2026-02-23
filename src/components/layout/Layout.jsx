@@ -1,29 +1,151 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import Link from 'next/link';
 import styles from '../../styles/Layout.module.css';
 
-function DropdownMenu({ label, items }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+const NAV_GROUPS = (showAdmin) => [
+  {
+    type: 'link',
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: '📊',
+  },
+  {
+    type: 'link',
+    href: '/lotes',
+    label: 'Lotes',
+    icon: '📦',
+  },
+  {
+    type: 'link',
+    href: '/baias',
+    label: 'Baias',
+    icon: '🏠',
+  },
+  {
+    type: 'link',
+    href: '/gado',
+    label: 'Gado',
+    icon: '🐂',
+  },
+  {
+    type: 'group',
+    label: 'Controle Operacional',
+    icon: '⚙️',
+    items: [
+      { href: '/racoes',        label: 'Rações',                icon: '🌾' },
+      { href: '/alimentacao',   label: 'Tratos Diários',        icon: '🌿' },
+      { href: '/pesagens',      label: 'Pesagens Individuais',  icon: '⚖️' },
+      { href: '/pesagens-lote', label: 'Pesagens por Lote',     icon: '📦' },
+      { href: '/ocorrencias',   label: 'Ocorrências',           icon: '🚨' },
+    ],
+  },
+  {
+    type: 'group',
+    label: 'Movimentação',
+    icon: '🔄',
+    items: [
+      { href: '/movimentacao', label: 'Transferência', icon: '🔄' },
+      { href: '/saidas',       label: 'Saídas',        icon: '🚪' },
+    ],
+  },
+  {
+    type: 'group',
+    label: 'Financeiro',
+    icon: '💵',
+    items: [
+      { href: '/financeiro',      label: 'Lançamentos',       icon: '💵' },
+      { href: '/fechamento-lote', label: 'Fechamento de Lote',icon: '📊' },
+    ],
+  },
+  {
+    type: 'link',
+    href: '/relatorios',
+    label: 'Relatórios',
+    icon: '📋',
+  },
+  ...(showAdmin ? [{
+    type: 'group',
+    label: 'Administração',
+    icon: '🛠️',
+    items: [
+      { href: '/fazendas', label: 'Fazendas', icon: '🏡' },
+      { href: '/usuarios', label: 'Usuários', icon: '👤' },
+    ],
+  }] : []),
+];
 
+function NavItem({ item, collapsed, currentPath }) {
+  const isActive = item.type === 'link'
+    ? currentPath === item.href
+    : item.items?.some(i => currentPath === i.href);
+
+  const [open, setOpen] = useState(isActive);
+
+  // Abre automaticamente o grupo se a página atual estiver nele
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (item.type === 'group' && isActive) setOpen(true);
+  }, [currentPath]);
 
+  if (item.type === 'link') {
+    return (
+      <Link
+        href={item.href}
+        className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
+        title={collapsed ? item.label : undefined}
+      >
+        <span className={styles.navIcon}>{item.icon}</span>
+        {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+        {isActive && <span className={styles.activeBar} />}
+      </Link>
+    );
+  }
+
+  // Group
   return (
-    <div className={styles.dropdown} ref={ref}>
-      <button className={styles.dropbtn} onClick={() => setOpen(!open)}>
-        {label} <span className={styles.arrow}>{open ? '▲' : '▼'}</span>
+    <div className={`${styles.navGroup} ${isActive ? styles.navGroupActive : ''}`}>
+      <button
+        className={`${styles.navGroupBtn} ${isActive ? styles.navGroupBtnActive : ''}`}
+        onClick={() => setOpen(o => !o)}
+        title={collapsed ? item.label : undefined}
+      >
+        <span className={styles.navIcon}>{item.icon}</span>
+        {!collapsed && (
+          <>
+            <span className={styles.navLabel}>{item.label}</span>
+            <span className={styles.groupArrow}>{open ? '▲' : '▼'}</span>
+          </>
+        )}
+        {collapsed && isActive && <span className={styles.activeBarCollapsed} />}
       </button>
-      {open && (
-        <div className={styles.dropMenu}>
-          {items.map(item => (
-            <Link key={item.href} href={item.href} className={styles.dropItem} onClick={() => setOpen(false)}>
-              {item.label}
+      {open && !collapsed && (
+        <div className={styles.navGroupItems}>
+          {item.items.map(sub => (
+            <Link
+              key={sub.href}
+              href={sub.href}
+              className={`${styles.navSubLink} ${currentPath === sub.href ? styles.navSubLinkActive : ''}`}
+            >
+              <span className={styles.subIcon}>{sub.icon}</span>
+              <span>{sub.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+      {/* Dropdown flutuante quando collapsed */}
+      {open && collapsed && (
+        <div className={styles.collapsedDropdown}>
+          <div className={styles.collapsedDropdownTitle}>{item.label}</div>
+          {item.items.map(sub => (
+            <Link
+              key={sub.href}
+              href={sub.href}
+              className={`${styles.collapsedDropItem} ${currentPath === sub.href ? styles.collapsedDropItemActive : ''}`}
+            >
+              <span>{sub.icon}</span>
+              <span>{sub.label}</span>
             </Link>
           ))}
         </div>
@@ -33,68 +155,104 @@ function DropdownMenu({ label, items }) {
 }
 
 export default function Layout({ children }) {
+  const router = useRouter();
   const { userProfile, currentFarm, allFarms, switchFarm, signOut } = useAuth();
   const { isAdmin, isManager } = usePermissions();
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const showAdminMenu = isAdmin() || isManager();
+  const isAdminGeral = userProfile?.role?.level === 1;
+  const currentPath = router.pathname;
 
   const handleSignOut = async () => {
     await signOut();
     window.location.href = '/';
   };
 
-  const showAdminMenu = isAdmin() || isManager();
-  const isAdminGeral = userProfile?.role?.level === 1;
+  const navItems = NAV_GROUPS(showAdminMenu);
 
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <div className={styles.logo}>🐂 Confinamento</div>
-          <nav className={styles.nav}>
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/lotes">Lotes</Link>
-            <Link href="/baias">Baias</Link>
-            <Link href="/gado">Gado</Link>
+    <div className={`${styles.appShell} ${collapsed ? styles.shellCollapsed : ''}`}>
 
-            <DropdownMenu label="Controle Operacional" items={[
-              { href: '/racoes',         label: '🌾 Rações' },
-              { href: '/alimentacao',    label: '🌿 Tratos Diários' },
-              { href: '/pesagens',       label: '⚖️ Pesagens Individuais' },
-              { href: '/pesagens-lote',  label: '📦 Pesagens por Lote' },
-              { href: '/ocorrencias',    label: '🚨 Ocorrências' },
-            ]} />
+      {/* Overlay mobile */}
+      {mobileOpen && (
+        <div className={styles.mobileOverlay} onClick={() => setMobileOpen(false)} />
+      )}
 
-            <DropdownMenu label="Movimentação" items={[
-              { href: '/movimentacao', label: '🔄 Transferência' },
-              { href: '/saidas',       label: '🚪 Saídas' },
-            ]} />
+      {/* ── SIDEBAR ── */}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}>
 
-            <DropdownMenu label="Financeiro" items={[
-              { href: '/financeiro',      label: '💵 Lançamentos' },
-              { href: '/fechamento-lote', label: '📊 Fechamento de Lote' },
-            ]} />
-            <Link href="/relatorios">Relatórios</Link>
+        {/* Logo + toggle */}
+        <div className={styles.sidebarHeader}>
+          {!collapsed && <div className={styles.logo}>🐂 Confinamento</div>}
+          <button
+            className={styles.collapseBtn}
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {collapsed ? '▶' : '◀'}
+          </button>
+        </div>
 
-            {showAdminMenu && (
-              <DropdownMenu label="Administração" items={[
-                ...(showAdminMenu ? [{ href: '/fazendas', label: '🏡 Fazendas' }] : []),
-                ...(showAdminMenu ? [{ href: '/usuarios', label: '👤 Usuários' }] : []),
-              ]} />
+        {/* Fazenda */}
+        {!collapsed && (
+          <div className={styles.sidebarFarm}>
+            {isAdminGeral && allFarms?.length > 1 ? (
+              <select
+                className={styles.seletorFazenda}
+                value={currentFarm?.id || ''}
+                onChange={(e) => switchFarm(e.target.value)}
+              >
+                {allFarms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            ) : (
+              currentFarm && <span className={styles.nomeFazenda}>🏡 {currentFarm.name}</span>
             )}
-          </nav>
-        </div>
-        <div className={styles.headerRight}>
-          {isAdminGeral && allFarms?.length > 1 ? (
-            <select className={styles.seletorFazenda} value={currentFarm?.id || ''} onChange={(e) => switchFarm(e.target.value)}>
-              {allFarms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          ) : (
-            currentFarm && <span className={styles.nomeFazenda}>{currentFarm.name}</span>
+          </div>
+        )}
+
+        {/* Itens de navegação */}
+        <nav className={styles.sidebarNav}>
+          {navItems.map((item, idx) => (
+            <NavItem
+              key={idx}
+              item={item}
+              collapsed={collapsed}
+              currentPath={currentPath}
+            />
+          ))}
+        </nav>
+
+        {/* Rodapé da sidebar: usuário + sair */}
+        <div className={styles.sidebarFooter}>
+          {!collapsed && userProfile && (
+            <div className={styles.userInfo}>
+              <span className={styles.userIcon}>👤</span>
+              <span className={styles.userName}>{userProfile.name}</span>
+            </div>
           )}
-          {userProfile && <span className={styles.nomeUsuario}>{userProfile.name}</span>}
-          <button onClick={handleSignOut} className={styles.btnSair}>Sair</button>
+          <button onClick={handleSignOut} className={styles.btnSair} title="Sair">
+            {collapsed ? '⬅️' : '⬅ Sair'}
+          </button>
         </div>
-      </header>
-      <main className={styles.main}>{children}</main>
+      </aside>
+
+      {/* ── TOPBAR mobile ── */}
+      <div className={styles.topbarMobile}>
+        <button className={styles.hamburger} onClick={() => setMobileOpen(o => !o)}>
+          ☰
+        </button>
+        <div className={styles.logo}>🐂 Confinamento</div>
+        {currentFarm && <span className={styles.topbarFarm}>{currentFarm.name}</span>}
+      </div>
+
+      {/* ── CONTEÚDO PRINCIPAL ── */}
+      <main className={styles.main}>
+        {children}
+      </main>
+
     </div>
   );
 }
