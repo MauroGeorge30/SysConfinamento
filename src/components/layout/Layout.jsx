@@ -165,6 +165,13 @@ export default function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Fecha a sidebar mobile sempre que a rota mudar
+  useEffect(() => {
+    const handleRouteChange = () => setMobileOpen(false);
+    router.events.on('routeChangeStart', handleRouteChange);
+    return () => router.events.off('routeChangeStart', handleRouteChange);
+  }, [router.events]);
+
   const showAdminMenu = isAdmin() || isManager();
   const isAdminGeral = userProfile?.role?.level === 1;
   const currentPath = router.pathname;
