@@ -522,7 +522,8 @@ export default function Alimentacao() {
                     const faseRacao = fase?.feed_types?.name || null;
                     const faseInicio = fase?.start_date || null;
                     const faseFim = fase?.end_date || null;
-                    const faseAtiva = fase && !fase.end_date;
+                    const fimFaseTs = fase?.end_date ? new Date(fase.end_date) : null;
+                    const faseAtiva = fase && !(fimFaseTs && fimFaseTs < new Date(hoje));
                     if (!faseMap[faseKey]) faseMap[faseKey] = { label: faseLbl, racao: faseRacao, inicio: faseInicio, fim: faseFim, ativa: faseAtiva, registros: [] };
                     faseMap[faseKey].registros.push(r);
                   });
@@ -576,8 +577,9 @@ export default function Alimentacao() {
                         <div>
                           {fasesOrdenadas.map(([faseKey, faseGrupo]) => {
                             const resumoFase = calcResumo(faseGrupo.registros);
-                            const corFase = faseGrupo.ativa ? '#e65100' : '#6b7280';
-                            const bgFase = faseGrupo.ativa ? '#fff3e0' : '#f3f4f6';
+                            const isConcluida = faseGrupo.fim && new Date(faseGrupo.fim) < new Date(hoje);
+                            const corFase = faseGrupo.ativa ? '#e65100' : '#2e7d32';
+                            const bgFase = faseGrupo.ativa ? '#fff8f0' : '#f0faf0';
 
                             return (
                               <div key={faseKey}>
@@ -585,8 +587,8 @@ export default function Alimentacao() {
                                 <div className={styles.faseCabecalho} style={{ borderLeftColor: corFase, background: bgFase }}>
                                   <div className={styles.faseCabecalhoLeft}>
                                     {faseGrupo.ativa
-                                      ? <span className={styles.faseBadgeAtiva}>● FASE ATUAL</span>
-                                      : <span className={styles.faseBadgeAnt}>◌ FASE ANTERIOR</span>
+                                      ? <span className={styles.faseBadgeEmProcesso}>⏳ Em Processo</span>
+                                      : <span className={styles.faseBadgeConcluida}>✓ Concluída</span>
                                     }
                                     <strong style={{ color: corFase }}>{faseGrupo.label}</strong>
                                     {faseGrupo.racao && <span className={styles.faseRacaoLabel}>{faseGrupo.racao}</span>}
