@@ -83,3 +83,24 @@
 
 /* Nº do Trato — badge na tabela */
 .tratoOrdemBadge { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; padding: 2px 8px; border-radius: 12px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+
+/* Collapse de baia */
+.expandToggle { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-right: 4px; transition: transform 0.2s; }
+.faseBadgeHeader { background: rgba(255,255,255,0.2); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+
+/* Sub-cabeçalho de fase */
+.faseCabecalho { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 1.2rem; border-left: 4px solid #e65100; flex-wrap: wrap; gap: 8px; }
+.faseCabecalhoLeft { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.faseCabecalhoRight { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.faseBadgeAtiva { background: #e65100; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+.faseBadgeAnt { background: #9e9e9e; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+.faseRacaoLabel { background: #fff; color: #555; border: 1px solid #ddd; padding: 2px 8px; border-radius: 8px; font-size: 0.78rem; font-weight: 500; }
+.fasePeriodo { font-size: 0.78rem; color: #777; font-style: italic; }
+.faseStat { display: flex; flex-direction: column; gap: 1px; text-align: right; }
+.faseStat span { font-size: 0.68rem; color: #888; }
+.faseStat strong { font-size: 0.88rem; color: #333; font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 768px) {
+  .faseCabecalho { flex-direction: column; align-items: flex-start; }
+  .faseCabecalhoRight { gap: 0.8rem; }
+}
