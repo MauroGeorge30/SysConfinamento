@@ -70,10 +70,30 @@
 
 /* Seção de tratos */
 .tratosSection { margin-top: 0.5rem; }
-.tratosHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.tratosHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 6px; }
 .tratosHeader strong { font-size: 0.88rem; color: #333; }
-.tratosHeader span { font-size: 0.78rem; color: #888; background: #f0f0f0; padding: 2px 8px; border-radius: 8px; }
+.tratosHeaderRight { display: flex; align-items: center; gap: 10px; }
+.tratosHeaderRight span { font-size: 0.78rem; color: #888; background: #f0f0f0; padding: 2px 8px; border-radius: 8px; }
+.linhasLabel { font-size: 0.78rem; color: #666; display: flex; align-items: center; gap: 5px; }
+.linhasSelect { padding: 2px 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.78rem; background: #fff; cursor: pointer; outline: none; }
+.linhasSelect:focus { border-color: #2e7d32; }
 .tabelaWrapper { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow-x: auto; }
+/* Caixa de scroll vertical para a tabela de tratos */
+.tabelaScrollBox {
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: calc(20 * 41px); /* ~20 linhas × altura da linha */
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  scrollbar-width: thin;
+  scrollbar-color: #c8e6c9 #f5f5f5;
+}
+.tabelaScrollBox::-webkit-scrollbar { width: 7px; }
+.tabelaScrollBox::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 4px; }
+.tabelaScrollBox::-webkit-scrollbar-thumb { background: #a5d6a7; border-radius: 4px; }
+.tabelaScrollBox::-webkit-scrollbar-thumb:hover { background: #66bb6a; }
+/* thead sticky dentro do scroll */
+.tabelaScrollBox .tabelaTratos thead tr { position: sticky; top: 0; z-index: 2; }
 .tabelaTratos { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .tabelaTratos thead tr { background: #f0f0f0; }
 .tabelaTratos th { padding: 9px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
@@ -108,3 +128,9 @@
   .totaisRapidos { grid-template-columns: repeat(2, 1fr); }
   .faseHeaderKpis { gap: 10px; }
 }
+
+/* Rodapé fora do scroll */
+.tabelaRodape { background: #f0f7f0; border: 1px solid #c8e6c9; border-top: 2px solid #a5d6a7; border-radius: 0 0 10px 10px; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rodapeInfo { font-size: 0.75rem; color: #888; font-style: italic; }
+.rodapeTotais { display: flex; gap: 24px; flex-wrap: wrap; font-size: 0.84rem; font-weight: 600; color: #1a1a2e; }
+.rodapeTotais span:first-child { color: #555; font-weight: 700; text-transform: uppercase; font-size: 0.75px; letter-spacing: 0.3px; }
