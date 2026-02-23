@@ -15,7 +15,7 @@ export default function CustoTratos() {
   const [loading, setLoading] = useState(false);
   const [loadingLotes, setLoadingLotes] = useState(true);
   const [expandedFases, setExpandedFases] = useState({});
-  const [linhasPorPagina, setLinhasPorPagina] = useState(20);
+  const [alturaTabela, setAlturaTabela] = useState(400);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/');
@@ -437,21 +437,24 @@ export default function CustoTratos() {
                               <div className={styles.tratosHeaderRight}>
                                 <span>{fase.tratosNaFase.length} registro(s)</span>
                                 <label className={styles.linhasLabel}>
-                                  Exibir:
+                                  Altura:
                                   <select
                                     className={styles.linhasSelect}
-                                    value={linhasPorPagina}
-                                    onChange={e => setLinhasPorPagina(Number(e.target.value))}
+                                    value={alturaTabela}
+                                    onChange={e => setAlturaTabela(Number(e.target.value))}
                                   >
-                                    <option value={20}>20 linhas</option>
-                                    <option value={30}>30 linhas</option>
-                                    <option value={50}>50 linhas</option>
-                                    <option value={9999}>Todas</option>
+                                    <option value={300}>Compacta (~7 linhas)</option>
+                                    <option value={500}>Média (~12 linhas)</option>
+                                    <option value={750}>Grande (~18 linhas)</option>
+                                    <option value={99999}>Expandida (tudo)</option>
                                   </select>
                                 </label>
                               </div>
                             </div>
-                            <div className={styles.tabelaScrollBox}>
+                            <div
+                              className={styles.tabelaScrollBox}
+                              style={{ maxHeight: alturaTabela === 99999 ? 'none' : `${alturaTabela}px` }}
+                            >
                               <table className={styles.tabelaTratos}>
                                 <thead>
                                   <tr>
@@ -467,7 +470,7 @@ export default function CustoTratos() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {fase.tratosNaFase.slice(0, linhasPorPagina).map(t => {
+                                  {fase.tratosNaFase.map(t => {
                                     const forn = Number(t.quantity_kg);
                                     const sobra = Number(t.leftover_kg || 0);
                                     const cons = forn - sobra;
@@ -498,22 +501,16 @@ export default function CustoTratos() {
                                 </tbody>
                               </table>
                             </div>
-                            {/* Rodapé fora do scroll — sempre visível */}
+                            {/* Rodapé fixo — total da fase, sempre visível */}
                             <div className={styles.tabelaRodape}>
-                              {fase.tratosNaFase.length > linhasPorPagina && (
-                                <span className={styles.rodapeInfo}>
-                                  Mostrando {linhasPorPagina} de {fase.tratosNaFase.length} registros
-                                </span>
-                              )}
                               <div className={styles.rodapeTotais}>
-                                <span>TOTAL DA FASE</span>
-                                <span>{fmt(fase.totalFornMN)} kg</span>
-                                <span>{fmt(fase.totalSobraMN)} kg</span>
-                                <span>{fmt(sobraPct)}%</span>
-                                <span>{fmt(fase.totalConsMN)} kg</span>
-                                <span>—</span>
-                                <strong style={{color:'#1b5e20'}}>R$ {fase.totalCusto.toFixed(2)}</strong>
+                                <span className={styles.rodapeLabel}>TOTAL DA FASE</span>
+                                <span><em>Forn:</em> {fmt(fase.totalFornMN)} kg</span>
+                                <span><em>Sobra:</em> {fmt(fase.totalSobraMN)} kg ({fmt(sobraPct)}%)</span>
+                                <span><em>Cons:</em> {fmt(fase.totalConsMN)} kg</span>
+                                <strong style={{color:'#1b5e20'}}>{fmtR(fase.totalCusto)}</strong>
                               </div>
+                              <span className={styles.rodapeInfo}>{fase.tratosNaFase.length} registros</span>
                             </div>
                           </div>
                         ) : (
