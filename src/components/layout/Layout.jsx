@@ -32,6 +32,7 @@ const NAV_GROUPS = (showAdmin) => [
     items: [
       { href: '/financeiro',      label: 'Lançamentos',        icon: '💵' },
       { href: '/fechamento-lote', label: 'Fechamento de Lote', icon: '📊' },
+      { href: '/custo-tratos',    label: 'Custo de Tratos',    icon: '🌿' },
     ],
   },
   { type: 'link', href: '/relatorios', label: 'Relatórios', icon: '📋' },
