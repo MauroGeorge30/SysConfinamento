@@ -21,6 +21,7 @@ export default function Lotes() {
   const [showForm, setShowForm] = useState(false);
   const [showFaseForm, setShowFaseForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingFaseId, setEditingFaseId] = useState(null);
   const [selectedLote, setSelectedLote] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('active');
   const [expandedLote, setExpandedLote] = useState(null);
@@ -191,31 +192,61 @@ export default function Lotes() {
     setShowFaseForm(true);
   };
 
+  const handleEditFase = (lote, fase) => {
+    setSelectedLote(lote);
+    setEditingFaseId(fase.id);
+    setFaseData({
+      phase_name: fase.phase_name,
+      feed_type_id: fase.feed_type_id,
+      start_date: fase.start_date,
+      end_date: fase.end_date || '',
+      cms_pct_pv: fase.cms_pct_pv || '',
+      notes: fase.notes || '',
+    });
+    setShowFaseForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmitFase = async (e) => {
     e.preventDefault();
     if (!faseData.feed_type_id) return alert('Selecione a ração/dieta.');
     setLoading(true);
     try {
-      // Encerrar fase ativa anterior
-      const faseAtiva = (selectedLote.lot_phases || []).find(f => !f.end_date);
-      if (faseAtiva) {
-        await supabase.from('lot_phases').update({ end_date: faseData.start_date }).eq('id', faseAtiva.id);
+      if (editingFaseId) {
+        // Modo edição: atualiza a fase existente
+        const { error } = await supabase.from('lot_phases').update({
+          feed_type_id: faseData.feed_type_id,
+          phase_name: faseData.phase_name,
+          start_date: faseData.start_date,
+          end_date: faseData.end_date || null,
+          cms_pct_pv: faseData.cms_pct_pv ? parseFloat(faseData.cms_pct_pv) : null,
+          notes: faseData.notes || null,
+        }).eq('id', editingFaseId);
+        if (error) throw error;
+        alert('✅ Fase atualizada!');
+      } else {
+        // Modo criação: encerra fase ativa anterior e insere nova
+        const faseAtiva = (selectedLote.lot_phases || []).find(f => !f.end_date);
+        if (faseAtiva) {
+          await supabase.from('lot_phases').update({ end_date: faseData.start_date }).eq('id', faseAtiva.id);
+        }
+        const { error } = await supabase.from('lot_phases').insert([{
+          farm_id: currentFarm.id,
+          lot_id: selectedLote.id,
+          feed_type_id: faseData.feed_type_id,
+          phase_name: faseData.phase_name,
+          start_date: faseData.start_date,
+          end_date: faseData.end_date || null,
+          cms_pct_pv: faseData.cms_pct_pv ? parseFloat(faseData.cms_pct_pv) : null,
+          notes: faseData.notes || null,
+          registered_by: user.id,
+        }]);
+        if (error) throw error;
+        alert('✅ Fase registrada!');
       }
-      const { error } = await supabase.from('lot_phases').insert([{
-        farm_id: currentFarm.id,
-        lot_id: selectedLote.id,
-        feed_type_id: faseData.feed_type_id,
-        phase_name: faseData.phase_name,
-        start_date: faseData.start_date,
-        end_date: faseData.end_date || null,
-        cms_pct_pv: faseData.cms_pct_pv ? parseFloat(faseData.cms_pct_pv) : null,
-        notes: faseData.notes || null,
-        registered_by: user.id,
-      }]);
-      if (error) throw error;
-      alert('✅ Fase registrada!');
       setShowFaseForm(false);
       setSelectedLote(null);
+      setEditingFaseId(null);
       loadDados();
     } catch (error) {
       alert('❌ Erro: ' + error.message);
@@ -425,7 +456,7 @@ export default function Lotes() {
         {/* Formulário de Fase */}
         {showFaseForm && selectedLote && (
           <div className={styles.formCard} style={{ borderLeft: '4px solid #e65100' }}>
-            <h2>🌿 Nova Fase de Dieta — Lote {selectedLote.lot_code}</h2>
+            <h2>{editingFaseId ? '✏️ Editar Fase de Dieta' : '🌿 Nova Fase de Dieta'} — Lote {selectedLote.lot_code}</h2>
             <form onSubmit={handleSubmitFase}>
               <div className={styles.row}>
                 <div>
@@ -470,8 +501,8 @@ export default function Lotes() {
                 </div>
               </div>
               <div className={styles.formAcoes}>
-                <button type="button" className={styles.btnCancelar} onClick={() => { setShowFaseForm(false); setSelectedLote(null); }}>Cancelar</button>
-                <button type="submit" disabled={loading} style={{ background: '#e65100' }}>{loading ? 'Salvando...' : 'Registrar Fase'}</button>
+                <button type="button" className={styles.btnCancelar} onClick={() => { setShowFaseForm(false); setSelectedLote(null); setEditingFaseId(null); }}>Cancelar</button>
+                <button type="submit" disabled={loading} style={{ background: '#e65100' }}>{loading ? 'Salvando...' : editingFaseId ? 'Salvar Alterações' : 'Registrar Fase'}</button>
               </div>
             </form>
           </div>
@@ -606,6 +637,9 @@ export default function Lotes() {
                                           : <span className={styles.badgeFaseHistorico}>✓ Concluída</span>
                                         }
                                         <span className={styles.faseTimelineDias}>{diasFase}d</span>
+                                        {canEdit && (
+                                          <button className={styles.btnEditarFase} onClick={(e) => { e.stopPropagation(); handleEditFase(lote, fase); }} title="Editar fase">✏️ Editar</button>
+                                        )}
                                       </div>
                                       <div className={styles.faseTimelineDetalhes}>
                                         {fase.feed_types?.name && (
