@@ -1,178 +1,368 @@
-.container {
+/* ── APP SHELL ─────────────────────────────────────────────── */
+.appShell {
+  display: flex;
   min-height: 100vh;
+  background: #f4f5f7;
+}
+
+/* ── SIDEBAR ────────────────────────────────────────────────── */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #1a2e1a;
   display: flex;
   flex-direction: column;
-}
-
-.header {
-  background: #2d5016;
-  color: white;
-  padding: 0 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 56px;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  left: 0;
+  height: 100vh;
+  z-index: 200;
+  transition: width 0.22s ease, min-width 0.22s ease;
+  overflow: hidden;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.18);
 }
 
-.headerLeft {
+.sidebarCollapsed {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* Header da sidebar: logo + botão colapsar */
+.sidebarHeader {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  height: 100%;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 56px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 .logo {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
+  color: #fff;
   white-space: nowrap;
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 100%;
-}
-
-.nav > a {
-  color: rgba(255,255,255,0.9);
-  text-decoration: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.88rem;
-  font-weight: 500;
-  transition: background 0.2s;
-  white-space: nowrap;
-}
-
-.nav > a:hover {
-  background: rgba(255,255,255,0.15);
-}
-
-/* Dropdown */
-.dropdown {
-  position: relative;
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-.dropbtn {
-  background: transparent !important;
-  color: rgba(255,255,255,0.9) !important;
-  border: none !important;
-  padding: 6px 12px !important;
-  border-radius: 6px !important;
-  font-size: 0.88rem !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  white-space: nowrap !important;
-  width: auto !important;
-  margin: 0 !important;
-  height: auto !important;
-}
-
-.dropbtn:hover {
-  background: rgba(255,255,255,0.15) !important;
-}
-
-.arrow {
-  font-size: 0.65rem;
-  opacity: 0.7;
-}
-
-.dropMenu {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  min-width: 190px;
-  z-index: 200;
   overflow: hidden;
-  padding: 4px 0;
 }
 
-.dropItem {
-  display: block;
-  padding: 10px 16px;
-  color: #333 !important;
-  text-decoration: none;
-  font-size: 0.9rem;
+.collapseBtn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: rgba(255,255,255,0.7);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  flex-shrink: 0;
   transition: background 0.15s;
 }
+.collapseBtn:hover { background: rgba(255,255,255,0.2); }
 
-.dropItem:hover {
-  background: #f1f8e9;
-  color: #2e7d32 !important;
-}
-
-/* Header right */
-.headerRight {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+/* Fazenda */
+.sidebarFarm {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
 }
-
-.nomeUsuario {
-  font-size: 0.85rem;
-  opacity: 0.85;
-  white-space: nowrap;
-}
-
 .nomeFazenda {
-  font-size: 0.82rem;
-  opacity: 0.75;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.6);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
-
-.btnSair {
-  background: rgba(255,255,255,0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255,255,255,0.3) !important;
-  padding: 5px 14px !important;
-  border-radius: 6px !important;
-  font-size: 0.85rem !important;
-  cursor: pointer !important;
-  white-space: nowrap;
-  width: auto !important;
-  margin: 0 !important;
-}
-
-.btnSair:hover {
-  background: rgba(255,255,255,0.25) !important;
-}
-
 .seletorFazenda {
-  background: rgba(255,255,255,0.15);
+  width: 100%;
+  background: rgba(255,255,255,0.1);
   color: white;
-  border: 1px solid rgba(255,255,255,0.4);
-  padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 5px 8px;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   cursor: pointer;
   outline: none;
 }
+.seletorFazenda option { background: #1a2e1a; color: white; }
 
-.seletorFazenda option {
-  background: #2d5016;
-  color: white;
+/* Nav */
+.sidebarNav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.sidebarNav::-webkit-scrollbar { width: 4px; }
+.sidebarNav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+/* Link direto */
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  color: rgba(255,255,255,0.75);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: 0;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.navLink:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.navLinkActive {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-weight: 600;
+}
+.activeBar {
+  position: absolute;
+  right: 0; top: 4px; bottom: 4px;
+  width: 3px;
+  background: #6fcf6f;
+  border-radius: 3px 0 0 3px;
 }
 
+/* Ícone e label */
+.navIcon { font-size: 1rem; flex-shrink: 0; width: 22px; text-align: center; }
+.navLabel { overflow: hidden; text-overflow: ellipsis; }
+
+/* Grupo colapsável */
+.navGroup { position: relative; }
+
+.navGroupBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.navGroupBtn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.navGroupBtnActive {
+  color: #fff;
+}
+
+.groupArrow {
+  font-size: 0.6rem;
+  opacity: 0.6;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.activeBarCollapsed {
+  position: absolute;
+  right: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  background: #6fcf6f;
+  border-radius: 3px 0 0 3px;
+}
+
+/* Sub-itens expandidos */
+.navGroupItems {
+  background: rgba(0,0,0,0.18);
+  border-left: 2px solid rgba(255,255,255,0.08);
+  margin-left: 16px;
+}
+.navSubLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  color: rgba(255,255,255,0.65);
+  text-decoration: none;
+  font-size: 0.84rem;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.navSubLink:hover {
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+}
+.navSubLinkActive {
+  color: #a8d5a8;
+  font-weight: 600;
+  background: rgba(255,255,255,0.07);
+}
+.subIcon { font-size: 0.88rem; width: 18px; text-align: center; flex-shrink: 0; }
+
+/* Dropdown flutuante quando sidebar colapsada */
+.collapsedDropdown {
+  position: fixed;
+  left: 64px;
+  background: #243824;
+  border-radius: 8px;
+  box-shadow: 4px 4px 20px rgba(0,0,0,0.35);
+  min-width: 200px;
+  z-index: 300;
+  padding: 6px 0;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.collapsedDropdownTitle {
+  padding: 6px 14px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 3px;
+}
+.collapsedDropItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  color: rgba(255,255,255,0.75);
+  text-decoration: none;
+  font-size: 0.87rem;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.collapsedDropItem:hover { background: rgba(255,255,255,0.09); color: #fff; }
+.collapsedDropItemActive { color: #a8d5a8; font-weight: 600; }
+
+/* Rodapé da sidebar */
+.sidebarFooter {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+}
+.userIcon { font-size: 0.9rem; flex-shrink: 0; }
+.userName {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btnSair {
+  background: rgba(255,255,255,0.08) !important;
+  color: rgba(255,255,255,0.75) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  padding: 7px 10px !important;
+  border-radius: 6px !important;
+  font-size: 0.82rem !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  width: 100% !important;
+  transition: background 0.15s !important;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.btnSair:hover { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
+
+/* ── TOPBAR MOBILE ──────────────────────────────────────────── */
+.topbarMobile {
+  display: none;
+}
+
+/* ── MAIN ───────────────────────────────────────────────────── */
 .main {
   flex: 1;
-  padding: 2rem;
+  margin-left: 240px;
+  transition: margin-left 0.22s ease;
+  min-height: 100vh;
+  padding: 1.5rem;
+  box-sizing: border-box;
 }
 
-@media (max-width: 900px) {
-  .nomeUsuario, .nomeFazenda { display: none; }
+.shellCollapsed .main {
+  margin-left: 60px;
+}
+
+/* ── MOBILE ─────────────────────────────────────────────────── */
+.mobileOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 150;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease, width 0.22s ease;
+    width: 240px !important;
+    min-width: 240px !important;
+  }
+  .sidebarMobileOpen {
+    transform: translateX(0);
+  }
+  .sidebarCollapsed {
+    /* no mobile, ignore collapse — usa só o overlay */
+    width: 240px !important;
+    min-width: 240px !important;
+  }
+  .main {
+    margin-left: 0 !important;
+    padding: 1rem;
+    padding-top: 60px;
+  }
+  .topbarMobile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    background: #1a2e1a;
+    z-index: 100;
+    padding: 0 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .hamburger {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .topbarFarm {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.6);
+    margin-left: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+  .mobileOverlay { display: block; }
+  .collapseBtn { display: none; }
 }
