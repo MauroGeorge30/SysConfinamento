@@ -15,6 +15,7 @@ export default function CustoTratos() {
   const [loading, setLoading] = useState(false);
   const [loadingLotes, setLoadingLotes] = useState(true);
   const [expandedFases, setExpandedFases] = useState({});
+  const [linhasPorPagina, setLinhasPorPagina] = useState(20);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/');
@@ -433,9 +434,24 @@ export default function CustoTratos() {
                           <div className={styles.tratosSection}>
                             <div className={styles.tratosHeader}>
                               <strong>Registros de Tratos — {fase.phase_name}</strong>
-                              <span>{fase.tratosNaFase.length} registro(s)</span>
+                              <div className={styles.tratosHeaderRight}>
+                                <span>{fase.tratosNaFase.length} registro(s)</span>
+                                <label className={styles.linhasLabel}>
+                                  Exibir:
+                                  <select
+                                    className={styles.linhasSelect}
+                                    value={linhasPorPagina}
+                                    onChange={e => setLinhasPorPagina(Number(e.target.value))}
+                                  >
+                                    <option value={20}>20 linhas</option>
+                                    <option value={30}>30 linhas</option>
+                                    <option value={50}>50 linhas</option>
+                                    <option value={9999}>Todas</option>
+                                  </select>
+                                </label>
+                              </div>
                             </div>
-                            <div className={styles.tabelaWrapper}>
+                            <div className={styles.tabelaScrollBox}>
                               <table className={styles.tabelaTratos}>
                                 <thead>
                                   <tr>
@@ -451,7 +467,7 @@ export default function CustoTratos() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {fase.tratosNaFase.map(t => {
+                                  {fase.tratosNaFase.slice(0, linhasPorPagina).map(t => {
                                     const forn = Number(t.quantity_kg);
                                     const sobra = Number(t.leftover_kg || 0);
                                     const cons = forn - sobra;
@@ -480,18 +496,24 @@ export default function CustoTratos() {
                                     );
                                   })}
                                 </tbody>
-                                <tfoot>
-                                  <tr>
-                                    <td colSpan={3}><strong>TOTAL DA FASE</strong></td>
-                                    <td><strong>{fmt(fase.totalFornMN)} kg</strong></td>
-                                    <td><strong>{fmt(fase.totalSobraMN)} kg</strong></td>
-                                    <td><strong>{fmt(sobraPct)}%</strong></td>
-                                    <td><strong>{fmt(fase.totalConsMN)} kg</strong></td>
-                                    <td>—</td>
-                                    <td><strong style={{color:'#1b5e20'}}>R$ {fase.totalCusto.toFixed(2)}</strong></td>
-                                  </tr>
-                                </tfoot>
                               </table>
+                            </div>
+                            {/* Rodapé fora do scroll — sempre visível */}
+                            <div className={styles.tabelaRodape}>
+                              {fase.tratosNaFase.length > linhasPorPagina && (
+                                <span className={styles.rodapeInfo}>
+                                  Mostrando {linhasPorPagina} de {fase.tratosNaFase.length} registros
+                                </span>
+                              )}
+                              <div className={styles.rodapeTotais}>
+                                <span>TOTAL DA FASE</span>
+                                <span>{fmt(fase.totalFornMN)} kg</span>
+                                <span>{fmt(fase.totalSobraMN)} kg</span>
+                                <span>{fmt(sobraPct)}%</span>
+                                <span>{fmt(fase.totalConsMN)} kg</span>
+                                <span>—</span>
+                                <strong style={{color:'#1b5e20'}}>R$ {fase.totalCusto.toFixed(2)}</strong>
+                              </div>
                             </div>
                           </div>
                         ) : (
