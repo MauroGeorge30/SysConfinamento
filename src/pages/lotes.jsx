@@ -36,7 +36,7 @@ export default function Lotes() {
     lot_code: '', pen_id: '', category: 'Macho', origin: '',
     entry_date: hoje, head_count: '', avg_entry_weight: '',
     target_gmd: '', target_leftover_pct: '', notes: '', status: 'active',
-    purchase_price_arroba: '', carcass_yield_pct: '52', cost_per_head_day: '', arroba_divisor: '30', daily_feeding_count: '1',
+    purchase_price_arroba: '', carcass_yield_pct: '2.5', cost_per_head_day: '', arroba_divisor: '30', daily_feeding_count: '1',
   });
 
   const [faseData, setFaseData] = useState({
@@ -113,7 +113,7 @@ export default function Lotes() {
         status: formData.status,
         registered_by: user.id,
         purchase_price_arroba: formData.purchase_price_arroba ? parseFloat(formData.purchase_price_arroba) : null,
-        carcass_yield_pct: formData.carcass_yield_pct ? parseFloat(formData.carcass_yield_pct) : 52,
+        carcass_yield_pct: formData.carcass_yield_pct ? parseFloat(formData.carcass_yield_pct) : 2.5,
         cost_per_head_day: formData.cost_per_head_day ? parseFloat(formData.cost_per_head_day) : null,
         arroba_divisor: formData.arroba_divisor ? parseFloat(formData.arroba_divisor) : 30,
         daily_feeding_count: formData.daily_feeding_count ? parseInt(formData.daily_feeding_count) : 1,
@@ -150,7 +150,7 @@ export default function Lotes() {
       notes: lote.notes || '',
       status: lote.status,
       purchase_price_arroba: lote.purchase_price_arroba || '',
-      carcass_yield_pct: lote.carcass_yield_pct || '52',
+      carcass_yield_pct: lote.carcass_yield_pct || '2.5',
       cost_per_head_day: lote.cost_per_head_day || '',
       arroba_divisor: lote.arroba_divisor || '30',
       daily_feeding_count: lote.daily_feeding_count || '1',
@@ -414,7 +414,7 @@ export default function Lotes() {
                 </div>
                 <div className={styles.row}>
                   <div>
-                    <label>MS% do Peso Vivo para consumo <span style={{color:'#888',fontWeight:400}}>padrão 2.5%</span></label>
+                    <label>% MS do Peso Vivo <span style={{color:'#888',fontWeight:400}}>— consumo diário (ex: 2.5%)</span></label>
                     <input type="number" value={formData.carcass_yield_pct}
                       onChange={e => setFormData({ ...formData, carcass_yield_pct: e.target.value })}
                       placeholder="Ex: 2.5" step="0.01" min="0" />
