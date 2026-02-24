@@ -245,11 +245,22 @@ export default function Alimentacao() {
     const msCab = pesoEstimado * (msPvPct / 100);
     // Consumo MN/cab = MS/cab / (MS%dieta / 100)
     const mnCab = msCab / (msDietaPct / 100);
-    // Total lote / nº tratos
+    // Total lote
     const mnTotalDia = mnCab * headCount;
-    const mnPorTrato = mnTotalDia / feedingsPerDay;
 
-    return { pesoEstimado, msCab, mnCab, mnTotalDia, mnPorTrato, feedingsPerDay, dias, dataBase: pesagensDoLote.length > 0 ? 'pesagem' : 'entrada' };
+    // Sobra do dia anterior para este lote
+    const dataAnterior = new Date(dataRef);
+    dataAnterior.setDate(dataAnterior.getDate() - 1);
+    const dataAnteriorStr = dataAnterior.toISOString().slice(0, 10);
+    const sobraDiaAnterior = registros
+      .filter(r => r.lot_id === loteAtual.id && r.feeding_date === dataAnteriorStr && r.leftover_kg)
+      .reduce((acc, r) => acc + Number(r.leftover_kg), 0);
+
+    // MN ajustado = total - sobra anterior, dividido pelos tratos
+    const mnAjustadoDia = Math.max(0, mnTotalDia - sobraDiaAnterior);
+    const mnPorTrato = mnAjustadoDia / feedingsPerDay;
+
+    return { pesoEstimado, msCab, mnCab, mnTotalDia, mnAjustadoDia, mnPorTrato, feedingsPerDay, dias, sobraDiaAnterior, dataBase: pesagensDoLote.length > 0 ? 'pesagem' : 'entrada' };
   };
   const sugestao = calcMNSugerido();
 
@@ -385,10 +396,19 @@ export default function Alimentacao() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
                       <strong>🌿 MN sugerido: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
-                      {sugestao.feedingsPerDay > 1 && <span style={{ color: '#555', marginLeft: '0.5rem' }}>({sugestao.feedingsPerDay} tratos/dia — total {sugestao.mnTotalDia.toFixed(1)} kg)</span>}
+                      {sugestao.feedingsPerDay > 1 && (
+                        <span style={{ color: '#555', marginLeft: '0.5rem' }}>
+                          ({sugestao.feedingsPerDay} tratos/dia — total {sugestao.mnAjustadoDia.toFixed(1)} kg)
+                        </span>
+                      )}
                       <div style={{ color: '#555', marginTop: '2px' }}>
-                        Peso est. {sugestao.pesoEstimado.toFixed(1)} kg ({sugestao.dias}d desde {sugestao.dataBase}) → MS {sugestao.msCab.toFixed(2)} kg/cab → MN {sugestao.mnCab.toFixed(2)} kg/cab
+                        Peso est. {sugestao.pesoEstimado.toFixed(1)} kg ({sugestao.dias}d desde {sugestao.dataBase}) → MS {sugestao.msCab.toFixed(2)} kg/cab → MN base {sugestao.mnTotalDia.toFixed(1)} kg/dia
                       </div>
+                      {sugestao.sobraDiaAnterior > 0 && (
+                        <div style={{ color: '#e65100', marginTop: '2px', fontWeight: 500 }}>
+                          ⚠️ Sobra de ontem: -{sugestao.sobraDiaAnterior.toFixed(1)} kg → total ajustado: {sugestao.mnAjustadoDia.toFixed(1)} kg
+                        </div>
+                      )}
                     </div>
                     <button type="button"
                       onClick={() => setFormData(p => ({ ...p, quantity_kg: sugestao.mnPorTrato.toFixed(1) }))}
