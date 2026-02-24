@@ -36,7 +36,7 @@ export default function Lotes() {
     lot_code: '', pen_id: '', category: 'Macho', origin: '',
     entry_date: hoje, head_count: '', avg_entry_weight: '',
     target_gmd: '', target_leftover_pct: '', notes: '', status: 'active',
-    purchase_price_arroba: '', carcass_yield_pct: '52', cost_per_head_day: '', arroba_divisor: '30',
+    purchase_price_arroba: '', carcass_yield_pct: '52', cost_per_head_day: '', arroba_divisor: '30', daily_feeding_count: '1',
   });
 
   const [faseData, setFaseData] = useState({
@@ -116,6 +116,7 @@ export default function Lotes() {
         carcass_yield_pct: formData.carcass_yield_pct ? parseFloat(formData.carcass_yield_pct) : 52,
         cost_per_head_day: formData.cost_per_head_day ? parseFloat(formData.cost_per_head_day) : null,
         arroba_divisor: formData.arroba_divisor ? parseFloat(formData.arroba_divisor) : 30,
+        daily_feeding_count: formData.daily_feeding_count ? parseInt(formData.daily_feeding_count) : 1,
       };
       if (editingId) {
         const { error } = await supabase.from('lots').update(payload).eq('id', editingId);
@@ -152,6 +153,7 @@ export default function Lotes() {
       carcass_yield_pct: lote.carcass_yield_pct || '52',
       cost_per_head_day: lote.cost_per_head_day || '',
       arroba_divisor: lote.arroba_divisor || '30',
+      daily_feeding_count: lote.daily_feeding_count || '1',
     });
     setEditingId(lote.id);
     setShowForm(true);
@@ -422,6 +424,14 @@ export default function Lotes() {
                     <input type="number" value={formData.cost_per_head_day}
                       onChange={e => setFormData({ ...formData, cost_per_head_day: e.target.value })}
                       placeholder="Ex: 1.00" step="0.01" min="0" />
+                  </div>
+                </div>
+                <div className={styles.row}>
+                  <div>
+                    <label>Tratos por dia <span style={{color:'#888',fontWeight:400}}>— divide o MN sugerido</span></label>
+                    <input type="number" value={formData.daily_feeding_count}
+                      onChange={e => setFormData({ ...formData, daily_feeding_count: e.target.value })}
+                      placeholder="Ex: 2" step="1" min="1" max="10" />
                   </div>
                 </div>
                 {formData.purchase_price_arroba && formData.avg_entry_weight && (() => {
@@ -818,6 +828,7 @@ export default function Lotes() {
                       <div><span>Custo de compra/cab</span><strong>{precoCab ? `R$ ${precoCab.toFixed(2)}` : '—'}</strong></div>
                       <div><span>Custo total compra</span><strong>{precoCab ? `R$ ${(precoCab * vl.head_count).toFixed(2)}` : '—'}</strong></div>
                       <div><span>Custo Operac./cab/dia</span><strong>{vl.cost_per_head_day ? `R$ ${Number(vl.cost_per_head_day).toFixed(2)}` : '—'}</strong></div>
+                      <div><span>Tratos por dia</span><strong>{vl.daily_feeding_count || 1}</strong></div>
                     </div>
                   </div>
 
