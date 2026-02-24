@@ -116,26 +116,39 @@ export default function Alimentacao() {
     } catch { return 1; }
   };
 
+  // Detecta ração da fase ativa
+  const getRacaoDaFase = (lotId, data) => {
+    const lote = lotes.find(l => l.id === lotId);
+    if (!lote) return '';
+    const fase = (lote.lot_phases || []).find(f =>
+      data >= f.start_date && (!f.end_date || data <= f.end_date)
+    );
+    return fase?.feed_types?.id || '';
+  };
+
   // Ao selecionar baia → filtra e auto-preenche lote da baia
   const handleBaiaChange = async (penId) => {
     const lotesNaBaia = lotes.filter(l => l.pen_id === penId);
-    const loteAuto = lotesNaBaia.length === 1 ? lotesNaBaia[0].id : '';
+    const loteAuto    = lotesNaBaia.length === 1 ? lotesNaBaia[0].id : '';
     const proximoTrato = await detectarProximoTrato(penId, formData.feeding_date);
-    setFormData(prev => ({ ...prev, pen_id: penId, lot_id: loteAuto, feeding_order: proximoTrato }));
+    const feedTypeId   = loteAuto ? getRacaoDaFase(loteAuto, formData.feeding_date) : '';
+    setFormData(prev => ({ ...prev, pen_id: penId, lot_id: loteAuto, feeding_order: proximoTrato, feed_type_id: feedTypeId || prev.feed_type_id }));
   };
 
-  // Ao selecionar lote → auto-preenche baia correspondente
+  // Ao selecionar lote → auto-preenche baia e ração da fase
   const handleLoteChange = async (lotId) => {
-    const lote = lotes.find(l => l.id === lotId);
-    const penId = lote?.pen_id || formData.pen_id;
+    const lote       = lotes.find(l => l.id === lotId);
+    const penId      = lote?.pen_id || formData.pen_id;
     const proximoTrato = await detectarProximoTrato(penId, formData.feeding_date);
-    setFormData(prev => ({ ...prev, lot_id: lotId, pen_id: penId, feeding_order: proximoTrato }));
+    const feedTypeId = getRacaoDaFase(lotId, formData.feeding_date);
+    setFormData(prev => ({ ...prev, lot_id: lotId, pen_id: penId, feeding_order: proximoTrato, feed_type_id: feedTypeId || prev.feed_type_id }));
   };
 
-  // Ao mudar a data → recalcula o número do trato se já tiver baia selecionada
+  // Ao mudar a data → recalcula trato e atualiza ração da fase
   const handleDataChange = async (novaData) => {
     const proximoTrato = formData.pen_id ? await detectarProximoTrato(formData.pen_id, novaData) : 1;
-    setFormData(prev => ({ ...prev, feeding_date: novaData, feeding_order: proximoTrato }));
+    const feedTypeId   = formData.lot_id ? getRacaoDaFase(formData.lot_id, novaData) : '';
+    setFormData(prev => ({ ...prev, feeding_date: novaData, feeding_order: proximoTrato, feed_type_id: feedTypeId || prev.feed_type_id }));
   };
 
   const handleSubmit = async (e) => {
@@ -513,7 +526,15 @@ export default function Alimentacao() {
               </div>
               <div className={styles.row}>
                 <div>
-                  <label>Ração *</label>
+                  <label>Ração *
+                    {formData.lot_id && (() => {
+                      const lote = lotes.find(l => l.id === formData.lot_id);
+                      const fase = (lote?.lot_phases || []).find(f =>
+                        formData.feeding_date >= f.start_date && (!f.end_date || formData.feeding_date <= f.end_date)
+                      );
+                      return fase ? <span style={{ marginLeft: 8, background: '#e8f5e9', color: '#2e7d32', padding: '1px 8px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 600 }}>Fase: {fase.phase_name}</span> : null;
+                    })()}
+                  </label>
                   <select value={formData.feed_type_id} onChange={(e) => setFormData({ ...formData, feed_type_id: e.target.value })} required>
                     <option value="">Selecione a ração</option>
                     {racoes.map(r => (
