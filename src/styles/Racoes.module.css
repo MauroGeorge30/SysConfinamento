@@ -204,3 +204,7 @@
 .editMovPanel label { display: block; font-size: 0.82rem; font-weight: 600; color: #444; margin-bottom: 4px; }
 .editMovPanel input { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.92rem; outline: none; box-sizing: border-box; }
 .editMovPanel input:focus { border-color: #e65100; }
+
+/* Botão corrigir preços */
+.btnCorrigir { background: #fff8e1; color: #e65100; border: 1px solid #ffcc80; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btnCorrigir:hover { background: #fff3e0; border-color: #ffa726; }
