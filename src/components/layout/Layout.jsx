@@ -14,6 +14,7 @@ const NAV_GROUPS = (showAdmin) => [
     type: 'group', label: 'Controle Operacional', icon: '⚙️',
     items: [
       { href: '/racoes',        label: 'Rações',               icon: '🌾' },
+      { href: '/batida-vagao',  label: 'Batida de Vagão',      icon: '🚜' },
       { href: '/alimentacao',   label: 'Tratos Diários',       icon: '🌿' },
       { href: '/pesagens',      label: 'Pesagens Individuais', icon: '⚖️' },
       { href: '/pesagens-lote', label: 'Pesagens por Lote',    icon: '📦' },
