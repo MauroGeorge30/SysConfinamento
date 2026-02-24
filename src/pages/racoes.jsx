@@ -248,6 +248,34 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
     finally { setLoading(false); }
   };
 
+  const handleDeleteInsumo = async (ins) => {
+    // Verifica se está em alguma composição
+    const { data: usos, error } = await supabase
+      .from('feed_composition_items')
+      .select('id, feed_compositions(feed_types(name))')
+      .eq('ingredient_id', ins.id)
+      .limit(5);
+
+    if (error) { alert('Erro ao verificar uso: ' + error.message); return; }
+
+    if (usos && usos.length > 0) {
+      // Está em composição — só pode inativar
+      const racoes = [...new Set(usos.map(u => u.feed_compositions?.feed_types?.name).filter(Boolean))];
+      const msg = `O insumo "${ins.name}" está em ${usos.length} composição(ões):\n${racoes.join(', ')}\n\nNão é possível deletar. Deseja inativá-lo?\n(Ficará oculto mas o histórico é preservado)`;
+      if (!confirm(msg)) return;
+      const { error: errInativo } = await supabase.from('feed_ingredients').update({ active: false }).eq('id', ins.id);
+      if (errInativo) { alert('Erro: ' + errInativo.message); return; }
+      alert('✅ Insumo inativado. Pode ser reativado editando-o.');
+    } else {
+      // Sem uso — pode deletar permanentemente
+      if (!confirm(`Deletar o insumo "${ins.name}" permanentemente?\n\nEle não está em nenhuma composição.\nTodas as movimentações de estoque também serão removidas.`)) return;
+      const { error: errDel } = await supabase.from('feed_ingredients').delete().eq('id', ins.id);
+      if (errDel) { alert('Erro ao deletar: ' + errDel.message); return; }
+      alert('✅ Insumo deletado.');
+    }
+    loadInsumos();
+  };
+
   const resetForm = () => {
     setFormData({ name: '', supplier: '', unit: 'kg', dry_matter_pct: '', stock_min_kg: '', notes: '' });
     setEditingId(null); setShowForm(false);
@@ -469,6 +497,9 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                           setEditingId(ins.id); setShowForm(true); setShowEntradaId(null);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}>✏️ Editar</button>
+                      )}
+                      {canDelete('feed_ingredients') && (
+                        <button className={styles.btnDeletarIns} onClick={() => handleDeleteInsumo(ins)}>🗑 Deletar</button>
                       )}
                     </div>
                   </div>
