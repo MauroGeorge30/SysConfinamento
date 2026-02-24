@@ -306,7 +306,15 @@ export default function BatidaVagao() {
                     <div>
                       <label>Data *</label>
                       <input type="date" value={form.batch_date}
-                        onChange={e => { const d = e.target.value; setForm(p => ({ ...p, batch_date: d, feeding_order: detectarProximoTrato(p.lot_id, d) })); }} required />
+                        onChange={e => {
+                      const d = e.target.value;
+                      const lote = lotes.find(l => l.id === form.lot_id);
+                      const faseAtiva = (lote?.lot_phases || []).find(f =>
+                        d >= f.start_date && (!f.end_date || d <= f.end_date)
+                      );
+                      const feedTypeId = faseAtiva?.feed_types?.id || form.feed_type_id;
+                      setForm(p => ({ ...p, batch_date: d, feeding_order: detectarProximoTrato(p.lot_id, d), feed_type_id: feedTypeId }));
+                    }} required />
                     </div>
                     <div>
                       <label>Tipo de Batida *</label>
@@ -319,7 +327,15 @@ export default function BatidaVagao() {
                   <div className={styles.row}>
                     <div>
                       <label>Lote *</label>
-                      <select value={form.lot_id} onChange={e => { const id = e.target.value; setForm(p => ({ ...p, lot_id: id, feed_type_id: '', feeding_order: detectarProximoTrato(id, p.batch_date) })); }}>
+                      <select value={form.lot_id} onChange={e => {
+                        const id   = e.target.value;
+                        const lote = lotes.find(l => l.id === id);
+                        const faseAtiva = (lote?.lot_phases || []).find(f =>
+                          form.batch_date >= f.start_date && (!f.end_date || form.batch_date <= f.end_date)
+                        );
+                        const feedTypeId = faseAtiva?.feed_types?.id || '';
+                        setForm(p => ({ ...p, lot_id: id, feed_type_id: feedTypeId, feeding_order: detectarProximoTrato(id, p.batch_date) }));
+                      }}>
                         <option value="">Selecione o lote</option>
                         {lotes.map(l => <option key={l.id} value={l.id}>{l.lot_code} ({l.head_count} cab.)</option>)}
                       </select>
@@ -339,7 +355,14 @@ export default function BatidaVagao() {
                   </div>
                   <div className={styles.row}>
                     <div>
-                      <label>Ração *</label>
+                      <label>Ração *
+                        {loteAtual && (() => {
+                          const fase = (loteAtual.lot_phases || []).find(f =>
+                            form.batch_date >= f.start_date && (!f.end_date || form.batch_date <= f.end_date)
+                          );
+                          return fase ? <span style={{ marginLeft: 8, background: '#e8f5e9', color: '#2e7d32', padding: '1px 8px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 600 }}>Fase: {fase.phase_name}</span> : null;
+                        })()}
+                      </label>
                       <select value={form.feed_type_id} onChange={e => setForm(p => ({ ...p, feed_type_id: e.target.value }))} required>
                         <option value="">Selecione a ração</option>
                         {racoes.map(r => <option key={r.id} value={r.id}>{r.name} — R$ {Number(r.cost_per_kg).toFixed(2)}/kg{r.dry_matter_pct ? ` | MS: ${r.dry_matter_pct}%` : ''}</option>)}
@@ -427,54 +450,82 @@ export default function BatidaVagao() {
 
             {batidasFiltradas.length === 0 ? (
               <div className={styles.vazio}><div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🚜</div><p>Nenhuma batida registrada para este filtro.</p></div>
-            ) : (
-              <div className={styles.batidasList}>
-                {batidasFiltradas.map(b => {
-                  const lote  = lotes.find(l => l.id === b.lot_id);
-                  const racao = racoes.find(r => r.id === b.feed_type_id);
-                  const ings  = calcIngredientes(b.feed_type_id, Number(b.total_qty_kg));
-                  const expanded   = expandedId === b.id;
-                  const cochoEntry = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
-                  return (
-                    <div key={b.id} className={styles.batidaCard}>
-                      <div className={styles.batidaHeader} onClick={() => setExpandedId(expanded ? null : b.id)}>
-                        <div className={styles.batidaHeaderLeft}>
-                          <span className={styles.batidaTipoBadge} style={{ background: b.batch_type === 'day' ? '#e3f2fd' : '#e8f5e9', color: b.batch_type === 'day' ? '#1565c0' : '#2e7d32' }}>
-                            {b.batch_type === 'day' ? '📅 Dia' : `🕐 ${b.feeding_order}º Trato`}
-                          </span>
-                          <strong>{lote?.lot_code || '—'}</strong>
-                          <span style={{ color: '#666', fontSize: '0.88rem' }}>{racao?.name || '—'}</span>
-                          {cochoEntry && (
-                            <span className={styles.cochoBadge} style={{ background: cochoEntry.bgCor, color: cochoEntry.cor }}>
-                              {cochoEntry.label}{b.cocho_adjustment_kg != null ? ` (${Number(b.cocho_adjustment_kg) > 0 ? '+' : ''}${fmtKg(b.cocho_adjustment_kg)})` : ''}
-                            </span>
-                          )}
-                        </div>
-                        <div className={styles.batidaHeaderRight}>
-                          <span className={styles.batidaTotal}>{fmtKg(b.total_qty_kg)}</span>
-                          <span style={{ color: '#888', fontSize: '0.8rem' }}>{new Date(b.batch_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                          <span className={styles.expandToggle}>{expanded ? '▲' : '▼'}</span>
-                        </div>
+            ) : (() => {
+              // Agrupa por trato (feeding_order) ou dia
+              const grupos = {};
+              batidasFiltradas.forEach(b => {
+                const chave = b.batch_type === 'day' ? 'dia' : `t${b.feeding_order}`;
+                if (!grupos[chave]) grupos[chave] = { label: b.batch_type === 'day' ? '📅 Dia Completo' : `🕐 ${b.feeding_order}º Trato`, ordem: b.batch_type === 'day' ? 0 : b.feeding_order, batidas: [] };
+                grupos[chave].batidas.push(b);
+              });
+              const gruposOrdenados = Object.values(grupos).sort((a, b) => a.ordem - b.ordem);
+              return (
+                <div className={styles.batidasList}>
+                  {gruposOrdenados.map(grupo => (
+                    <div key={grupo.label} className={styles.tratoGrupo}>
+                      {/* Cabeçalho do trato */}
+                      <div className={styles.tratoGrupoHeader}>
+                        <span>{grupo.label}</span>
+                        <span style={{ fontSize: '0.82rem', opacity: 0.8 }}>
+                          {grupo.batidas.length} lote(s) — {fmtKg(grupo.batidas.reduce((s, b) => s + Number(b.total_qty_kg), 0))} total
+                        </span>
                       </div>
-                      {expanded && (
-                        <div className={styles.batidaBody}>
-                          {ings.length > 0
-                            ? <><div className={styles.batidaBodyTitle}>📋 Ingredientes para {fmtKg(b.total_qty_kg)}</div><TabelaIngredientes ings={ings} fmtKg={fmtKg} /></>
-                            : <p style={{ color: '#888', fontSize: '0.88rem' }}>⚠️ Composição vigente não encontrada.</p>
-                          }
-                          {b.notes && <div className={styles.batidaNotes}>📝 {b.notes}</div>}
-                          {canDelete('wagon_batches') && (
-                            <div style={{ marginTop: '0.8rem', textAlign: 'right' }}>
-                              <button className={styles.btnDeletar} onClick={() => handleDelete(b.id)}>Excluir</button>
+                      {/* Cards dos lotes neste trato */}
+                      <div className={styles.tratoGrupoLotes}>
+                        {grupo.batidas.map(b => {
+                          const lote  = lotes.find(l => l.id === b.lot_id);
+                          const racao = racoes.find(r => r.id === b.feed_type_id);
+                          const ings  = calcIngredientes(b.feed_type_id, Number(b.total_qty_kg));
+                          const expanded   = expandedId === b.id;
+                          const cochoEntry = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
+                          const faseAtiva  = (lote?.lot_phases || []).find(f =>
+                            b.batch_date >= f.start_date && (!f.end_date || b.batch_date <= f.end_date)
+                          );
+                          return (
+                            <div key={b.id} className={styles.batidaCard}>
+                              <div className={styles.batidaHeader} onClick={() => setExpandedId(expanded ? null : b.id)}>
+                                <div className={styles.batidaHeaderLeft}>
+                                  <strong style={{ fontSize: '1rem' }}>{lote?.lot_code || '—'}</strong>
+                                  <span style={{ color: '#666', fontSize: '0.88rem' }}>{racao?.name || '—'}</span>
+                                  {faseAtiva && (
+                                    <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '2px 8px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 600 }}>
+                                      {faseAtiva.phase_name}
+                                    </span>
+                                  )}
+                                  {cochoEntry && (
+                                    <span className={styles.cochoBadge} style={{ background: cochoEntry.bgCor, color: cochoEntry.cor }}>
+                                      {cochoEntry.label}{b.cocho_adjustment_kg != null ? ` (${Number(b.cocho_adjustment_kg) > 0 ? '+' : ''}${fmtKg(b.cocho_adjustment_kg)})` : ''}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={styles.batidaHeaderRight}>
+                                  <span className={styles.batidaTotal}>{fmtKg(b.total_qty_kg)}</span>
+                                  <span className={styles.expandToggle}>{expanded ? '▲' : '▼'}</span>
+                                </div>
+                              </div>
+                              {expanded && (
+                                <div className={styles.batidaBody}>
+                                  {ings.length > 0
+                                    ? <><div className={styles.batidaBodyTitle}>📋 Ingredientes para {fmtKg(b.total_qty_kg)}</div><TabelaIngredientes ings={ings} fmtKg={fmtKg} /></>
+                                    : <p style={{ color: '#888', fontSize: '0.88rem' }}>⚠️ Composição vigente não encontrada.</p>
+                                  }
+                                  {b.notes && <div className={styles.batidaNotes}>📝 {b.notes}</div>}
+                                  {canDelete('wagon_batches') && (
+                                    <div style={{ marginTop: '0.8rem', textAlign: 'right' }}>
+                                      <button className={styles.btnDeletar} onClick={() => handleDelete(b.id)}>Excluir</button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      )}
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </>
         )}
 
