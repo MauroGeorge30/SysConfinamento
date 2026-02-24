@@ -6,8 +6,13 @@ import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../lib/supabase';
 import styles from '../styles/Racoes.module.css';
 
+// ─── Helpers ────────────────────────────────────────────────
+const fmtN = (v, d = 2) => v != null && !isNaN(v) ? Number(v).toFixed(d) : '—';
+const fmtR = (v, d = 2) => v != null && !isNaN(v) ? 'R$ ' + Number(v).toFixed(d) : '—';
+const hoje = () => new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0];
+
 // ─── ABA: RAÇÕES ────────────────────────────────────────────
-function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
+function AbaRacoes({ currentFarm, canCreate, canEdit, canDelete }) {
   const [racoes, setRacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -34,41 +39,25 @@ function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return alert('Nome é obrigatório.');
     setLoading(true);
     try {
-      const payload = {
-        name: formData.name,
-        dry_matter_pct: formData.dry_matter_pct ? parseFloat(formData.dry_matter_pct) : null,
-        farm_id: currentFarm.id,
-      };
+      const payload = { name: formData.name, dry_matter_pct: formData.dry_matter_pct ? parseFloat(formData.dry_matter_pct) : null, farm_id: currentFarm.id };
       if (editingId) {
         const { error } = await supabase.from('feed_types').update(payload).eq('id', editingId);
         if (error) throw error;
-        alert('Ração atualizada!');
       } else {
         const { error } = await supabase.from('feed_types').insert([payload]);
         if (error) throw error;
-        alert('Ração cadastrada! Agora cadastre a composição na aba Composições.');
       }
       resetForm(); loadRacoes();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Deletar esta ração e todas as suas composições?')) return;
-    try {
-      const { error } = await supabase.from('feed_types').delete().eq('id', id);
-      if (error) throw error;
-      loadRacoes();
-    } catch (err) { alert('Erro: ' + err.message); }
-  };
-
   return (
     <div>
       <div className={styles.subHeader}>
-        <span>{racoes.length} ração(ões) cadastrada(s)</span>
+        <span>{racoes.length} ração(ões)</span>
         {canCreate('feed_types') && (
           <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
             {showForm && !editingId ? 'Cancelar' : '+ Nova Ração'}
@@ -83,15 +72,11 @@ function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
             <div className={styles.row}>
               <div>
                 <label>Nome da Ração *</label>
-                <input type="text" value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: Premix Terminação, Silagem de Milho" required />
+                <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
               </div>
               <div>
-                <label>Matéria Seca — MS% (para cálculo de CMS)</label>
-                <input type="number" value={formData.dry_matter_pct}
-                  onChange={(e) => setFormData({ ...formData, dry_matter_pct: e.target.value })}
-                  placeholder="Ex: 54.0" step="0.1" min="0" max="100" />
+                <label>MS% da ração (mistura final)</label>
+                <input type="number" value={formData.dry_matter_pct} onChange={e => setFormData({ ...formData, dry_matter_pct: e.target.value })} placeholder="Ex: 54.0" step="0.01" min="0" max="100" />
               </div>
             </div>
             <div className={styles.formAcoes}>
@@ -112,20 +97,17 @@ function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
               {(canEdit('feed_types') || canDelete('feed_types')) && <th>Ações</th>}
             </tr></thead>
             <tbody>
-              {racoes.map((r) => {
-                const comp = r.feed_compositions && r.feed_compositions.find(c => c.is_current);
+              {racoes.map(r => {
+                const comp = r.feed_compositions?.find(c => c.is_current);
                 const custoMN = r.cost_per_kg ? Number(r.cost_per_kg) : null;
                 const custoMS = custoMN && r.dry_matter_pct ? custoMN / (Number(r.dry_matter_pct) / 100) : null;
                 return (
                   <tr key={r.id}>
                     <td><strong>{r.name}</strong></td>
-                    <td>{r.dry_matter_pct
-                      ? <span className={styles.badgeBlue}>{Number(r.dry_matter_pct).toFixed(1)}%</span>
-                      : <span className={styles.badgeWarn}>N/I</span>}
-                    </td>
-                    <td>{custoMN ? <strong>R$ {custoMN.toFixed(4)}/kg</strong> : <span className={styles.semComp}>Sem composição</span>}</td>
-                    <td>{custoMS ? 'R$ ' + custoMS.toFixed(4) + '/kg' : '—'}</td>
-                    <td>{comp ? <span className={styles.badgeGreen}>v{comp.version}</span> : <span className={styles.semComp}>—</span>}</td>
+                    <td>{r.dry_matter_pct ? <span className={styles.badgeBlue}>{fmtN(r.dry_matter_pct, 1)}%</span> : <span className={styles.badgeWarn}>N/I</span>}</td>
+                    <td>{custoMN ? <strong>{fmtR(custoMN, 4)}/kg</strong> : <span className={styles.semComp}>Sem composição</span>}</td>
+                    <td>{custoMS ? fmtR(custoMS, 4) + '/kg MS' : '—'}</td>
+                    <td>{comp ? <span className={styles.badgeGreen}>v{comp.version}</span> : '—'}</td>
                     <td>{comp ? new Date(comp.effective_date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td>
                     {(canEdit('feed_types') || canDelete('feed_types')) && (
                       <td><div className={styles.acoes}>
@@ -133,11 +115,14 @@ function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                           <button className={styles.btnEditar} onClick={() => {
                             setFormData({ name: r.name, dry_matter_pct: r.dry_matter_pct || '' });
                             setEditingId(r.id); setShowForm(true);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}>Editar</button>
                         )}
                         {canDelete('feed_types') && (
-                          <button className={styles.btnDeletar} onClick={() => handleDelete(r.id)}>Deletar</button>
+                          <button className={styles.btnDeletar} onClick={async () => {
+                            if (!confirm('Deletar esta ração?')) return;
+                            await supabase.from('feed_types').delete().eq('id', r.id);
+                            loadRacoes();
+                          }}>Deletar</button>
                         )}
                       </div></td>
                     )}
@@ -155,12 +140,23 @@ function AbaRacoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
 // ─── ABA: INSUMOS ───────────────────────────────────────────
 function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [insumos, setInsumos] = useState([]);
-  const [historico, setHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [showHistorico, setShowHistorico] = useState(null);
+  const [showEntradaId, setShowEntradaId] = useState(null);
+  const [showMovId, setShowMovId] = useState(null);
+  const [movimentos, setMovimentos] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ name: '', unit: 'kg', current_price: '', notes: '' });
+
+  // Form cadastro do insumo
+  const [formData, setFormData] = useState({
+    name: '', supplier: '', unit: 'kg', dry_matter_pct: '', stock_min_kg: '', notes: ''
+  });
+
+  // Form entrada de estoque
+  const [formEntrada, setFormEntrada] = useState({
+    entry_date: hoje(), quantity_kg_received: '', price_per_ton: '',
+    freight_per_ton: '0', invoice_number: '', supplier: ''
+  });
 
   useEffect(() => { loadInsumos(); }, []);
 
@@ -171,7 +167,6 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
         .from('feed_ingredients')
         .select('*')
         .eq('farm_id', currentFarm.id)
-        .eq('active', true)
         .order('name');
       if (error) throw error;
       setInsumos(data || []);
@@ -179,180 +174,396 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
     finally { setLoading(false); }
   };
 
-  const loadHistorico = async (ingredientId) => {
-    if (showHistorico === ingredientId) { setShowHistorico(null); return; }
+  const loadMovimentos = async (ingredientId) => {
+    if (showMovId === ingredientId) { setShowMovId(null); return; }
     try {
       const { data, error } = await supabase
-        .from('feed_ingredient_prices')
+        .from('ingredient_stock_movements')
         .select('*')
         .eq('ingredient_id', ingredientId)
-        .order('effective_date', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false })
+        .limit(30);
       if (error) throw error;
-      setHistorico(data || []);
-      setShowHistorico(ingredientId);
+      setMovimentos(data || []);
+      setShowMovId(ingredientId);
     } catch (err) { alert('Erro: ' + err.message); }
   };
 
-  const resetForm = () => { setFormData({ name: '', unit: 'kg', current_price: '', notes: '' }); setEditingId(null); setShowForm(false); };
+  const resetForm = () => {
+    setFormData({ name: '', supplier: '', unit: 'kg', dry_matter_pct: '', stock_min_kg: '', notes: '' });
+    setEditingId(null); setShowForm(false);
+  };
 
+  const resetEntrada = () => {
+    setFormEntrada({ entry_date: hoje(), quantity_kg_received: '', price_per_ton: '', freight_per_ton: '0', invoice_number: '', supplier: '' });
+    setShowEntradaId(null);
+  };
+
+  // Cálculos derivados da entrada
+  const calcEntrada = (f) => {
+    const pTon = parseFloat(f.price_per_ton) || 0;
+    const frete = parseFloat(f.freight_per_ton) || 0;
+    const totalTon = pTon + frete;
+    const pKg = totalTon / 1000;
+    return { totalTon, pKg };
+  };
+
+  const calcInsumoPrices = (pTon, frete, ms) => {
+    const totalTon = (parseFloat(pTon) || 0) + (parseFloat(frete) || 0);
+    const pKg = totalTon / 1000;
+    const pKgMs = ms ? pKg / (parseFloat(ms) / 100) : null;
+    return { totalTon, pKg, pKgMs };
+  };
+
+  // Salvar cadastro do insumo
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return alert('Nome é obrigatório.');
-    if (!formData.current_price || isNaN(formData.current_price)) return alert('Preço inválido.');
     setLoading(true);
     try {
       const payload = {
-        name: formData.name, unit: formData.unit,
-        current_price: parseFloat(formData.current_price),
-        notes: formData.notes || null, farm_id: currentFarm.id,
+        name: formData.name,
+        supplier: formData.supplier || null,
+        unit: formData.unit,
+        dry_matter_pct: formData.dry_matter_pct ? parseFloat(formData.dry_matter_pct) : null,
+        stock_min_kg: formData.stock_min_kg ? parseFloat(formData.stock_min_kg) : 0,
+        notes: formData.notes || null,
+        farm_id: currentFarm.id,
+        active: true,
       };
       if (editingId) {
         const { error } = await supabase.from('feed_ingredients').update(payload).eq('id', editingId);
         if (error) throw error;
-        // Grava histórico manualmente ao atualizar preço
-        await supabase.from('feed_ingredient_prices').insert([{
-          ingredient_id: editingId, farm_id: currentFarm.id,
-          price: parseFloat(formData.current_price),
-          effective_date: new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0],
-          registered_by: user.id,
-        }]);
-        alert('Insumo atualizado! Histórico de preço gravado.');
       } else {
-        const { data, error } = await supabase.from('feed_ingredients').insert([payload]).select().single();
+        const { error } = await supabase.from('feed_ingredients').insert([payload]);
         if (error) throw error;
-        await supabase.from('feed_ingredient_prices').insert([{
-          ingredient_id: data.id, farm_id: currentFarm.id,
-          price: parseFloat(formData.current_price),
-          effective_date: new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0],
-          registered_by: user.id,
-        }]);
-        alert('Insumo cadastrado!');
       }
       resetForm(); loadInsumos();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
   };
 
+  // Registrar entrada de estoque
+  const handleEntrada = async (insumo) => {
+    const f = formEntrada;
+    if (!f.quantity_kg_received || !f.price_per_ton) return alert('Preencha quantidade e preço/ton.');
+    const { totalTon, pKg } = calcEntrada(f);
+    const ms = insumo.dry_matter_pct;
+    const pKgMs = ms ? pKg / (ms / 100) : null;
+    const qtd = parseFloat(f.quantity_kg_received);
+
+    setLoading(true);
+    try {
+      // 1. Atualiza preços e estoque no insumo
+      await supabase.from('feed_ingredients').update({
+        price_per_ton: parseFloat(f.price_per_ton),
+        freight_per_ton: parseFloat(f.freight_per_ton) || 0,
+        total_price_per_ton: totalTon,
+        price_per_kg: pKg,
+        price_per_kg_ms: pKgMs,
+        current_price: pKg, // mantém compatibilidade
+        stock_qty_kg: (insumo.stock_qty_kg || 0) + qtd,
+        supplier: f.supplier || insumo.supplier || null,
+      }).eq('id', insumo.id);
+
+      // 2. Grava movimentação de entrada
+      await supabase.from('ingredient_stock_movements').insert([{
+        ingredient_id: insumo.id,
+        farm_id: currentFarm.id,
+        movement_type: 'entrada',
+        quantity_kg: qtd,
+        entry_date: f.entry_date,
+        notes: `Entrada — ${fmtR(parseFloat(f.price_per_ton), 2)}/ton` + (f.invoice_number ? ` — NF: ${f.invoice_number}` : ''),
+        registered_by: user.id,
+      }]);
+
+      // 3. Grava histórico de preços
+      await supabase.from('feed_ingredient_prices').insert([{
+        ingredient_id: insumo.id,
+        farm_id: currentFarm.id,
+        price: pKg,
+        effective_date: f.entry_date,
+        quantity_kg_received: qtd,
+        price_per_ton: parseFloat(f.price_per_ton),
+        freight_per_ton: parseFloat(f.freight_per_ton) || 0,
+        total_price_per_ton: totalTon,
+        price_per_kg_ms: pKgMs,
+        supplier: f.supplier || null,
+        invoice_number: f.invoice_number || null,
+        registered_by: user.id,
+      }]);
+
+      alert(`✅ Entrada registrada!\n${qtd.toFixed(0)} kg | R$ ${pKg.toFixed(4)}/kg`);
+      resetEntrada(); loadInsumos();
+    } catch (err) { alert('Erro: ' + err.message); }
+    finally { setLoading(false); }
+  };
+
+  // Preview dos cálculos no form de entrada
+  const previewEntrada = calcEntrada(formEntrada);
+  const insumoAtivo = insumos.find(i => i.id === showEntradaId);
+  const previewKgMs = insumoAtivo?.dry_matter_pct
+    ? previewEntrada.pKg / (insumoAtivo.dry_matter_pct / 100) : null;
+
   return (
     <div>
       <div className={styles.subHeader}>
-        <span>{insumos.length} insumo(s) cadastrado(s)</span>
+        <span>{insumos.length} insumo(s)</span>
         {canCreate('feed_ingredients') && (
-          <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          <button className={styles.btnAdd} onClick={() => { resetForm(); setShowEntradaId(null); setShowForm(!showForm); }}>
             {showForm && !editingId ? 'Cancelar' : '+ Novo Insumo'}
           </button>
         )}
       </div>
 
+      {/* ── Form cadastro insumo ── */}
       {showForm && (
         <div className={styles.formCard}>
-          <h2>{editingId ? 'Atualizar Preço do Insumo' : 'Novo Insumo'}</h2>
+          <h2>{editingId ? '✏️ Editar Insumo' : '➕ Novo Insumo'}</h2>
           <form onSubmit={handleSubmit}>
             <div className={styles.row}>
               <div>
                 <label>Nome do Insumo *</label>
                 <input type="text" value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: Milho, Núcleo, Ureia, Torta de Soja" required />
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Milho, Torta de Soja, Ureia" required />
               </div>
               <div>
-                <label>Unidade</label>
-                <select value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })}>
-                  <option value="kg">kg</option>
-                  <option value="L">L (litro)</option>
-                  <option value="sc">sc (saco)</option>
-                  <option value="t">t (tonelada)</option>
-                </select>
+                <label>Empresa Fornecedora</label>
+                <input type="text" value={formData.supplier}
+                  onChange={e => setFormData({ ...formData, supplier: e.target.value })}
+                  placeholder="Ex: Agropecuária São João" />
               </div>
             </div>
-            <div className={styles.row}>
+            <div className={styles.row3}>
               <div>
-                <label>Preço Atual (R$ / {formData.unit}) *</label>
-                <input type="number" value={formData.current_price}
-                  onChange={(e) => setFormData({ ...formData, current_price: e.target.value })}
-                  placeholder="Ex: 1.30" step="0.0001" min="0" required />
+                <label>Unidade</label>
+                <select value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                  <option value="kg">kg</option>
+                  <option value="t">t (tonelada)</option>
+                  <option value="L">L (litro)</option>
+                  <option value="sc">sc (saco)</option>
+                </select>
               </div>
               <div>
-                <label>Observações</label>
-                <input type="text" value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Opcional..." />
+                <label>MS% — Matéria Seca</label>
+                <input type="number" value={formData.dry_matter_pct}
+                  onChange={e => setFormData({ ...formData, dry_matter_pct: e.target.value })}
+                  placeholder="Ex: 87.50" step="0.01" min="0" max="100" />
               </div>
+              <div>
+                <label>Estoque mínimo (kg) — alerta</label>
+                <input type="number" value={formData.stock_min_kg}
+                  onChange={e => setFormData({ ...formData, stock_min_kg: e.target.value })}
+                  placeholder="Ex: 5000" step="1" min="0" />
+              </div>
+            </div>
+            <div>
+              <label>Observações</label>
+              <input type="text" value={formData.notes}
+                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Opcional..." style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '8px', boxSizing: 'border-box' }} />
             </div>
             <div className={styles.formAcoes}>
               <button type="button" className={styles.btnCancelar} onClick={resetForm}>Cancelar</button>
-              <button type="submit" disabled={loading}>{loading ? 'Salvando...' : editingId ? 'Atualizar Preço' : 'Cadastrar'}</button>
+              <button type="submit" disabled={loading}>{loading ? 'Salvando...' : editingId ? 'Atualizar' : 'Cadastrar'}</button>
             </div>
           </form>
         </div>
       )}
 
+      {/* ── Tabela de insumos ── */}
       {loading ? <p className={styles.vazio}>Carregando...</p> : insumos.length === 0 ? (
-        <div className={styles.vazio}><p>Nenhum insumo cadastrado.</p><p style={{fontSize:'0.85rem',color:'#aaa'}}>Cadastre os ingredientes antes de montar composições.</p></div>
+        <div className={styles.vazio}><p>Nenhum insumo cadastrado.</p></div>
       ) : (
-        <div className={styles.tabelaWrapper}>
-          <table className={styles.tabela}>
-            <thead><tr><th>Insumo</th><th>Unidade</th><th>Preço Atual</th><th>Observações</th><th>Ações</th></tr></thead>
-            <tbody>
-              {insumos.map((ins) => (
-                <>
-                  <tr key={ins.id}>
-                    <td><strong>{ins.name}</strong></td>
-                    <td>{ins.unit}</td>
-                    <td><strong className={styles.preco}>R$ {Number(ins.current_price).toFixed(4)}/{ins.unit}</strong></td>
-                    <td style={{fontSize:'0.85rem',color:'#888'}}>{ins.notes || '—'}</td>
-                    <td><div className={styles.acoes}>
-                      <button className={styles.btnHistorico} onClick={() => loadHistorico(ins.id)}>
-                        {showHistorico === ins.id ? 'Fechar' : 'Histórico'}
+        <div className={styles.listaInsumos}>
+          {insumos.map(ins => {
+            const estoqueBaixo = ins.stock_min_kg > 0 && ins.stock_qty_kg < ins.stock_min_kg;
+            const estoqueNeg = ins.stock_qty_kg < 0;
+            return (
+              <div key={ins.id} className={`${styles.insumoCard} ${estoqueNeg ? styles.insumoCardNeg : estoqueBaixo ? styles.insumoCardBaixo : ''}`}>
+
+                {/* Cabeçalho do card */}
+                <div className={styles.insumoCardHeader}>
+                  <div className={styles.insumoCardLeft}>
+                    <strong className={styles.insumoNome}>{ins.name}</strong>
+                    {ins.supplier && <span className={styles.insumoSupplier}>🏭 {ins.supplier}</span>}
+                  </div>
+                  <div className={styles.insumoCardRight}>
+                    {/* Estoque */}
+                    <div className={`${styles.estoqueTag} ${estoqueNeg ? styles.estoqueNeg : estoqueBaixo ? styles.estoqueBaixo : styles.estoqueOk}`}>
+                      📦 {fmtN(ins.stock_qty_kg, 0)} kg
+                      {estoqueBaixo && !estoqueNeg && <span> ⚠️</span>}
+                      {estoqueNeg && <span> ❌ negativo</span>}
+                    </div>
+                    {/* Botões */}
+                    <div className={styles.acoes}>
+                      <button className={styles.btnEntrada}
+                        onClick={() => { setShowEntradaId(showEntradaId === ins.id ? null : ins.id); setShowForm(false); }}>
+                        {showEntradaId === ins.id ? 'Fechar' : '📥 Entrada'}
                       </button>
-                      <button className={styles.btnEditar} onClick={() => {
-                        setFormData({ name: ins.name, unit: ins.unit, current_price: ins.current_price, notes: ins.notes || '' });
-                        setEditingId(ins.id); setShowForm(true);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}>Editar</button>
-                      <button className={styles.btnDeletar} onClick={async () => {
-                        if (!confirm('Deletar permanentemente o insumo "' + ins.name + '"?\n\nSe estiver em composições, use Inativar.')) return;
-                        try {
-                          const { error } = await supabase.from('feed_ingredients').delete().eq('id', ins.id);
-                          if (error) {
-                            if (error.message.includes('foreign key') || error.message.includes('violates')) {
-                              if (confirm('Este insumo está em composições e não pode ser deletado.\nDeseja inativá-lo em vez disso?')) {
-                                await supabase.from('feed_ingredients').update({ active: false }).eq('id', ins.id);
-                              }
-                            } else { alert('Erro: ' + error.message); }
-                          }
-                          loadInsumos();
-                        } catch (err) { alert('Erro: ' + err.message); }
-                      }}>Deletar</button>
-                    </div></td>
-                  </tr>
-                  {showHistorico === ins.id && (
-                    <tr key={ins.id + '_hist'}>
-                      <td colSpan={5} className={styles.tdHistorico}>
-                        <div className={styles.historicoBox}>
-                          <strong>Histórico de preços — {ins.name}</strong>
-                          {historico.length === 0 ? <p>Nenhum histórico.</p> : (
-                            <table className={styles.tabelaHistorico}>
-                              <thead><tr><th>Data</th><th>Preço</th></tr></thead>
-                              <tbody>
-                                {historico.map(h => (
-                                  <tr key={h.id}>
-                                    <td>{new Date(h.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                                    <td>R$ {Number(h.price).toFixed(4)}/{ins.unit}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
+                      <button className={styles.btnHistorico} onClick={() => loadMovimentos(ins.id)}>
+                        {showMovId === ins.id ? 'Fechar' : '📋 Movimentos'}
+                      </button>
+                      {canEdit('feed_ingredients') && (
+                        <button className={styles.btnEditar} onClick={() => {
+                          setFormData({ name: ins.name, supplier: ins.supplier || '', unit: ins.unit, dry_matter_pct: ins.dry_matter_pct || '', stock_min_kg: ins.stock_min_kg || '', notes: ins.notes || '' });
+                          setEditingId(ins.id); setShowForm(true); setShowEntradaId(null);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}>✏️ Editar</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Indicadores de preço e MS */}
+                <div className={styles.insumoIndicadores}>
+                  <div className={styles.indicItem}>
+                    <span>MS%</span>
+                    <strong>{ins.dry_matter_pct ? fmtN(ins.dry_matter_pct, 2) + '%' : '—'}</strong>
+                  </div>
+                  <div className={styles.indicItem}>
+                    <span>Preço/ton</span>
+                    <strong>{ins.price_per_ton ? fmtR(ins.price_per_ton, 2) : '—'}</strong>
+                  </div>
+                  <div className={styles.indicItem}>
+                    <span>Frete/ton</span>
+                    <strong>{ins.freight_per_ton ? fmtR(ins.freight_per_ton, 2) : 'R$ 0,00'}</strong>
+                  </div>
+                  <div className={styles.indicItem}>
+                    <span>Total/ton</span>
+                    <strong>{ins.total_price_per_ton ? fmtR(ins.total_price_per_ton, 2) : '—'}</strong>
+                  </div>
+                  <div className={`${styles.indicItem} ${styles.indicDestaque}`}>
+                    <span>Preço/kg MN</span>
+                    <strong>{ins.price_per_kg ? fmtR(ins.price_per_kg, 4) : '—'}</strong>
+                  </div>
+                  <div className={`${styles.indicItem} ${styles.indicDestaqueMs}`}>
+                    <span>Preço/kg MS</span>
+                    <strong>{ins.price_per_kg_ms ? fmtR(ins.price_per_kg_ms, 4) : '—'}</strong>
+                  </div>
+                  <div className={styles.indicItem}>
+                    <span>Estoque mín.</span>
+                    <strong>{ins.stock_min_kg ? fmtN(ins.stock_min_kg, 0) + ' kg' : '—'}</strong>
+                  </div>
+                </div>
+
+                {/* ── Painel de entrada de estoque ── */}
+                {showEntradaId === ins.id && (
+                  <div className={styles.entradaPanel}>
+                    <div className={styles.entradaPanelTitle}>📥 Registrar Entrada de Estoque — {ins.name}</div>
+                    <div className={styles.row3}>
+                      <div>
+                        <label>Data de Entrada *</label>
+                        <input type="date" value={formEntrada.entry_date}
+                          onChange={e => setFormEntrada({ ...formEntrada, entry_date: e.target.value })} />
+                      </div>
+                      <div>
+                        <label>Fornecedor (desta entrada)</label>
+                        <input type="text" value={formEntrada.supplier}
+                          onChange={e => setFormEntrada({ ...formEntrada, supplier: e.target.value })}
+                          placeholder={ins.supplier || 'Fornecedor...'} />
+                      </div>
+                      <div>
+                        <label>Nota Fiscal / Referência</label>
+                        <input type="text" value={formEntrada.invoice_number}
+                          onChange={e => setFormEntrada({ ...formEntrada, invoice_number: e.target.value })}
+                          placeholder="NF 00001..." />
+                      </div>
+                    </div>
+                    <div className={styles.row3}>
+                      <div>
+                        <label>Quantidade recebida (kg) *</label>
+                        <input type="number" value={formEntrada.quantity_kg_received}
+                          onChange={e => setFormEntrada({ ...formEntrada, quantity_kg_received: e.target.value })}
+                          placeholder="Ex: 10000" step="0.001" min="0" />
+                      </div>
+                      <div>
+                        <label>Preço por tonelada (R$) *</label>
+                        <input type="number" value={formEntrada.price_per_ton}
+                          onChange={e => setFormEntrada({ ...formEntrada, price_per_ton: e.target.value })}
+                          placeholder="Ex: 850.00" step="0.01" min="0" />
+                      </div>
+                      <div>
+                        <label>Frete por tonelada (R$)</label>
+                        <input type="number" value={formEntrada.freight_per_ton}
+                          onChange={e => setFormEntrada({ ...formEntrada, freight_per_ton: e.target.value })}
+                          placeholder="Ex: 30.00" step="0.01" min="0" />
+                      </div>
+                    </div>
+
+                    {/* Preview calculado */}
+                    {previewEntrada.pKg > 0 && (
+                      <div className={styles.entradaPreview}>
+                        <div className={styles.previewItem}>
+                          <span>Total/ton (com frete)</span>
+                          <strong>{fmtR(previewEntrada.totalTon, 2)}/ton</strong>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
+                        <div className={`${styles.previewItem} ${styles.previewDestaque}`}>
+                          <span>Preço/kg MN</span>
+                          <strong>{fmtR(previewEntrada.pKg, 4)}/kg</strong>
+                        </div>
+                        {previewKgMs && (
+                          <div className={`${styles.previewItem} ${styles.previewDestaqueMs}`}>
+                            <span>Preço/kg MS ({fmtN(ins.dry_matter_pct, 1)}%)</span>
+                            <strong>{fmtR(previewKgMs, 4)}/kg MS</strong>
+                          </div>
+                        )}
+                        {formEntrada.quantity_kg_received && (
+                          <div className={styles.previewItem}>
+                            <span>Total da nota</span>
+                            <strong>{fmtR((parseFloat(formEntrada.quantity_kg_received) / 1000) * previewEntrada.totalTon, 2)}</strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className={styles.entradaBtns}>
+                      <button className={styles.btnCancelar} onClick={resetEntrada}>Cancelar</button>
+                      <button className={styles.btnSalvarEntrada} onClick={() => handleEntrada(ins)} disabled={loading}>
+                        {loading ? 'Salvando...' : '✅ Confirmar Entrada'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Painel de movimentações ── */}
+                {showMovId === ins.id && (
+                  <div className={styles.movPanel}>
+                    <div className={styles.movPanelTitle}>📋 Movimentações — {ins.name}</div>
+                    {movimentos.length === 0 ? (
+                      <p style={{ color: '#aaa', fontSize: '0.85rem' }}>Nenhuma movimentação registrada.</p>
+                    ) : (
+                      <table className={styles.tabelaMov}>
+                        <thead><tr>
+                          <th>Data</th><th>Tipo</th><th>Quantidade</th><th>Observação</th>
+                        </tr></thead>
+                        <tbody>
+                          {movimentos.map(m => {
+                            const isEntrada = m.movement_type === 'entrada';
+                            const isNeg = m.quantity_kg < 0;
+                            return (
+                              <tr key={m.id}>
+                                <td>{new Date(m.entry_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                <td>
+                                  <span className={isEntrada ? styles.movBadgeEntrada : isNeg ? styles.movBadgeBaixa : styles.movBadgeAjuste}>
+                                    {m.movement_type === 'entrada' ? '📥 Entrada' : m.movement_type === 'baixa_trato' ? '📤 Trato' : '🔧 Ajuste'}
+                                  </span>
+                                </td>
+                                <td className={isEntrada ? styles.movQtdPos : styles.movQtdNeg}>
+                                  {isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 3)} kg
+                                </td>
+                                <td style={{ fontSize: '0.82rem', color: '#666' }}>{m.notes || '—'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -368,9 +579,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [showForm, setShowForm] = useState(false);
   const [expandedComp, setExpandedComp] = useState(null);
   const [editingCompId, setEditingCompId] = useState(null);
-
-  const hoje = new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const [formComp, setFormComp] = useState({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje, notes: '' });
+  const [formComp, setFormComp] = useState({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje(), notes: '' });
   const [itens, setItens] = useState([{ ingredient_id: '', proportion_pct: '', quantity_kg: '', price_per_unit: '' }]);
 
   useEffect(() => { loadDados(); }, []);
@@ -380,12 +589,10 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     try {
       const [{ data: r }, { data: i }, { data: c, error: ce }] = await Promise.all([
         supabase.from('feed_types').select('id, name, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
-        supabase.from('feed_ingredients').select('id, name, unit, current_price').eq('farm_id', currentFarm.id).eq('active', true).order('name'),
+        supabase.from('feed_ingredients').select('id, name, unit, current_price, price_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).eq('active', true).order('name'),
         supabase.from('feed_compositions')
-          .select('*, feed_types!feed_compositions_feed_type_id_fkey(name), feed_composition_items(*, feed_ingredients(name, unit))')
-          .eq('farm_id', currentFarm.id)
-          .order('created_at', { ascending: false })
-          .limit(50),
+          .select('*, feed_types!feed_compositions_feed_type_id_fkey(name), feed_composition_items(*, feed_ingredients(name, unit, dry_matter_pct))')
+          .eq('farm_id', currentFarm.id).order('created_at', { ascending: false }).limit(50),
       ]);
       if (ce) throw ce;
       setRacoes(r || []); setInsumos(i || []); setComposicoes(c || []);
@@ -401,47 +608,42 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     novos[idx] = { ...novos[idx], [field]: value };
     if (field === 'ingredient_id' && value) {
       const ing = insumos.find(i => i.id === value);
-      if (ing) novos[idx].price_per_unit = String(ing.current_price);
+      if (ing) novos[idx].price_per_unit = String(ing.price_per_kg || ing.current_price || '');
     }
-    if (field === 'proportion_pct' && value && formComp.base_qty_kg) {
+    if (field === 'proportion_pct' && value && formComp.base_qty_kg)
       novos[idx].quantity_kg = ((parseFloat(value) / 100) * parseFloat(formComp.base_qty_kg)).toFixed(3);
-    }
-    if (field === 'quantity_kg' && value && formComp.base_qty_kg) {
+    if (field === 'quantity_kg' && value && formComp.base_qty_kg)
       novos[idx].proportion_pct = ((parseFloat(value) / parseFloat(formComp.base_qty_kg)) * 100).toFixed(4);
-    }
     setItens(novos);
   };
 
   const totalQty = itens.reduce((acc, i) => acc + (parseFloat(i.quantity_kg) || 0), 0);
   const totalCusto = itens.reduce((acc, i) => acc + ((parseFloat(i.quantity_kg) || 0) * (parseFloat(i.price_per_unit) || 0)), 0);
   const totalPct = itens.reduce((acc, i) => acc + (parseFloat(i.proportion_pct) || 0), 0);
-  const custoPorKg = formComp.base_qty_kg && parseFloat(formComp.base_qty_kg) > 0
-    ? totalCusto / parseFloat(formComp.base_qty_kg) : 0;
+  const custoPorKg = formComp.base_qty_kg && parseFloat(formComp.base_qty_kg) > 0 ? totalCusto / parseFloat(formComp.base_qty_kg) : 0;
+
+  // MS% ponderada da composição atual
+  const msPonderada = itens.reduce((acc, item) => {
+    const ing = insumos.find(i => i.id === item.ingredient_id);
+    const pct = parseFloat(item.proportion_pct) || 0;
+    const ms = ing?.dry_matter_pct ? parseFloat(ing.dry_matter_pct) : null;
+    return ms ? acc + (pct * ms / 100) : acc;
+  }, 0);
 
   const resetForm = () => {
-    setFormComp({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje, notes: '' });
+    setFormComp({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje(), notes: '' });
     setItens([{ ingredient_id: '', proportion_pct: '', quantity_kg: '', price_per_unit: '' }]);
-    setShowForm(false);
-    setEditingCompId(null);
+    setShowForm(false); setEditingCompId(null);
   };
 
   const handleEditComp = (c) => {
-    setFormComp({
-      feed_type_id: c.feed_type_id,
-      base_qty_kg: String(c.base_qty_kg),
-      effective_date: c.effective_date,
-      notes: c.notes || '',
-    });
+    setFormComp({ feed_type_id: c.feed_type_id, base_qty_kg: String(c.base_qty_kg), effective_date: c.effective_date, notes: c.notes || '' });
     const itensCarregados = (c.feed_composition_items || []).map(item => ({
-      id: item.id,
-      ingredient_id: item.ingredient_id,
-      proportion_pct: String(item.proportion_pct),
-      quantity_kg: String(item.quantity_kg),
-      price_per_unit: String(item.price_per_unit),
+      id: item.id, ingredient_id: item.ingredient_id,
+      proportion_pct: String(item.proportion_pct), quantity_kg: String(item.quantity_kg), price_per_unit: String(item.price_per_unit),
     }));
     setItens(itensCarregados.length > 0 ? itensCarregados : [{ ingredient_id: '', proportion_pct: '', quantity_kg: '', price_per_unit: '' }]);
-    setEditingCompId(c.id);
-    setShowForm(true);
+    setEditingCompId(c.id); setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -449,83 +651,56 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     e.preventDefault();
     if (!formComp.feed_type_id) return alert('Selecione a ração.');
     const itensValidos = itens.filter(i => i.ingredient_id && i.quantity_kg && i.price_per_unit);
-    if (itensValidos.length === 0) return alert('Adicione pelo menos um ingrediente completo.');
+    if (itensValidos.length === 0) return alert('Adicione pelo menos um ingrediente.');
     setLoading(true);
     try {
       const totalCustoCalc = itensValidos.reduce((acc, i) => acc + (parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)), 0);
       const custoPorKgCalc = totalCustoCalc / parseFloat(formComp.base_qty_kg);
 
       if (editingCompId) {
-        // ── MODO EDIÇÃO: atualiza composição existente ──
-        const { error: errComp } = await supabase
-          .from('feed_compositions')
-          .update({
-            feed_type_id: formComp.feed_type_id,
-            base_qty_kg: parseFloat(formComp.base_qty_kg),
-            cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)),
-            total_cost: parseFloat(totalCustoCalc.toFixed(2)),
-            effective_date: formComp.effective_date,
-            notes: formComp.notes || null,
-          })
-          .eq('id', editingCompId);
+        const { error: errComp } = await supabase.from('feed_compositions').update({
+          feed_type_id: formComp.feed_type_id, base_qty_kg: parseFloat(formComp.base_qty_kg),
+          cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)), total_cost: parseFloat(totalCustoCalc.toFixed(2)),
+          effective_date: formComp.effective_date, notes: formComp.notes || null,
+        }).eq('id', editingCompId);
         if (errComp) throw errComp;
-
-        // Deleta itens antigos e reinserem os novos
-        const { error: errDel } = await supabase.from('feed_composition_items').delete().eq('composition_id', editingCompId);
-        if (errDel) throw errDel;
-
-        const itemsPayload = itensValidos.map(i => ({
-          composition_id: editingCompId,
-          ingredient_id: i.ingredient_id,
-          farm_id: currentFarm.id,
-          proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
-          quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
-          price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
-          total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
-        }));
-        const { error: errItems } = await supabase.from('feed_composition_items').insert(itemsPayload);
+        await supabase.from('feed_composition_items').delete().eq('composition_id', editingCompId);
+        const { error: errItems } = await supabase.from('feed_composition_items').insert(
+          itensValidos.map(i => ({
+            composition_id: editingCompId, ingredient_id: i.ingredient_id, farm_id: currentFarm.id,
+            proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
+            quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
+            price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
+            total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
+          }))
+        );
         if (errItems) throw errItems;
-
-        alert('Composição atualizada!\nNovo custo por kg: R$ ' + custoPorKgCalc.toFixed(4));
+        alert('Composição atualizada! Custo/kg: ' + fmtR(custoPorKgCalc, 4));
       } else {
-        // ── MODO CRIAÇÃO: nova versão ──
-        const { data: versoes } = await supabase
-          .from('feed_compositions').select('version')
-          .eq('feed_type_id', formComp.feed_type_id)
-          .order('version', { ascending: false }).limit(1);
-        const proximaVersao = versoes && versoes.length > 0 ? versoes[0].version + 1 : 1;
-
-        const { data: novaComp, error: errComp } = await supabase
-          .from('feed_compositions')
-          .insert([{
-            feed_type_id: formComp.feed_type_id,
-            farm_id: currentFarm.id,
-            version: proximaVersao,
-            base_qty_kg: parseFloat(formComp.base_qty_kg),
-            cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)),
-            total_cost: parseFloat(totalCustoCalc.toFixed(2)),
-            effective_date: formComp.effective_date,
-            is_current: true,
-            notes: formComp.notes || null,
-            registered_by: user.id,
-          }]).select().single();
+        const { data: versoes } = await supabase.from('feed_compositions').select('version')
+          .eq('feed_type_id', formComp.feed_type_id).order('version', { ascending: false }).limit(1);
+        const proximaVersao = versoes?.length > 0 ? versoes[0].version + 1 : 1;
+        const { data: novaComp, error: errComp } = await supabase.from('feed_compositions').insert([{
+          feed_type_id: formComp.feed_type_id, farm_id: currentFarm.id, version: proximaVersao,
+          base_qty_kg: parseFloat(formComp.base_qty_kg), cost_per_kg: parseFloat(custoPorKgCalc.toFixed(4)),
+          total_cost: parseFloat(totalCustoCalc.toFixed(2)), effective_date: formComp.effective_date,
+          is_current: true, notes: formComp.notes || null, registered_by: user.id,
+        }]).select().single();
         if (errComp) throw errComp;
-
-        const itemsPayload = itensValidos.map(i => ({
-          composition_id: novaComp.id,
-          ingredient_id: i.ingredient_id,
-          farm_id: currentFarm.id,
-          proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
-          quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
-          price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
-          total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
-        }));
-        const { error: errItems } = await supabase.from('feed_composition_items').insert(itemsPayload);
+        const { error: errItems } = await supabase.from('feed_composition_items').insert(
+          itensValidos.map(i => ({
+            composition_id: novaComp.id, ingredient_id: i.ingredient_id, farm_id: currentFarm.id,
+            proportion_pct: parseFloat(parseFloat(i.proportion_pct).toFixed(4)),
+            quantity_kg: parseFloat(parseFloat(i.quantity_kg).toFixed(3)),
+            price_per_unit: parseFloat(parseFloat(i.price_per_unit).toFixed(4)),
+            total_cost: parseFloat((parseFloat(i.quantity_kg) * parseFloat(i.price_per_unit)).toFixed(2)),
+          }))
+        );
         if (errItems) throw errItems;
-
-        alert('Composição v' + proximaVersao + ' cadastrada!\nCusto por kg: R$ ' + custoPorKgCalc.toFixed(4));
+        // Atualiza MS% e cost_per_kg na ração
+        await supabase.from('feed_types').update({ cost_per_kg: custoPorKgCalc, dry_matter_pct: msPonderada > 0 ? parseFloat(msPonderada.toFixed(2)) : null }).eq('id', formComp.feed_type_id);
+        alert(`Composição v${proximaVersao} salva!\nCusto/kg: ${fmtR(custoPorKgCalc, 4)}\nMS% calculada: ${fmtN(msPonderada, 2)}%`);
       }
-
       resetForm(); loadDados();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
@@ -534,9 +709,9 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
   return (
     <div>
       <div className={styles.subHeader}>
-        <span>{composicoes.length} composição(ões) registrada(s)</span>
+        <span>{composicoes.length} composição(ões)</span>
         {canCreate('feed_compositions') && (
-          <button className={styles.btnAdd} onClick={() => { if (showForm) { resetForm(); } else { setShowForm(true); } }}>
+          <button className={styles.btnAdd} onClick={() => showForm ? resetForm() : setShowForm(true)}>
             {showForm ? 'Cancelar' : '+ Nova Composição'}
           </button>
         )}
@@ -549,52 +724,51 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
             <div className={styles.row3}>
               <div>
                 <label>Ração *</label>
-                <select value={formComp.feed_type_id}
-                  onChange={(e) => setFormComp({ ...formComp, feed_type_id: e.target.value })} required>
+                <select value={formComp.feed_type_id} onChange={e => setFormComp({ ...formComp, feed_type_id: e.target.value })} required>
                   <option value="">Selecione a ração</option>
                   {racoes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
               <div>
                 <label>Base de cálculo (kg)</label>
-                <input type="number" value={formComp.base_qty_kg}
-                  onChange={(e) => setFormComp({ ...formComp, base_qty_kg: e.target.value })}
-                  placeholder="Ex: 1000" min="1" step="0.1" />
+                <input type="number" value={formComp.base_qty_kg} onChange={e => setFormComp({ ...formComp, base_qty_kg: e.target.value })} placeholder="1000" min="1" step="0.1" />
               </div>
               <div>
                 <label>Data de Vigência</label>
-                <input type="date" value={formComp.effective_date}
-                  onChange={(e) => setFormComp({ ...formComp, effective_date: e.target.value })} />
+                <input type="date" value={formComp.effective_date} onChange={e => setFormComp({ ...formComp, effective_date: e.target.value })} />
               </div>
             </div>
 
             <div className={styles.ingredientesBox}>
               <div className={styles.ingredientesHeader}>
                 <strong>Ingredientes</strong>
-                <button type="button" className={styles.btnAddItem} onClick={addItem}>+ Adicionar Ingrediente</button>
+                <button type="button" className={styles.btnAddItem} onClick={addItem}>+ Adicionar</button>
               </div>
               <div className={styles.tabelaWrapper}>
                 <table className={styles.tabelaItens}>
                   <thead><tr>
-                    <th>Ingrediente</th><th>Proporção (%)</th>
-                    <th>Qtd ({formComp.base_qty_kg || '?'} kg base)</th>
-                    <th>Preço R$/un</th><th>Custo Total</th><th></th>
+                    <th>Ingrediente</th><th>MS%</th><th>Proporção (%)</th>
+                    <th>Qtd ({formComp.base_qty_kg || '?'} kg)</th><th>Preço R$/kg</th><th>Custo</th><th></th>
                   </tr></thead>
                   <tbody>
                     {itens.map((item, idx) => {
+                      const ing = insumos.find(i => i.id === item.ingredient_id);
                       const custoItem = (parseFloat(item.quantity_kg) || 0) * (parseFloat(item.price_per_unit) || 0);
                       return (
                         <tr key={idx}>
                           <td>
-                            <select value={item.ingredient_id} onChange={(e) => updateItem(idx, 'ingredient_id', e.target.value)}>
+                            <select value={item.ingredient_id} onChange={e => updateItem(idx, 'ingredient_id', e.target.value)}>
                               <option value="">Selecione...</option>
-                              {insumos.map(i => <option key={i.id} value={i.id}>{i.name} (R$ {Number(i.current_price).toFixed(4)}/{i.unit})</option>)}
+                              {insumos.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                             </select>
                           </td>
-                          <td><input type="number" value={item.proportion_pct} onChange={(e) => updateItem(idx, 'proportion_pct', e.target.value)} placeholder="%" step="0.0001" min="0" max="100" className={styles.inputSmall} /></td>
-                          <td><input type="number" value={item.quantity_kg} onChange={(e) => updateItem(idx, 'quantity_kg', e.target.value)} placeholder="kg" step="0.001" min="0" className={styles.inputSmall} /></td>
-                          <td><input type="number" value={item.price_per_unit} onChange={(e) => updateItem(idx, 'price_per_unit', e.target.value)} placeholder="R$" step="0.0001" min="0" className={styles.inputSmall} /></td>
-                          <td className={styles.custoItem}>{custoItem > 0 ? 'R$ ' + custoItem.toFixed(2) : '—'}</td>
+                          <td style={{ fontSize: '0.82rem', color: '#1565c0', textAlign: 'center' }}>
+                            {ing?.dry_matter_pct ? fmtN(ing.dry_matter_pct, 1) + '%' : '—'}
+                          </td>
+                          <td><input type="number" value={item.proportion_pct} onChange={e => updateItem(idx, 'proportion_pct', e.target.value)} placeholder="%" step="0.0001" min="0" max="100" className={styles.inputSmall} /></td>
+                          <td><input type="number" value={item.quantity_kg} onChange={e => updateItem(idx, 'quantity_kg', e.target.value)} placeholder="kg" step="0.001" min="0" className={styles.inputSmall} /></td>
+                          <td><input type="number" value={item.price_per_unit} onChange={e => updateItem(idx, 'price_per_unit', e.target.value)} placeholder="R$/kg" step="0.0001" min="0" className={styles.inputSmall} /></td>
+                          <td className={styles.custoItem}>{custoItem > 0 ? fmtR(custoItem, 2) : '—'}</td>
                           <td>{itens.length > 1 && <button type="button" className={styles.btnRemItem} onClick={() => removeItem(idx)}>✕</button>}</td>
                         </tr>
                       );
@@ -603,47 +777,46 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                   <tfoot>
                     <tr className={styles.totalRow}>
                       <td><strong>TOTAL</strong></td>
+                      <td><span className={styles.badgeBlue}>{fmtN(msPonderada, 2)}% MS</span></td>
                       <td><strong className={Math.abs(totalPct - 100) < 0.5 ? styles.pctOk : styles.pctWarn}>{totalPct.toFixed(2)}%</strong></td>
                       <td><strong>{totalQty.toFixed(1)} kg</strong></td>
                       <td>—</td>
-                      <td><strong>R$ {totalCusto.toFixed(2)}</strong></td>
+                      <td><strong>{fmtR(totalCusto, 2)}</strong></td>
                       <td></td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
-              {totalCusto > 0 && formComp.base_qty_kg && (
+              {totalCusto > 0 && (
                 <div className={styles.previewCusto}>
                   <div className={styles.previewItem}>
-                    <span>Custo total da base ({formComp.base_qty_kg} kg)</span>
-                    <strong>R$ {totalCusto.toFixed(2)}</strong>
+                    <span>Custo total ({formComp.base_qty_kg} kg)</span>
+                    <strong>{fmtR(totalCusto, 2)}</strong>
                   </div>
                   <div className={styles.previewItem}>
-                    <span>Custo por kg MN</span>
-                    <strong className={styles.custoDestaque}>R$ {custoPorKg.toFixed(4)}/kg</strong>
+                    <span>Custo/kg MN</span>
+                    <strong className={styles.custoDestaque}>{fmtR(custoPorKg, 4)}/kg</strong>
                   </div>
-                  {formComp.feed_type_id && (() => {
-                    const r = racoes.find(r => r.id === formComp.feed_type_id);
-                    if (!r || !r.dry_matter_pct) return null;
-                    const custoMS = custoPorKg / (Number(r.dry_matter_pct) / 100);
-                    return (
-                      <div className={styles.previewItem}>
-                        <span>Custo por kg MS ({r.dry_matter_pct}% MS)</span>
-                        <strong>R$ {custoMS.toFixed(4)}/kg MS</strong>
-                      </div>
-                    );
-                  })()}
+                  <div className={styles.previewItem}>
+                    <span>MS% ponderada</span>
+                    <strong>{fmtN(msPonderada, 2)}%</strong>
+                  </div>
+                  {msPonderada > 0 && (
+                    <div className={styles.previewItem}>
+                      <span>Custo/kg MS</span>
+                      <strong>{fmtR(custoPorKg / (msPonderada / 100), 4)}/kg MS</strong>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            <div style={{marginBottom:'1rem'}}>
-              <label style={{fontSize:'0.88rem',fontWeight:600,color:'#444',display:'block',marginBottom:'4px'}}>Observações</label>
-              <input type="text" value={formComp.notes}
-                onChange={(e) => setFormComp({ ...formComp, notes: e.target.value })}
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#444', display: 'block', marginBottom: '4px' }}>Observações</label>
+              <input type="text" value={formComp.notes} onChange={e => setFormComp({ ...formComp, notes: e.target.value })}
                 placeholder="Ex: Reajuste de preço do milho — fev/2026"
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #ddd',borderRadius:'8px',boxSizing:'border-box',fontSize:'0.95rem'}} />
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '8px', boxSizing: 'border-box' }} />
             </div>
 
             <div className={styles.formAcoes}>
@@ -658,27 +831,24 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
         <div className={styles.vazio}><p>Nenhuma composição cadastrada.</p></div>
       ) : (
         <div className={styles.listaComposicoes}>
-          {composicoes.map((c) => (
+          {composicoes.map(c => (
             <div key={c.id} className={c.is_current ? styles.compCardAtiva : styles.compCardAntiga}>
               <div className={styles.compCardHeader} onClick={() => setExpandedComp(expandedComp === c.id ? null : c.id)}>
                 <div className={styles.compCardLeft}>
-                  <strong>{c.feed_types ? c.feed_types.name : '—'}</strong>
-                  <span className={c.is_current ? styles.badgeGreen : styles.badgeGray}>
-                    {c.is_current ? 'Vigente' : 'Histórico'} — v{c.version}
-                  </span>
+                  <strong>{c.feed_types?.name || '—'}</strong>
+                  <span className={c.is_current ? styles.badgeGreen : styles.badgeGray}>{c.is_current ? 'Vigente' : 'Histórico'} — v{c.version}</span>
                 </div>
                 <div className={styles.compCardRight}>
-                  <span>Vigência: {new Date(c.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                  <strong className={styles.custoDestaque}>R$ {Number(c.cost_per_kg).toFixed(4)}/kg</strong>
+                  <span>{new Date(c.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                  <strong className={styles.custoDestaque}>{fmtR(c.cost_per_kg, 4)}/kg</strong>
                   {canEdit('feed_compositions') && (
-                    <button className={styles.btnEditar} onClick={(e) => { e.stopPropagation(); handleEditComp(c); }}>Editar</button>
+                    <button className={styles.btnEditar} onClick={e => { e.stopPropagation(); handleEditComp(c); }}>Editar</button>
                   )}
                   {canDelete('feed_compositions') && (
-                    <button className={styles.btnDeletar} onClick={(e) => {
+                    <button className={styles.btnDeletar} onClick={e => {
                       e.stopPropagation();
-                      if (!confirm('Deletar esta composição v' + c.version + '?\n' + (c.is_current ? 'ATENÇÃO: Esta é a composição vigente!' : ''))) return;
-                      supabase.from('feed_compositions').delete().eq('id', c.id)
-                        .then(({ error }) => { if (error) alert('Erro: ' + error.message); else loadDados(); });
+                      if (!confirm('Deletar composição v' + c.version + '?')) return;
+                      supabase.from('feed_compositions').delete().eq('id', c.id).then(() => loadDados());
                     }}>Deletar</button>
                   )}
                   <span className={styles.expandIcon}>{expandedComp === c.id ? '▲' : '▼'}</span>
@@ -688,29 +858,30 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                 <div className={styles.compCardBody}>
                   {c.notes && <p className={styles.compNotes}>{c.notes}</p>}
                   <table className={styles.tabelaComp}>
-                    <thead><tr><th>Ingrediente</th><th>Proporção</th><th>Qtd</th><th>R$/un</th><th>Custo Total</th></tr></thead>
+                    <thead><tr><th>Ingrediente</th><th>MS%</th><th>Proporção</th><th>Qtd</th><th>R$/kg</th><th>Custo</th></tr></thead>
                     <tbody>
-                      {(c.feed_composition_items || []).map((item) => (
+                      {(c.feed_composition_items || []).map(item => (
                         <tr key={item.id}>
-                          <td>{item.feed_ingredients ? item.feed_ingredients.name : '—'}</td>
-                          <td>{Number(item.proportion_pct).toFixed(2)}%</td>
-                          <td>{Number(item.quantity_kg).toFixed(3)} kg</td>
-                          <td>R$ {Number(item.price_per_unit).toFixed(4)}</td>
-                          <td>R$ {Number(item.total_cost).toFixed(2)}</td>
+                          <td>{item.feed_ingredients?.name || '—'}</td>
+                          <td style={{ color: '#1565c0', fontSize: '0.85rem' }}>
+                            {item.feed_ingredients?.dry_matter_pct ? fmtN(item.feed_ingredients.dry_matter_pct, 1) + '%' : '—'}
+                          </td>
+                          <td>{fmtN(item.proportion_pct, 2)}%</td>
+                          <td>{fmtN(item.quantity_kg, 3)} kg</td>
+                          <td>{fmtR(item.price_per_unit, 4)}</td>
+                          <td>{fmtR(item.total_cost, 2)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr className={styles.totalRow}>
-                        <td><strong>TOTAL</strong></td><td></td>
-                        <td><strong>{Number(c.base_qty_kg).toFixed(0)} kg</strong></td><td></td>
-                        <td><strong>R$ {Number(c.total_cost).toFixed(2)}</strong></td>
+                        <td><strong>TOTAL</strong></td><td></td><td></td>
+                        <td><strong>{fmtN(c.base_qty_kg, 0)} kg</strong></td><td></td>
+                        <td><strong>{fmtR(c.total_cost, 2)}</strong></td>
                       </tr>
                     </tfoot>
                   </table>
-                  <p className={styles.compResumo}>
-                    Base: {Number(c.base_qty_kg).toFixed(0)} kg &nbsp;|&nbsp; Custo total: R$ {Number(c.total_cost).toFixed(2)} &nbsp;|&nbsp; <strong>Custo/kg: R$ {Number(c.cost_per_kg).toFixed(4)}</strong>
-                  </p>
+                  <p className={styles.compResumo}>Base: {fmtN(c.base_qty_kg, 0)} kg | Total: {fmtR(c.total_cost, 2)} | <strong>Custo/kg: {fmtR(c.cost_per_kg, 4)}</strong></p>
                 </div>
               )}
             </div>
@@ -726,12 +897,9 @@ export default function Racoes() {
   const router = useRouter();
   const { user, loading: authLoading, currentFarm } = useAuth();
   const { canCreate, canEdit, canDelete } = usePermissions();
-  const [aba, setAba] = useState('racoes');
+  const [aba, setAba] = useState('insumos');
 
-  useEffect(() => {
-    if (!authLoading && !user) router.push('/');
-  }, [user, authLoading]);
-
+  useEffect(() => { if (!authLoading && !user) router.push('/'); }, [user, authLoading]);
   if (authLoading || !user) return <div className="loading">Carregando...</div>;
 
   const props = { currentFarm, user, canCreate, canEdit, canDelete };
@@ -739,16 +907,14 @@ export default function Racoes() {
   return (
     <Layout>
       <div className={styles.container}>
-        <div className={styles.header}>
-          <h1>🌾 Rações e Insumos</h1>
-        </div>
+        <div className={styles.header}><h1>🌾 Rações e Insumos</h1></div>
         <div className={styles.abas}>
-          <button className={`${styles.aba} ${aba === 'racoes' ? styles.abaAtiva : ''}`} onClick={() => setAba('racoes')}>🌾 Rações</button>
           <button className={`${styles.aba} ${aba === 'insumos' ? styles.abaAtiva : ''}`} onClick={() => setAba('insumos')}>🧪 Insumos</button>
+          <button className={`${styles.aba} ${aba === 'racoes' ? styles.abaAtiva : ''}`} onClick={() => setAba('racoes')}>🌾 Rações</button>
           <button className={`${styles.aba} ${aba === 'composicoes' ? styles.abaAtiva : ''}`} onClick={() => setAba('composicoes')}>📋 Composições</button>
         </div>
-        {aba === 'racoes' && <AbaRacoes {...props} />}
         {aba === 'insumos' && <AbaInsumos {...props} />}
+        {aba === 'racoes' && <AbaRacoes {...props} />}
         {aba === 'composicoes' && <AbaComposicoes {...props} />}
       </div>
     </Layout>
