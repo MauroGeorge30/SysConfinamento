@@ -18,8 +18,15 @@ export default function Alimentacao() {
   const [pesagens, setPesagens] = useState([]);
   const [batidasVagao, setBatidasVagao] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aba, setAba]         = useState('individual');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  // Estado do modo em lote
+  const [tratoLoteData, setTratoLoteData]   = useState('');
+  const [tratoLoteOrdem, setTratoLoteOrdem] = useState(1);
+  const [tratoLinhas, setTratoLinhas]       = useState({});
+  const [salvandoLote, setSalvandoLote]     = useState(false);
   const [filtroBaia, setFiltroBaia] = useState('');
   const [filtroData, setFiltroData] = useState('');
   const [expandedBaias, setExpandedBaias] = useState({});
@@ -44,6 +51,9 @@ export default function Alimentacao() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
+
+  // Inicializa data do modo lote
+  useEffect(() => { if (!tratoLoteData) setTratoLoteData(hoje); }, [hoje]);
 
   const [formData, setFormData] = useState({
     pen_id: '', lot_id: '', feed_type_id: '',
@@ -336,17 +346,98 @@ export default function Alimentacao() {
   const totalCustoHoje = registrosHoje.reduce((acc, r) => acc + (Number(r.quantity_kg) * Number(r.cost_per_kg ?? r.feed_types?.cost_per_kg ?? 0)), 0);
   const baiasAlimentadasHoje = new Set(registrosHoje.map(r => r.pen_id)).size;
 
+  // ── Modo em lote: inicializa linhas ──────────────────────────
+  useEffect(() => {
+    if (aba !== 'lote' || !lotes.length) return;
+    setTratoLinhas(prev => {
+      const novo = {};
+      lotes.forEach(l => {
+        // Batida para esse lote/data/ordem
+        const batida = batidasVagao.find(b =>
+          b.lot_id === l.id && b.batch_date === tratoLoteData &&
+          (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
+        );
+        const feedingsPerDay = parseInt(l.daily_feeding_count) || 1;
+        const qtyKg = batida
+          ? (batida.batch_type === 'day' ? Number(batida.total_qty_kg) / feedingsPerDay : Number(batida.total_qty_kg))
+          : '';
+        const feedTypeId = batida?.feed_type_id || prev[l.id]?.feed_type_id || '';
+        const penId      = l.pen_id || prev[l.id]?.pen_id || '';
+        novo[l.id] = {
+          checked:      prev[l.id]?.checked !== undefined ? prev[l.id].checked : !!batida,
+          feed_type_id: feedTypeId,
+          pen_id:       penId,
+          quantity_kg:  prev[l.id]?.quantity_kg || qtyKg.toString(),
+          leftover_kg:  '',
+          temBatida:    !!batida,
+        };
+      });
+      return novo;
+    });
+  }, [aba, tratoLoteData, tratoLoteOrdem, lotes.length, batidasVagao.length]);
+
+  const handleSalvarTratoLote = async () => {
+    const selecionados = lotes.filter(l => tratoLinhas[l.id]?.checked);
+    if (!selecionados.length) return alert('Selecione ao menos um lote.');
+    const semBatida = selecionados.filter(l => !tratoLinhas[l.id]?.temBatida);
+    if (semBatida.length) {
+      return alert(`Lotes sem Batida de Vagão para esta data/trato:\n${semBatida.map(l => l.lot_code).join(', ')}\n\nRegistre as batidas primeiro.`);
+    }
+    const invalidos = selecionados.filter(l => !tratoLinhas[l.id]?.feed_type_id || !parseFloat(tratoLinhas[l.id]?.quantity_kg));
+    if (invalidos.length) return alert(`Lotes sem ração ou quantidade:\n${invalidos.map(l => l.lot_code).join(', ')}`);
+
+    setSalvandoLote(true);
+    try {
+      const payloads = selecionados.map(l => {
+        const d    = tratoLinhas[l.id];
+        const racao = racoes.find(r => r.id === d.feed_type_id);
+        return {
+          farm_id:       currentFarm.id,
+          lot_id:        l.id,
+          pen_id:        d.pen_id || l.pen_id || null,
+          feed_type_id:  d.feed_type_id,
+          quantity_kg:   parseFloat(d.quantity_kg),
+          leftover_kg:   d.leftover_kg ? parseFloat(d.leftover_kg) : null,
+          feeding_date:  tratoLoteData,
+          feeding_order: tratoLoteOrdem,
+          farm_id:       currentFarm.id,
+          registered_by: user.id,
+          cost_per_kg:   racao ? Number(racao.cost_per_kg) : null,
+        };
+      });
+      const { error } = await supabase.from('feeding_records').insert(payloads);
+      if (error) throw error;
+      alert(`✅ ${payloads.length} trato(s) registrado(s)!`);
+      loadDados();
+    } catch (e) { alert('Erro: ' + e.message); }
+    finally { setSalvandoLote(false); }
+  };
+
+  const toggleTodosTratos = (val) => setTratoLinhas(prev => {
+    const novo = { ...prev };
+    lotes.forEach(l => { if (novo[l.id]) novo[l.id] = { ...novo[l.id], checked: val }; });
+    return novo;
+  });
+
   return (
     <Layout>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1>🌿 Tratos Diários</h1>
-          {canCreate('feeding_records') && (
+          {aba === 'individual' && canCreate('feeding_records') && (
             <button className={styles.btnAdd} onClick={() => { resetForm(); setShowForm(!showForm); }}>
               {showForm && !editingId ? 'Cancelar' : '+ Registrar Trato'}
             </button>
           )}
         </div>
+
+        {/* Abas */}
+        <div className={styles.abas}>
+          <button className={`${styles.aba} ${aba === 'individual' ? styles.abaAtiva : ''}`} onClick={() => { setAba('individual'); setShowForm(false); }}>📋 Individual</button>
+          <button className={`${styles.aba} ${aba === 'lote' ? styles.abaAtiva : ''}`} onClick={() => setAba('lote')}>⚡ Todos os Lotes</button>
+        </div>
+
+        {aba === 'individual' && (<>
 
         {/* Resumo do dia */}
         <div className={styles.resumo}>
@@ -855,6 +946,115 @@ export default function Alimentacao() {
             );
           })()
         }
+
+        {/* Fecha aba individual */}
+        </>)}
+
+        {/* ═══ ABA TODOS OS LOTES ═══ */}
+        {aba === 'lote' && (
+          <div className={styles.formCard}>
+            <div className={styles.loteControles}>
+              <div className={styles.loteControlesRow}>
+                <div>
+                  <label>Data</label>
+                  <input type="date" value={tratoLoteData} onChange={e => setTratoLoteData(e.target.value)} className={styles.inputData} />
+                </div>
+                <div>
+                  <label>Nº do Trato</label>
+                  <div className={styles.tratoOrdemBox}>
+                    <span className={styles.tratoOrdemNum}>{tratoLoteOrdem}º Trato</span>
+                    <div className={styles.tratoOrdemBtns}>
+                      <button type="button" onClick={() => setTratoLoteOrdem(o => Math.max(1, o - 1))}>−</button>
+                      <button type="button" onClick={() => setTratoLoteOrdem(o => o + 1)}>+</button>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                  <button type="button" className={styles.btnSecundario} onClick={() => toggleTodosTratos(true)}>Marcar todos</button>
+                  <button type="button" className={styles.btnSecundario} onClick={() => toggleTodosTratos(false)}>Desmarcar</button>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.loteTabela}>
+              <table className={styles.tabelaLotes}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}></th>
+                    <th>Lote</th>
+                    <th>Cab.</th>
+                    <th>Batida</th>
+                    <th>Ração</th>
+                    <th>Fornecido MN (kg)</th>
+                    <th>Sobra MN (kg)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lotes.map(l => {
+                    const d = tratoLinhas[l.id];
+                    if (!d) return null;
+                    return (
+                      <tr key={l.id} className={d.checked ? styles.linhaChecked : styles.linhaUnchecked}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input type="checkbox" checked={d.checked}
+                            onChange={e => setTratoLinhas(p => ({ ...p, [l.id]: { ...p[l.id], checked: e.target.checked } }))} />
+                        </td>
+                        <td><strong>{l.lot_code}</strong></td>
+                        <td>{l.head_count}</td>
+                        <td>
+                          {d.temBatida
+                            ? <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.85rem' }}>✅ OK</span>
+                            : <span style={{ color: '#c62828', fontSize: '0.85rem' }}>⚠️ Sem batida</span>
+                          }
+                        </td>
+                        <td>
+                          <select value={d.feed_type_id} disabled={!d.checked} className={styles.selectInline}
+                            onChange={e => setTratoLinhas(p => ({ ...p, [l.id]: { ...p[l.id], feed_type_id: e.target.value } }))}>
+                            <option value="">— Selecione —</option>
+                            {racoes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <input type="number" value={d.quantity_kg} step="0.1" min="0" disabled={!d.checked}
+                            className={styles.inputInline}
+                            onChange={e => setTratoLinhas(p => ({ ...p, [l.id]: { ...p[l.id], quantity_kg: e.target.value } }))} />
+                        </td>
+                        <td>
+                          <input type="number" value={d.leftover_kg} step="0.1" min="0" disabled={!d.checked}
+                            className={styles.inputInline} placeholder="Opcional"
+                            onChange={e => setTratoLinhas(p => ({ ...p, [l.id]: { ...p[l.id], leftover_kg: e.target.value } }))} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={5} style={{ padding: '10px 12px', fontWeight: 700 }}>
+                      Total ({lotes.filter(l => tratoLinhas[l.id]?.checked).length} lotes)
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <strong style={{ color: '#2e7d32' }}>
+                        {lotes.filter(l => tratoLinhas[l.id]?.checked).reduce((acc, l) => acc + (parseFloat(tratoLinhas[l.id]?.quantity_kg) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
+                      </strong>
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className={styles.formAcoes}>
+              <span style={{ fontSize: '0.85rem', color: '#888' }}>
+                {lotes.filter(l => tratoLinhas[l.id]?.checked).length} lote(s) selecionado(s)
+              </span>
+              <button type="button" className={styles.btnAdd} onClick={handleSalvarTratoLote} disabled={salvandoLote}>
+                {salvandoLote ? 'Salvando...' : `💾 Registrar ${lotes.filter(l => tratoLinhas[l.id]?.checked).length} Trato(s)`}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </Layout>
   );
