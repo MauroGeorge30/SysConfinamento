@@ -228,3 +228,14 @@
 .modalBody td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; }
 .modalBody tfoot td { background: #e8f5e9; font-weight: 700; border-top: 2px solid #c8e6c9; }
 .modalBody .total-geral { margin-top: 16px; padding: 12px 16px; background: #e8f5e9; border-radius: 8px; font-weight: 700; text-align: right; font-size: 1rem; color: #1b5e20; border: 1px solid #a5d6a7; }
+
+/* Status de batida por lote */
+.statusOk      { display: inline-flex; flex-direction: column; gap: 1px; color: #2e7d32; font-weight: 700; font-size: 0.82rem; }
+.statusParcial { display: inline-flex; flex-direction: column; gap: 1px; color: #e65100; font-weight: 700; font-size: 0.82rem; }
+.statusNenhum  { color: #aaa; font-size: 0.82rem; }
+.statusTratos  { font-size: 0.72rem; font-weight: 400; opacity: 0.8; }
+.linhaJaFeita td { background: #f0faf0 !important; }
+.linhaJaFeita input[type="checkbox"] { accent-color: #2e7d32; }
+
+/* Legenda */
+.legendaStatus { padding: 8px 12px; font-size: 0.78rem; color: #666; background: #f9f9f9; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin-bottom: 4px; }
