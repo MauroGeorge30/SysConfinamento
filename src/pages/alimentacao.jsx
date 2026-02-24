@@ -64,7 +64,7 @@ export default function Alimentacao() {
           .limit(200),
         supabase.from('pens').select('id, pen_number, min_feed_kg, max_feed_kg, min_leftover_kg, max_leftover_kg').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
-        supabase.from('lots').select('id, lot_code, pen_id, head_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name))').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
+        supabase.from('lots').select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name)), lot_weighings(id, weighing_date, avg_weight)').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
       ]);
       if (regError) throw regError;
       setRegistros(regData || []);
@@ -208,6 +208,48 @@ export default function Alimentacao() {
   const custoKgMS = msPct ? (Number(racaoSelecionada.cost_per_kg) / (msPct / 100)) : null;
   const diariaCab = consumidoMS && custoKgMS ? (parseFloat(consumidoMS) * custoKgMS).toFixed(2) : null;
 
+  // Cálculo de MN sugerido
+  const calcMNSugerido = () => {
+    if (!loteAtual || !racaoSelecionada) return null;
+    const msPvPct = parseFloat(loteAtual.carcass_yield_pct);
+    const msDietaPct = parseFloat(racaoSelecionada.dry_matter_pct);
+    const gmd = parseFloat(loteAtual.target_gmd) || 0;
+    const headCount = parseInt(loteAtual.head_count) || 0;
+    const feedingsPerDay = parseInt(loteAtual.daily_feeding_count) || 1;
+    if (!msPvPct || !msDietaPct || !headCount) return null;
+
+    // Peso base: última pesagem anterior à data do trato, ou peso de entrada
+    const dataRef = formData.feeding_date || new Date().toISOString().slice(0, 10);
+    const pesagens = (loteAtual.lot_weighings || [])
+      .filter(p => p.weighing_date <= dataRef)
+      .sort((a, b) => b.weighing_date.localeCompare(a.weighing_date));
+
+    let pesoBase, dataBase;
+    if (pesagens.length > 0) {
+      pesoBase = parseFloat(pesagens[0].avg_weight);
+      dataBase = pesagens[0].weighing_date;
+    } else {
+      pesoBase = parseFloat(loteAtual.avg_entry_weight) || 0;
+      dataBase = loteAtual.entry_date;
+    }
+    if (!pesoBase || !dataBase) return null;
+
+    // Dias decorridos desde o peso base até a data do trato
+    const dias = Math.max(0, Math.floor((new Date(dataRef) - new Date(dataBase)) / 86400000));
+    const pesoEstimado = pesoBase + (dias * gmd);
+
+    // Consumo MS/cab = Peso × (MS%PV / 100)
+    const msCab = pesoEstimado * (msPvPct / 100);
+    // Consumo MN/cab = MS/cab / (MS%dieta / 100)
+    const mnCab = msCab / (msDietaPct / 100);
+    // Total lote / nº tratos
+    const mnTotalDia = mnCab * headCount;
+    const mnPorTrato = mnTotalDia / feedingsPerDay;
+
+    return { pesoEstimado, msCab, mnCab, mnTotalDia, mnPorTrato, feedingsPerDay, dias, dataBase: pesagens.length > 0 ? 'pesagem' : 'entrada' };
+  };
+  const sugestao = calcMNSugerido();
+
   // Alertas de limites
   const alertas = [];
   if (baiaAtual && qtd > 0) {
@@ -334,6 +376,25 @@ export default function Alimentacao() {
                   </select>
                 </div>
               </div>
+              {/* Sugestão de MN baseada no lote */}
+              {sugestao && (
+                <div style={{ background: '#f0f7f0', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.5rem', fontSize: '0.82rem', color: '#2e7d32' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <strong>🌿 MN sugerido: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
+                      {sugestao.feedingsPerDay > 1 && <span style={{ color: '#555', marginLeft: '0.5rem' }}>({sugestao.feedingsPerDay} tratos/dia — total {sugestao.mnTotalDia.toFixed(1)} kg)</span>}
+                      <div style={{ color: '#555', marginTop: '2px' }}>
+                        Peso est. {sugestao.pesoEstimado.toFixed(1)} kg ({sugestao.dias}d desde {sugestao.dataBase}) → MS {sugestao.msCab.toFixed(2)} kg/cab → MN {sugestao.mnCab.toFixed(2)} kg/cab
+                      </div>
+                    </div>
+                    <button type="button"
+                      onClick={() => setFormData(p => ({ ...p, quantity_kg: sugestao.mnPorTrato.toFixed(1) }))}
+                      style={{ background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.35rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                      Usar sugestão
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className={styles.row}>
                 <div>
                   <label>Fornecido MN (kg) *</label>
