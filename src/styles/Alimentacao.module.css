@@ -158,3 +158,30 @@
   .faseCabecalho { flex-direction: column; align-items: flex-start; }
   .faseCabecalhoRight { gap: 0.8rem; }
 }
+/* ── Abas ── */
+.abas { display: flex; gap: 4px; margin-bottom: 1.2rem; border-bottom: 2px solid #e0e0e0; }
+.aba { background: none; border: none; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 6px 6px 0 0; transition: all 0.15s; }
+.aba:hover { color: #2e7d32; background: #f5fdf5; }
+.abaAtiva { color: #2e7d32; border-bottom-color: #2e7d32; background: #f0f7f0; }
+
+/* ── Modo lote ── */
+.btnSecundario { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; white-space: nowrap; }
+.btnSecundario:hover { background: #f5f5f5; }
+.loteControles { margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+.loteControlesRow { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+.loteControlesRow > div { display: flex; flex-direction: column; gap: 5px; }
+.loteControlesRow label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.loteControlesRow select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fff; height: 42px; outline: none; }
+.loteTabela { overflow-x: auto; margin-bottom: 0.5rem; }
+.tabelaLotes { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tabelaLotes th { padding: 9px 12px; text-align: left; font-weight: 600; color: #555; background: #f5f5f5; border-bottom: 2px solid #ddd; white-space: nowrap; }
+.tabelaLotes td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.tabelaLotes tfoot td { background: #e8f5e9; border-top: 2px solid #c8e6c9; font-weight: 700; }
+.linhaChecked td { background: #fff; }
+.linhaUnchecked td { background: #fafafa; opacity: 0.55; }
+.selectInline { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; background: #fff; outline: none; min-width: 150px; }
+.selectInline:focus { border-color: #2e7d32; }
+.selectInline:disabled { background: #f5f5f5; }
+.inputInline { width: 100px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; outline: none; }
+.inputInline:focus { border-color: #2e7d32; }
+.inputInline:disabled { background: #f5f5f5; }
