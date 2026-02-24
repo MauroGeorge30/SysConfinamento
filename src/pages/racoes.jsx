@@ -7,8 +7,8 @@ import { supabase } from '../lib/supabase';
 import styles from '../styles/Racoes.module.css';
 
 // ─── Helpers ────────────────────────────────────────────────
-const fmtN = (v, d = 2) => v != null && !isNaN(v) ? Number(v).toFixed(d) : '—';
-const fmtR = (v, d = 2) => v != null && !isNaN(v) ? 'R$ ' + Number(v).toFixed(d) : '—';
+const fmtN  = (v, d = 2) => v != null && !isNaN(v) ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
+const fmtR  = (v, d = 2) => v != null && !isNaN(v) ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
 const hoje = () => new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0];
 
 // ─── ABA: RAÇÕES ────────────────────────────────────────────
@@ -41,7 +41,7 @@ function AbaRacoes({ currentFarm, canCreate, canEdit, canDelete }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = { name: formData.name, farm_id: currentFarm.id };
+      const payload = { name: formData.name, dry_matter_pct: formData.dry_matter_pct ? parseFloat(formData.dry_matter_pct) : null, farm_id: currentFarm.id };
       if (editingId) {
         const { error } = await supabase.from('feed_types').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -73,6 +73,10 @@ function AbaRacoes({ currentFarm, canCreate, canEdit, canDelete }) {
               <div>
                 <label>Nome da Ração *</label>
                 <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+              </div>
+              <div>
+                <label>MS% da ração (mistura final)</label>
+                <input type="number" value={formData.dry_matter_pct} onChange={e => setFormData({ ...formData, dry_matter_pct: e.target.value })} placeholder="Ex: 54.0" step="0.01" min="0" max="100" />
               </div>
             </div>
             <div className={styles.formAcoes}>
@@ -189,7 +193,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   };
 
   const handleEditMov = (m) => {
-    if (m.movement_type === 'baixa_trato') return alert('Baixas automáticas de trato não podem ser editadas.\nDelete o trato correspondente para estornar.');
+    if (m.movement_type === 'baixa_trato' || m.movement_type === 'ajuste_batida') return alert('Este movimento é automático e não pode ser editado diretamente.\nPara corrigir, ajuste o peso realizado na Batida de Vagão.');
     setEditingMovId(m.id);
     // Extrai preço/ton e frete da observação ou deixa vazio para reeditar
     setFormEditMov({
@@ -245,7 +249,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   };
 
   const handleDeleteMov = async (m, insumo) => {
-    if (m.movement_type === 'baixa_trato') return alert('Baixas automáticas de trato não podem ser deletadas.\nDelete o trato correspondente para estornar.');
+    if (m.movement_type === 'baixa_trato' || m.movement_type === 'ajuste_batida') return alert('Este movimento é automático e não pode ser deletado diretamente.\nPara corrigir, ajuste o peso realizado na Batida de Vagão.');
     if (!confirm(`Deletar esta movimentação de ${fmtN(Math.abs(m.quantity_kg), 3)} kg?\nO estoque será ajustado automaticamente.`)) return;
     setLoading(true);
     try {
@@ -646,7 +650,8 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                         <tbody>
                           {movimentos.map(m => {
                             const isEntrada = m.movement_type === 'entrada';
-                            const isTrato = m.movement_type === 'baixa_trato';
+                            const isTrato    = m.movement_type === 'baixa_trato';
+                                    const isAjuste   = m.movement_type === 'ajuste_batida';
                             const isEditing = editingMovId === m.id;
                             // preview de cálculo no form de edição
                             const ePTon = parseFloat(formEditMov.price_per_ton) || 0;
@@ -848,29 +853,14 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
       }
 
       const novoCustoPorKg = totalCustoNovo / Number(c.base_qty_kg);
-
-      // Recalcular MS% ponderada da composição
-      const { data: insumosMs } = await supabase
-        .from('feed_ingredients')
-        .select('id, dry_matter_pct')
-        .in('id', ingredientIds);
-      const msMap = {};
-      (insumosMs || []).forEach(i => { msMap[i.id] = i.dry_matter_pct; });
-      let msPonderadaCorrigida = 0;
-      for (const item of (c.feed_composition_items || [])) {
-        const propPct = (Number(item.quantity_kg) / Number(c.base_qty_kg)) * 100;
-        const ms = msMap[item.ingredient_id];
-        if (ms) msPonderadaCorrigida += propPct * Number(ms) / 100;
-      }
-
       await supabase.from('feed_compositions')
         .update({ cost_per_kg: parseFloat(novoCustoPorKg.toFixed(4)), total_cost: parseFloat(totalCustoNovo.toFixed(2)) })
         .eq('id', c.id);
       await supabase.from('feed_types')
-        .update({ cost_per_kg: novoCustoPorKg, dry_matter_pct: msPonderadaCorrigida > 0 ? parseFloat(msPonderadaCorrigida.toFixed(2)) : null })
+        .update({ cost_per_kg: novoCustoPorKg })
         .eq('id', c.feed_type_id);
 
-      alert(`Preços corrigidos!\nNovo custo/kg: R$ ${novoCustoPorKg.toFixed(4)}\nMS% da dieta: ${msPonderadaCorrigida.toFixed(2)}%`);
+      alert('Precos corrigidos! Novo custo/kg: R$ ' + novoCustoPorKg.toFixed(4));
       loadDados();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
