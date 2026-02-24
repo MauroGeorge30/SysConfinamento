@@ -23,7 +23,10 @@ export default function Alimentacao() {
   const [editingId, setEditingId] = useState(null);
 
   // Estado do modo em lote
-  const [tratoLoteData, setTratoLoteData]   = useState('');
+  const [tratoLoteData, setTratoLoteData]   = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
   const [tratoLoteOrdem, setTratoLoteOrdem] = useState(1);
   const [tratoLinhas, setTratoLinhas]       = useState({});
   const [salvandoLote, setSalvandoLote]     = useState(false);
@@ -51,9 +54,6 @@ export default function Alimentacao() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
-
-  // Inicializa data do modo lote
-  useEffect(() => { if (!tratoLoteData) setTratoLoteData(hoje); }, [hoje]);
 
   const [formData, setFormData] = useState({
     pen_id: '', lot_id: '', feed_type_id: '',
