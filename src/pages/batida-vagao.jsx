@@ -241,6 +241,48 @@ export default function BatidaVagao() {
     setShowForm(false);
   };
 
+  const [showPrint, setShowPrint] = useState(false);
+
+  const gerarOrdemFabricacao = () => {
+    const selecionados = lotes.filter(l => loteLinhas[l.id]?.checked && loteLinhas[l.id]?.feed_type_id && parseFloat(loteLinhas[l.id]?.qty_kg) > 0);
+    if (!selecionados.length) return alert('Nenhum lote selecionado com quantidade válida.');
+    setShowPrint(true);
+  };
+
+  const handleImprimir = () => {
+    const el = document.getElementById('ordem-fabricacao-print');
+    if (!el) return;
+    const janela = window.open('', '_blank', 'width=800,height=900');
+    janela.document.write(`
+      <!DOCTYPE html><html><head>
+      <meta charset="utf-8">
+      <title>Ordem de Fabricação — ${loteData}</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 20px; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        .sub { font-size: 12px; color: #555; margin-bottom: 20px; }
+        .lote-bloco { margin-bottom: 24px; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; page-break-inside: avoid; }
+        .lote-header { background: #1a1a2e; color: #fff; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
+        .lote-header h2 { font-size: 14px; }
+        .lote-header span { font-size: 12px; opacity: 0.8; }
+        .lote-meta { padding: 6px 14px; background: #f5f5f5; font-size: 11px; color: #555; display: flex; gap: 20px; border-bottom: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 7px 12px; text-align: left; background: #f0f0f0; border-bottom: 1px solid #ddd; font-size: 12px; }
+        td { padding: 7px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        tfoot td { background: #e8f5e9; font-weight: bold; border-top: 2px solid #c8e6c9; }
+        .total-geral { margin-top: 16px; padding: 10px 14px; background: #e8f5e9; border-radius: 6px; font-weight: bold; text-align: right; font-size: 14px; }
+        .nota-badge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: bold; }
+        @media print { body { padding: 10px; } }
+      </style>
+      </head><body>
+      ${el.innerHTML}
+      <script>window.onload = function(){ window.print(); }<\/script>
+      </body></html>
+    `);
+    janela.document.close();
+  };
+
   const handleSalvarLote = async () => {
     const selecionados = lotes.filter(l => loteLinhas[l.id]?.checked);
     if (!selecionados.length) return alert('Selecione ao menos um lote.');
@@ -627,12 +669,102 @@ export default function BatidaVagao() {
 
             <div className={styles.formAcoes}>
               <span style={{ fontSize: '0.85rem', color: '#888' }}>{qtdSelecionados} lote(s) selecionado(s)</span>
+              <button type="button" className={styles.btnSecundario} onClick={gerarOrdemFabricacao}>
+                🖨️ Ordem de Fabricação
+              </button>
               <button type="button" className={styles.btnAdd} onClick={handleSalvarLote} disabled={salvando}>
                 {salvando ? 'Salvando...' : `💾 Registrar ${qtdSelecionados} Batida(s)`}
               </button>
             </div>
           </div>
         )}
+
+        {/* ═══ MODAL ORDEM DE FABRICAÇÃO ═══ */}
+        {showPrint && (() => {
+          const selecionados = lotes.filter(l => loteLinhas[l.id]?.checked && loteLinhas[l.id]?.feed_type_id && parseFloat(loteLinhas[l.id]?.qty_kg) > 0);
+          const totalGeral   = selecionados.reduce((s, l) => s + parseFloat(loteLinhas[l.id].qty_kg), 0);
+          const dataFmt      = new Date(loteData + 'T00:00:00').toLocaleDateString('pt-BR');
+          const tipoLabel    = loteTipo === 'day' ? 'Dia completo' : `${loteOrdem}º Trato`;
+
+          return (
+            <div className={styles.modalOverlay} onClick={() => setShowPrint(false)}>
+              <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                  <div>
+                    <h2>🖨️ Ordem de Fabricação</h2>
+                    <span>{dataFmt} — {tipoLabel} — {selecionados.length} lote(s)</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className={styles.btnAdd} onClick={handleImprimir}>Imprimir / Salvar PDF</button>
+                    <button className={styles.btnCancelar} onClick={() => setShowPrint(false)}>✕ Fechar</button>
+                  </div>
+                </div>
+
+                {/* Conteúdo imprimível */}
+                <div className={styles.modalBody}>
+                  <div id="ordem-fabricacao-print">
+                    <h1 style={{ fontFamily: 'Arial', fontSize: 18, marginBottom: 4 }}>Ordem de Fabricação</h1>
+                    <div className="sub" style={{ fontFamily: 'Arial', fontSize: 12, color: '#555', marginBottom: 20 }}>
+                      {currentFarm?.name} — {dataFmt} — {tipoLabel}
+                    </div>
+
+                    {selecionados.map(l => {
+                      const d    = loteLinhas[l.id];
+                      const ings = calcIngredientes(d.feed_type_id, parseFloat(d.qty_kg));
+                      const racao = racoes.find(r => r.id === d.feed_type_id);
+                      const faseAtiva = (l.lot_phases || []).find(f => loteData >= f.start_date && (!f.end_date || loteData <= f.end_date));
+                      const cochoEntry = d.cocho_note !== null ? COCHO_NOTES.find(n => n.nota === d.cocho_note) : null;
+                      return (
+                        <div key={l.id} className="lote-bloco">
+                          <div className="lote-header">
+                            <h2>{l.lot_code} — {racao?.name || '—'}</h2>
+                            <span>{fmtKg(parseFloat(d.qty_kg))} total</span>
+                          </div>
+                          <div className="lote-meta">
+                            <span>🐂 {l.head_count} cab.</span>
+                            {faseAtiva && <span>📋 Fase: {faseAtiva.phase_name}</span>}
+                            {cochoEntry && <span style={{ color: cochoEntry.cor }}>Nota Cocho: {cochoEntry.label} — {cochoEntry.desc}</span>}
+                          </div>
+                          {ings.length > 0 ? (
+                            <table>
+                              <thead>
+                                <tr><th>#</th><th>Ingrediente</th><th>Proporção</th><th>Qtd MN</th><th>Qtd MS</th></tr>
+                              </thead>
+                              <tbody>
+                                {ings.map((ing, i) => (
+                                  <tr key={i}>
+                                    <td style={{ color: '#888', width: 30 }}>{i+1}</td>
+                                    <td><strong>{ing.nome}</strong></td>
+                                    <td>{ing.propPct}%</td>
+                                    <td><strong>{fmtKg(ing.qtdMN)}</strong></td>
+                                    <td style={{ color: '#1565c0' }}>{ing.qtdMS != null ? fmtKg(ing.qtdMS) : '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              <tfoot>
+                                <tr>
+                                  <td colSpan={3}><strong>TOTAL</strong></td>
+                                  <td><strong>{fmtKg(parseFloat(d.qty_kg))}</strong></td>
+                                  <td></td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          ) : (
+                            <div style={{ padding: '10px 14px', color: '#e65100', fontSize: 12 }}>⚠️ Composição não encontrada para esta ração.</div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <div className="total-geral">
+                      Total Geral de Fabricação: {fmtKg(totalGeral)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </Layout>
