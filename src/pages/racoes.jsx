@@ -822,6 +822,49 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     return ms ? acc + (pct * ms / 100) : acc;
   }, 0);
 
+
+  // Corrige preços da composição vigente com os valores atuais dos insumos
+  const handleCorrigirPrecos = async (c) => {
+    const nomeRacao = c.feed_types?.name || 'esta ração';
+    if (!confirm(`Corrigir preços da composição vigente de "${nomeRacao}" usando os valores atuais dos insumos?\n\nUse apenas para corrigir erros de cadastro. Versões históricas não serão alteradas.`)) return;
+    setLoading(true);
+    try {
+      const ingredientIds = (c.feed_composition_items || []).map(i => i.ingredient_id);
+      const { data: insumosAtuais, error: errIns } = await supabase
+        .from('feed_ingredients')
+        .select('id, price_per_kg, current_price')
+        .in('id', ingredientIds);
+      if (errIns) throw errIns;
+
+      const precoMap = {};
+      (insumosAtuais || []).forEach(i => { precoMap[i.id] = i.price_per_kg || i.current_price || 0; });
+
+      let totalCustoNovo = 0;
+      for (const item of (c.feed_composition_items || [])) {
+        const novoPreco = precoMap[item.ingredient_id] || Number(item.price_per_unit);
+        const novoCusto = Number(item.quantity_kg) * novoPreco;
+        totalCustoNovo += novoCusto;
+        const { error } = await supabase
+          .from('feed_composition_items')
+          .update({ price_per_unit: parseFloat(novoPreco.toFixed(4)), total_cost: parseFloat(novoCusto.toFixed(2)) })
+          .eq('id', item.id);
+        if (error) throw error;
+      }
+
+      const novoCustoPorKg = totalCustoNovo / Number(c.base_qty_kg);
+      await supabase.from('feed_compositions')
+        .update({ cost_per_kg: parseFloat(novoCustoPorKg.toFixed(4)), total_cost: parseFloat(totalCustoNovo.toFixed(2)) })
+        .eq('id', c.id);
+      await supabase.from('feed_types')
+        .update({ cost_per_kg: novoCustoPorKg })
+        .eq('id', c.feed_type_id);
+
+      alert('Precos corrigidos! Novo custo/kg: R$ ' + novoCustoPorKg.toFixed(4));
+      loadDados();
+    } catch (err) { alert('Erro: ' + err.message); }
+    finally { setLoading(false); }
+  };
+
   const resetForm = () => {
     setFormComp({ feed_type_id: '', base_qty_kg: '1000', effective_date: hoje(), notes: '' });
     setItens([{ ingredient_id: '', proportion_pct: '', quantity_kg: '', price_per_unit: '' }]);
@@ -1033,6 +1076,12 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                 <div className={styles.compCardRight}>
                   <span>{new Date(c.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   <strong className={styles.custoDestaque}>{fmtR(c.cost_per_kg, 4)}/kg</strong>
+                  {canEdit('feed_compositions') && c.is_current && (
+                    <button className={styles.btnCorrigir} onClick={e => { e.stopPropagation(); handleCorrigirPrecos(c); }}
+                      title="Corrige os preços desta composição com os valores atuais dos insumos (use para erros de cadastro)">
+                      🔧 Corrigir preços
+                    </button>
+                  )}
                   {canEdit('feed_compositions') && (
                     <button className={styles.btnEditar} onClick={e => { e.stopPropagation(); handleEditComp(c); }}>Editar</button>
                   )}
