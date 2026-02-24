@@ -797,11 +797,18 @@ export default function BatidaVagao() {
                     const batidasFeed = batidasDia.filter(b => b.batch_type === 'feeding');
                     const tratos      = batidasFeed.map(b => b.feeding_order).sort((a, b) => a - b);
                     const esteTratoOk = loteTipo === 'feeding' ? tratos.includes(loteOrdem) : batidasDia.some(b => b.batch_type === 'day');
+                    // "próximo" = todos os tratos anteriores ao atual foram feitos (sem gaps) e este ainda não foi
+                    const maxTrato    = tratos.length > 0 ? Math.max(...tratos) : 0;
+                    const ehProximo   = loteTipo === 'feeding' && !esteTratoOk && tratos.length > 0 && loteOrdem === maxTrato + 1;
                     let statusEl;
                     if (esteTratoOk) {
                       statusEl = <div className={styles.statusOk}><span>✅ Registrado</span>{tratos.length > 0 && <span className={styles.statusTratos}>{tratos.map(t => `${t}º`).join(' · ')}</span>}</div>;
+                    } else if (ehProximo) {
+                      // Tratos anteriores todos feitos, este é o próximo na sequência — normal
+                      statusEl = <div className={styles.statusProximo}><span>🕐 Próximo</span><span className={styles.statusTratos}>feito: {tratos.map(t => `${t}º`).join(' · ')}</span></div>;
                     } else if (tratos.length > 0) {
-                      statusEl = <div className={styles.statusParcial}><span>⚠️ Pendente</span><span className={styles.statusTratos}>feito: {tratos.map(t => `${t}º`).join(' · ')}</span></div>;
+                      // Há tratos feitos mas pulou um (gap na sequência) — realmente pendente
+                      statusEl = <div className={styles.statusParcial}><span>⚠️ Falta {loteOrdem}º</span><span className={styles.statusTratos}>feito: {tratos.map(t => `${t}º`).join(' · ')}</span></div>;
                     } else {
                       statusEl = <span className={styles.statusNenhum}>— Nenhum</span>;
                     }
@@ -852,7 +859,8 @@ export default function BatidaVagao() {
 
             <div className={styles.legendaStatus}>
               <span className={styles.statusOk}>✅ Registrado</span> — batida salva neste trato &nbsp;·&nbsp;
-              <span className={styles.statusParcial}>⚠️ Pendente</span> — outros tratos feitos, este não &nbsp;·&nbsp;
+              <span className={styles.statusProximo}>🕐 Próximo</span> — tratos anteriores feitos, este é o próximo &nbsp;·&nbsp;
+              <span className={styles.statusParcial}>⚠️ Falta Nº</span> — trato faltando no meio &nbsp;·&nbsp;
               <span className={styles.statusNenhum}>— Nenhum</span> — nada registrado hoje
             </div>
 
