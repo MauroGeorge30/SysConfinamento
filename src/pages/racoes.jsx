@@ -852,14 +852,29 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
       }
 
       const novoCustoPorKg = totalCustoNovo / Number(c.base_qty_kg);
+
+      // Recalcular MS% ponderada da composição
+      const { data: insumosMs } = await supabase
+        .from('feed_ingredients')
+        .select('id, dry_matter_pct')
+        .in('id', ingredientIds);
+      const msMap = {};
+      (insumosMs || []).forEach(i => { msMap[i.id] = i.dry_matter_pct; });
+      let msPonderadaCorrigida = 0;
+      for (const item of (c.feed_composition_items || [])) {
+        const propPct = (Number(item.quantity_kg) / Number(c.base_qty_kg)) * 100;
+        const ms = msMap[item.ingredient_id];
+        if (ms) msPonderadaCorrigida += propPct * Number(ms) / 100;
+      }
+
       await supabase.from('feed_compositions')
         .update({ cost_per_kg: parseFloat(novoCustoPorKg.toFixed(4)), total_cost: parseFloat(totalCustoNovo.toFixed(2)) })
         .eq('id', c.id);
       await supabase.from('feed_types')
-        .update({ cost_per_kg: novoCustoPorKg })
+        .update({ cost_per_kg: novoCustoPorKg, dry_matter_pct: msPonderadaCorrigida > 0 ? parseFloat(msPonderadaCorrigida.toFixed(2)) : null })
         .eq('id', c.feed_type_id);
 
-      alert('Precos corrigidos! Novo custo/kg: R$ ' + novoCustoPorKg.toFixed(4));
+      alert(`Preços corrigidos!\nNovo custo/kg: R$ ${novoCustoPorKg.toFixed(4)}\nMS% da dieta: ${msPonderadaCorrigida.toFixed(2)}%`);
       loadDados();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
