@@ -686,13 +686,25 @@ export default function BatidaVagao() {
           const dataFmt      = new Date(loteData + 'T00:00:00').toLocaleDateString('pt-BR');
           const tipoLabel    = loteTipo === 'day' ? 'Dia completo' : `${loteOrdem}º Trato`;
 
+          // Consolida ingredientes de todos os lotes
+          const mapa = {};
+          selecionados.forEach(l => {
+            const d = loteLinhas[l.id];
+            calcIngredientes(d.feed_type_id, parseFloat(d.qty_kg)).forEach(ing => {
+              if (!mapa[ing.nome]) mapa[ing.nome] = { nome: ing.nome, qtdMN: 0, qtdMS: 0, temMS: ing.qtdMS != null };
+              mapa[ing.nome].qtdMN += ing.qtdMN;
+              if (ing.qtdMS != null) mapa[ing.nome].qtdMS += ing.qtdMS;
+            });
+          });
+          const ingsConsolidados = Object.values(mapa).sort((a, b) => b.qtdMN - a.qtdMN);
+
           return (
             <div className={styles.modalOverlay} onClick={() => setShowPrint(false)}>
               <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
                   <div>
                     <h2>🖨️ Ordem de Fabricação</h2>
-                    <span>{dataFmt} — {tipoLabel} — {selecionados.length} lote(s)</span>
+                    <span>{dataFmt} — {tipoLabel} — {selecionados.length} lote(s) — {fmtKg(totalGeral)} total</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className={styles.btnAdd} onClick={handleImprimir}>Imprimir / Salvar PDF</button>
@@ -700,65 +712,116 @@ export default function BatidaVagao() {
                   </div>
                 </div>
 
-                {/* Conteúdo imprimível */}
                 <div className={styles.modalBody}>
                   <div id="ordem-fabricacao-print">
-                    <h1 style={{ fontFamily: 'Arial', fontSize: 18, marginBottom: 4 }}>Ordem de Fabricação</h1>
-                    <div className="sub" style={{ fontFamily: 'Arial', fontSize: 12, color: '#555', marginBottom: 20 }}>
-                      {currentFarm?.name} — {dataFmt} — {tipoLabel}
+
+                    {/* Cabeçalho */}
+                    <div style={{ marginBottom: 20 }}>
+                      <h1 style={{ fontSize: 20, marginBottom: 2 }}>Ordem de Fabricação</h1>
+                      <div style={{ fontSize: 13, color: '#555' }}>
+                        <strong>{currentFarm?.name}</strong> &nbsp;·&nbsp; {dataFmt} &nbsp;·&nbsp; {tipoLabel}
+                      </div>
                     </div>
 
-                    {selecionados.map(l => {
-                      const d    = loteLinhas[l.id];
-                      const ings = calcIngredientes(d.feed_type_id, parseFloat(d.qty_kg));
-                      const racao = racoes.find(r => r.id === d.feed_type_id);
-                      const faseAtiva = (l.lot_phases || []).find(f => loteData >= f.start_date && (!f.end_date || loteData <= f.end_date));
-                      const cochoEntry = d.cocho_note !== null ? COCHO_NOTES.find(n => n.nota === d.cocho_note) : null;
-                      return (
-                        <div key={l.id} className="lote-bloco">
-                          <div className="lote-header">
-                            <h2>{l.lot_code} — {racao?.name || '—'}</h2>
-                            <span>{fmtKg(parseFloat(d.qty_kg))} total</span>
-                          </div>
-                          <div className="lote-meta">
-                            <span>🐂 {l.head_count} cab.</span>
-                            {faseAtiva && <span>📋 Fase: {faseAtiva.phase_name}</span>}
-                            {cochoEntry && <span style={{ color: cochoEntry.cor }}>Nota Cocho: {cochoEntry.label} — {cochoEntry.desc}</span>}
-                          </div>
-                          {ings.length > 0 ? (
-                            <table>
-                              <thead>
-                                <tr><th>#</th><th>Ingrediente</th><th>Proporção</th><th>Qtd MN</th><th>Qtd MS</th></tr>
-                              </thead>
-                              <tbody>
-                                {ings.map((ing, i) => (
-                                  <tr key={i}>
-                                    <td style={{ color: '#888', width: 30 }}>{i+1}</td>
-                                    <td><strong>{ing.nome}</strong></td>
-                                    <td>{ing.propPct}%</td>
-                                    <td><strong>{fmtKg(ing.qtdMN)}</strong></td>
-                                    <td style={{ color: '#1565c0' }}>{ing.qtdMS != null ? fmtKg(ing.qtdMS) : '—'}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                              <tfoot>
-                                <tr>
-                                  <td colSpan={3}><strong>TOTAL</strong></td>
-                                  <td><strong>{fmtKg(parseFloat(d.qty_kg))}</strong></td>
-                                  <td></td>
-                                </tr>
-                              </tfoot>
-                            </table>
-                          ) : (
-                            <div style={{ padding: '10px 14px', color: '#e65100', fontSize: 12 }}>⚠️ Composição não encontrada para esta ração.</div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    <div className="total-geral">
-                      Total Geral de Fabricação: {fmtKg(totalGeral)}
+                    {/* Tabela resumo dos lotes */}
+                    <div className="lote-bloco" style={{ marginBottom: 24 }}>
+                      <div className="lote-header">
+                        <h2>📋 Lotes incluídos nesta fabricação</h2>
+                        <span>{selecionados.length} lote(s)</span>
+                      </div>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Lote</th>
+                            <th>Cabeças</th>
+                            <th>Fase</th>
+                            <th>Ração</th>
+                            <th>Nota Cocho</th>
+                            <th>Qtd MN</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selecionados.map(l => {
+                            const d         = loteLinhas[l.id];
+                            const racao     = racoes.find(r => r.id === d.feed_type_id);
+                            const faseAtiva = (l.lot_phases || []).find(f => loteData >= f.start_date && (!f.end_date || loteData <= f.end_date));
+                            const cochoEntry = d.cocho_note !== null ? COCHO_NOTES.find(n => n.nota === d.cocho_note) : null;
+                            return (
+                              <tr key={l.id}>
+                                <td><strong>{l.lot_code}</strong></td>
+                                <td>{l.head_count}</td>
+                                <td>{faseAtiva?.phase_name || '—'}</td>
+                                <td>{racao?.name || '—'}</td>
+                                <td>
+                                  {cochoEntry
+                                    ? <span style={{ color: cochoEntry.cor, fontWeight: 700 }}>{cochoEntry.label} — {cochoEntry.desc}</span>
+                                    : '—'}
+                                </td>
+                                <td><strong>{fmtKg(parseFloat(d.qty_kg))}</strong></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={5}><strong>TOTAL A FABRICAR</strong></td>
+                            <td><strong>{fmtKg(totalGeral)}</strong></td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
+
+                    {/* Composição consolidada — única lista */}
+                    <div className="lote-bloco">
+                      <div className="lote-header">
+                        <h2>🏭 Composição — Ordem de Adição ao Vagão</h2>
+                        <span>{fmtKg(totalGeral)} total</span>
+                      </div>
+                      {ingsConsolidados.length > 0 ? (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th style={{ width: 36 }}>#</th>
+                              <th>Ingrediente</th>
+                              <th>Qtd MN (kg)</th>
+                              <th>Qtd MS (kg)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ingsConsolidados.map((ing, i) => (
+                              <tr key={i}>
+                                <td style={{ color: '#888', fontWeight: 700 }}>{i + 1}</td>
+                                <td style={{ fontSize: 15 }}><strong>{ing.nome}</strong></td>
+                                <td style={{ fontSize: 16, fontWeight: 700 }}>{fmtKg(ing.qtdMN)}</td>
+                                <td style={{ color: '#1565c0' }}>{ing.temMS ? fmtKg(ing.qtdMS) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td colSpan={2}><strong>TOTAL</strong></td>
+                              <td><strong>{fmtKg(totalGeral)}</strong></td>
+                              <td></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      ) : (
+                        <div style={{ padding: '12px 14px', color: '#e65100' }}>⚠️ Composições não encontradas para as rações selecionadas.</div>
+                      )}
+                    </div>
+
+                    {/* Linha de assinatura */}
+                    <div style={{ marginTop: 28, display: 'flex', gap: 40, justifyContent: 'flex-end' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ borderTop: '1px solid #999', width: 180, marginBottom: 4 }}></div>
+                        <div style={{ fontSize: 12, color: '#666' }}>Responsável</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ borderTop: '1px solid #999', width: 180, marginBottom: 4 }}></div>
+                        <div style={{ fontSize: 12, color: '#666' }}>Tratador</div>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               </div>
