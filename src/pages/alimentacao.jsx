@@ -16,6 +16,7 @@ export default function Alimentacao() {
   const [racoes, setRacoes] = useState([]);
   const [lotes, setLotes] = useState([]);
   const [pesagens, setPesagens] = useState([]);
+  const [batidasVagao, setBatidasVagao] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -57,7 +58,7 @@ export default function Alimentacao() {
   const loadDados = async () => {
     setLoading(true);
     try {
-      const [{ data: regData, error: regError }, { data: baiasData }, { data: racoesData }, { data: lotesData }, { data: pesagensData }] = await Promise.all([
+      const [{ data: regData, error: regError }, { data: baiasData }, { data: racoesData }, { data: lotesData }, { data: pesagensData }, { data: batidasData }] = await Promise.all([
         supabase.from('feeding_records')
           .select('*, pens(pen_number), feed_types(name, cost_per_kg, dry_matter_pct), lots(lot_code)')
           .eq('farm_id', currentFarm.id)
@@ -67,6 +68,7 @@ export default function Alimentacao() {
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
         supabase.from('lots').select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name))').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
         supabase.from('lot_weighings').select('id, lot_id, weighing_date, avg_weight_kg').eq('farm_id', currentFarm.id).order('weighing_date', { ascending: false }),
+        supabase.from('wagon_batches').select('id, lot_id, feed_type_id, batch_date, batch_type, feeding_order, total_qty_kg').eq('farm_id', currentFarm.id).order('batch_date', { ascending: false }),
       ]);
       if (regError) throw regError;
       setRegistros(regData || []);
@@ -74,6 +76,7 @@ export default function Alimentacao() {
       setRacoes(racoesData || []);
       setLotes(lotesData || []);
       setPesagens(pesagensData || []);
+      setBatidasVagao(batidasData || []);
     } catch (error) {
       alert('Erro ao carregar: ' + error.message);
     } finally {
@@ -282,7 +285,27 @@ export default function Alimentacao() {
 
     return { pesoEstimado, msCab, mnCab, mnTotalDia, mnAjustadoDia, mnPorTrato, feedingsPerDay, dias, sobraDiaAnterior, dataBase: pesagensDoLote.length > 0 ? 'pesagem' : 'entrada' };
   };
-  const sugestao = calcMNSugerido();
+  // Busca batida de vagão para lote/data/trato atual
+  const batidaAtual = (() => {
+    if (!formData.lot_id || !formData.feeding_date) return null;
+    const ordem = formData.feeding_order || 1;
+    return batidasVagao.find(b =>
+      b.lot_id === formData.lot_id &&
+      b.batch_date === formData.feeding_date &&
+      (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === ordem))
+    ) || null;
+  })();
+
+  // Sugestão: usa batida se existir, senão cálculo próprio
+  const sugestao = (() => {
+    if (batidaAtual) {
+      const total = Number(batidaAtual.total_qty_kg);
+      const feedingsPerDay = parseInt(loteAtual?.daily_feeding_count) || 1;
+      const mnPorTrato = batidaAtual.batch_type === 'day' ? total / feedingsPerDay : total;
+      return { mnPorTrato, fromBatida: true, batidaTotal: total, batch_type: batidaAtual.batch_type, feedingsPerDay };
+    }
+    return calcMNSugerido();
+  })();
 
   // Alertas de limites
   const alertas = [];
@@ -410,24 +433,40 @@ export default function Alimentacao() {
                   </select>
                 </div>
               </div>
-              {/* Sugestão de MN baseada no lote */}
+              {/* Sugestão de MN — batida de vagão ou cálculo */}
               {sugestao && (
-                <div style={{ background: '#f0f7f0', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.5rem', fontSize: '0.82rem', color: '#2e7d32' }}>
+                <div style={{ background: sugestao.fromBatida ? '#e8f5e9' : '#f0f7f0', border: `1px solid ${sugestao.fromBatida ? '#66bb6a' : '#a5d6a7'}`, borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.5rem', fontSize: '0.82rem', color: '#2e7d32' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
-                      <strong>🌿 MN sugerido: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
-                      {sugestao.feedingsPerDay > 1 && (
-                        <span style={{ color: '#555', marginLeft: '0.5rem' }}>
-                          ({sugestao.feedingsPerDay} tratos/dia — total {sugestao.mnAjustadoDia.toFixed(1)} kg)
-                        </span>
-                      )}
-                      <div style={{ color: '#555', marginTop: '2px' }}>
-                        Peso est. {sugestao.pesoEstimado.toFixed(1)} kg ({sugestao.dias}d desde {sugestao.dataBase}) → MS {sugestao.msCab.toFixed(2)} kg/cab → MN base {sugestao.mnTotalDia.toFixed(1)} kg/dia
-                      </div>
-                      {sugestao.sobraDiaAnterior > 0 && (
-                        <div style={{ color: '#e65100', marginTop: '2px', fontWeight: 500 }}>
-                          ⚠️ Sobra de ontem: -{sugestao.sobraDiaAnterior.toFixed(1)} kg → total ajustado: {sugestao.mnAjustadoDia.toFixed(1)} kg
-                        </div>
+                      {sugestao.fromBatida ? (
+                        <>
+                          <strong>🚜 Batida de Vagão: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
+                          {sugestao.batch_type === 'day' && sugestao.feedingsPerDay > 1 && (
+                            <span style={{ color: '#555', marginLeft: '0.5rem' }}>
+                              (total do dia {sugestao.batidaTotal.toFixed(1)} kg ÷ {sugestao.feedingsPerDay} tratos)
+                            </span>
+                          )}
+                          <div style={{ color: '#555', marginTop: '2px' }}>
+                            Quantidade definida na Batida de Vagão
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <strong>🌿 MN sugerido: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
+                          {sugestao.feedingsPerDay > 1 && (
+                            <span style={{ color: '#555', marginLeft: '0.5rem' }}>
+                              ({sugestao.feedingsPerDay} tratos/dia — total {sugestao.mnAjustadoDia.toFixed(1)} kg)
+                            </span>
+                          )}
+                          <div style={{ color: '#555', marginTop: '2px' }}>
+                            Peso est. {sugestao.pesoEstimado.toFixed(1)} kg ({sugestao.dias}d desde {sugestao.dataBase}) → MS {sugestao.msCab.toFixed(2)} kg/cab → MN base {sugestao.mnTotalDia.toFixed(1)} kg/dia
+                          </div>
+                          {sugestao.sobraDiaAnterior > 0 && (
+                            <div style={{ color: '#e65100', marginTop: '2px', fontWeight: 500 }}>
+                              ⚠️ Sobra de ontem: -{sugestao.sobraDiaAnterior.toFixed(1)} kg → total ajustado: {sugestao.mnAjustadoDia.toFixed(1)} kg
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                     <button type="button"
