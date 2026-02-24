@@ -123,6 +123,16 @@ export default function BatidaVagao() {
     return { pesoEstimado, msCab, mnCab, mnTotalDia, dias, headCount };
   };
 
+  // Detecta próximo nº de trato para lote/data
+  const detectarProximoTrato = (lotId, data) => {
+    if (!lotId || !data) return 1;
+    const existentes = batidas.filter(b =>
+      b.lot_id === lotId && b.batch_date === data && b.batch_type === 'feeding'
+    );
+    if (existentes.length === 0) return 1;
+    return Math.max(...existentes.map(b => b.feeding_order || 1)) + 1;
+  };
+
   // Ajuste de nota de cocho: 0.450 kg × cabeças × sinal
   const calcAjusteCocho = (nota, headCount) => {
     const entry = COCHO_NOTES.find(n => n.nota === nota);
@@ -245,7 +255,11 @@ export default function BatidaVagao() {
                 <div>
                   <label>Data *</label>
                   <input type="date" value={form.batch_date}
-                    onChange={e => setForm(p => ({ ...p, batch_date: e.target.value }))} required />
+                    onChange={e => {
+                      const data = e.target.value;
+                      const proximo = detectarProximoTrato(form.lot_id, data);
+                      setForm(p => ({ ...p, batch_date: data, feeding_order: proximo }));
+                    }} required />
                 </div>
                 <div>
                   <label>Tipo de Batida *</label>
@@ -262,7 +276,11 @@ export default function BatidaVagao() {
                 <div>
                   <label>Lote *</label>
                   <select value={form.lot_id}
-                    onChange={e => setForm(p => ({ ...p, lot_id: e.target.value, feed_type_id: '' }))}>
+                    onChange={e => {
+                      const lotId = e.target.value;
+                      const proximo = detectarProximoTrato(lotId, form.batch_date);
+                      setForm(p => ({ ...p, lot_id: lotId, feed_type_id: '', feeding_order: proximo }));
+                    }}>
                     <option value="">Selecione o lote</option>
                     {lotes.map(l => (
                       <option key={l.id} value={l.id}>
