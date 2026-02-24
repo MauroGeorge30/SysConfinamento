@@ -133,6 +133,26 @@ export default function Alimentacao() {
     if (formData.leftover_kg && parseFloat(formData.leftover_kg) > parseFloat(formData.quantity_kg)) {
       return alert('❌ Sobra não pode ser maior que o fornecido.');
     }
+
+    // Verificar se existe batida de vagão para este lote/data/trato
+    if (formData.lot_id && !editingId) {
+      const { data: batidas } = await supabase
+        .from('wagon_batches')
+        .select('id, batch_type, feeding_order')
+        .eq('farm_id', currentFarm.id)
+        .eq('lot_id', formData.lot_id)
+        .eq('batch_date', formData.feeding_date);
+
+      const ordemAtual = formData.feeding_order || 1;
+      const temBatida = (batidas || []).some(b =>
+        b.batch_type === 'day' ||
+        (b.batch_type === 'feeding' && b.feeding_order === ordemAtual)
+      );
+      if (!temBatida) {
+        return alert(`❌ Batida de Vagão não encontrada.\n\nRegistre a batida para o lote ${lotes.find(l=>l.id===formData.lot_id)?.lot_code || ''} — ${ordemAtual}º trato em ${new Date(formData.feeding_date+'T00:00:00').toLocaleDateString('pt-BR')} antes de registrar o trato.`);
+      }
+    }
+
     setLoading(true);
     try {
       const racaoAtual = racoes.find(r => r.id === formData.feed_type_id);
