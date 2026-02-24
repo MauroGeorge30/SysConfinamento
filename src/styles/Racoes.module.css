@@ -208,3 +208,19 @@
 /* Botão corrigir preços */
 .btnCorrigir { background: #fff8e1; color: #e65100; border: 1px solid #ffcc80; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btnCorrigir:hover { background: #fff3e0; border-color: #ffa726; }
+
+/* Coluna Preço/kg MS na tabela de composição */
+.thPrecoMs  { background: #f3e5f5 !important; color: #6a1b9a !important; }
+.tdPrecoMs  { background: #fdf6ff; color: #6a1b9a; font-weight: 600; font-size: 0.85rem; }
+
+/* Linhas de rodapé — Preço/kg e MS% da dieta */
+.totalRowDestaque td { background: #f5f5f5; padding: 6px 10px; border-top: 1px solid #e0e0e0; font-size: 0.8rem; color: #888; }
+.totalRowPreco td    { background: #f9f9f9; padding: 4px 10px 10px; }
+.totalRowMs td       { background: #e8f5e9; padding: 8px 10px; border-top: 2px solid #a5d6a7; }
+
+.labelMn  { font-size: 0.75rem; font-weight: 700; color: #1b5e20; text-transform: uppercase; }
+.labelMs  { font-size: 0.75rem; font-weight: 700; color: #1565c0; text-transform: uppercase; }
+
+.precoMnFinal  { font-size: 1rem; color: #1b5e20; }
+.precoMsFinal  { font-size: 1rem; color: #1565c0; }
+.msDietaFinal  { font-size: 1rem; color: #2e7d32; }
