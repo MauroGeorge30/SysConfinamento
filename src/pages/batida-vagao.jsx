@@ -346,7 +346,7 @@ export default function BatidaVagao() {
           mn_base:        mn,
           feedingsPerDay: feedD,
           jaRegistrado,
-          batidasLote,
+          // batidasLote calculado fresh no render, não guardado no estado
         };
       });
       return novo;
@@ -435,7 +435,13 @@ export default function BatidaVagao() {
   const gerarOrdemFabricacao = () => {
     const selecionados = lotes.filter(l => loteLinhas[l.id]?.checked && loteLinhas[l.id]?.feed_type_id && parseFloat(String(loteLinhas[l.id]?.qty_kg).replace(',', '.')) > 0);
     if (!selecionados.length) return alert('Nenhum lote selecionado com quantidade válida.');
-    const semBatida = selecionados.filter(l => !loteLinhas[l.id]?.jaRegistrado);
+    // Verifica fresh do estado batidas, não do loteLinhas stale
+    const semBatida = selecionados.filter(l => {
+      const bDia = batidas.filter(b => b.lot_id === l.id && b.batch_date === loteData);
+      return loteTipo === 'day'
+        ? !bDia.some(b => b.batch_type === 'day')
+        : !bDia.some(b => b.batch_type === 'feeding' && b.feeding_order === loteOrdem);
+    });
     if (semBatida.length) {
       return alert(`Para gerar a ordem de fabricação, todos os lotes precisam ter a batida registrada.\n\nPendentes:\n${semBatida.map(l => l.lot_code).join(', ')}\n\nRegistre as batidas primeiro.`);
     }
@@ -793,11 +799,12 @@ export default function BatidaVagao() {
                   {lotes.map(l => {
                     const d = loteLinhas[l.id];
                     if (!d) return null;
-                    const batidasDia  = (d.batidasLote || []);
+                    // Calcula SEMPRE fresh de batidas+loteData — nunca do estado loteLinhas (evita stale)
+                    const batidasDia  = batidas.filter(b => b.lot_id === l.id && b.batch_date === loteData);
                     const batidasFeed = batidasDia.filter(b => b.batch_type === 'feeding');
                     const tratos      = batidasFeed.map(b => b.feeding_order).sort((a, b) => a - b);
                     const esteTratoOk = loteTipo === 'feeding' ? tratos.includes(loteOrdem) : batidasDia.some(b => b.batch_type === 'day');
-                    // "próximo" = todos os tratos anteriores ao atual foram feitos (sem gaps) e este ainda não foi
+                    // "próximo" = sequência contínua até loteOrdem-1 e este ainda não foi
                     const maxTrato    = tratos.length > 0 ? Math.max(...tratos) : 0;
                     const ehProximo   = loteTipo === 'feeding' && !esteTratoOk && tratos.length > 0 && loteOrdem === maxTrato + 1;
                     let statusEl;
