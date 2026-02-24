@@ -252,7 +252,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
     // Verifica se está em alguma composição
     const { data: usos, error } = await supabase
       .from('feed_composition_items')
-      .select('id, feed_compositions(feed_types(name))')
+      .select('id, feed_compositions(feed_types!feed_compositions_feed_type_id_fkey(name))')
       .eq('ingredient_id', ins.id)
       .limit(5);
 
