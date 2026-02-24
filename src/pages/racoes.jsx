@@ -146,6 +146,8 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [showMovId, setShowMovId] = useState(null);
   const [movimentos, setMovimentos] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [editingMovId, setEditingMovId] = useState(null);
+  const [formEditMov, setFormEditMov] = useState({ quantity_kg: '', entry_date: '', notes: '' });
 
   // Form cadastro do insumo
   const [formData, setFormData] = useState({
@@ -186,7 +188,64 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
       if (error) throw error;
       setMovimentos(data || []);
       setShowMovId(ingredientId);
+      setEditingMovId(null);
     } catch (err) { alert('Erro: ' + err.message); }
+  };
+
+  const handleEditMov = (m) => {
+    // Só permite editar entradas manuais (não baixas de trato)
+    if (m.movement_type === 'baixa_trato') return alert('Baixas automáticas de trato não podem ser editadas.\nDelete o trato correspondente para estornar.');
+    setEditingMovId(m.id);
+    setFormEditMov({ quantity_kg: String(Math.abs(m.quantity_kg)), entry_date: m.entry_date, notes: m.notes || '' });
+  };
+
+  const handleSaveMov = async (m, insumo) => {
+    const novaQtd = parseFloat(formEditMov.quantity_kg);
+    if (!novaQtd || novaQtd <= 0) return alert('Quantidade inválida.');
+    setLoading(true);
+    try {
+      const qtdAntiga = Math.abs(m.quantity_kg);
+      const diff = novaQtd - qtdAntiga; // positivo = aumentou, negativo = diminuiu
+
+      // Atualiza a movimentação
+      const { error: errMov } = await supabase
+        .from('ingredient_stock_movements')
+        .update({ quantity_kg: novaQtd, entry_date: formEditMov.entry_date, notes: formEditMov.notes || null })
+        .eq('id', m.id);
+      if (errMov) throw errMov;
+
+      // Ajusta saldo do insumo pela diferença
+      const { error: errIns } = await supabase
+        .from('feed_ingredients')
+        .update({ stock_qty_kg: (insumo.stock_qty_kg || 0) + diff })
+        .eq('id', insumo.id);
+      if (errIns) throw errIns;
+
+      setEditingMovId(null);
+      await loadMovimentos(insumo.id); // recarrega lista
+      loadInsumos(); // atualiza saldo no card
+    } catch (err) { alert('Erro: ' + err.message); }
+    finally { setLoading(false); }
+  };
+
+  const handleDeleteMov = async (m, insumo) => {
+    if (m.movement_type === 'baixa_trato') return alert('Baixas automáticas de trato não podem ser deletadas.\nDelete o trato correspondente para estornar.');
+    if (!confirm(`Deletar esta movimentação de ${fmtN(Math.abs(m.quantity_kg), 3)} kg?\nO estoque será ajustado automaticamente.`)) return;
+    setLoading(true);
+    try {
+      const { error: errMov } = await supabase.from('ingredient_stock_movements').delete().eq('id', m.id);
+      if (errMov) throw errMov;
+
+      // Reverte o efeito no saldo
+      const ajuste = m.movement_type === 'entrada' ? -m.quantity_kg : Math.abs(m.quantity_kg);
+      await supabase.from('feed_ingredients')
+        .update({ stock_qty_kg: (insumo.stock_qty_kg || 0) + ajuste })
+        .eq('id', insumo.id);
+
+      await loadMovimentos(insumo.id);
+      loadInsumos();
+    } catch (err) { alert('Erro: ' + err.message); }
+    finally { setLoading(false); }
   };
 
   const resetForm = () => {
@@ -535,24 +594,58 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                     ) : (
                       <table className={styles.tabelaMov}>
                         <thead><tr>
-                          <th>Data</th><th>Tipo</th><th>Quantidade</th><th>Observação</th>
+                          <th>Data</th><th>Tipo</th><th>Quantidade</th><th>Observação</th><th>Ações</th>
                         </tr></thead>
                         <tbody>
                           {movimentos.map(m => {
                             const isEntrada = m.movement_type === 'entrada';
                             const isNeg = m.quantity_kg < 0;
+                            const isTrato = m.movement_type === 'baixa_trato';
+                            const isEditing = editingMovId === m.id;
                             return (
-                              <tr key={m.id}>
-                                <td>{new Date(m.entry_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                              <tr key={m.id} style={isEditing ? { background: '#fffde7' } : {}}>
                                 <td>
-                                  <span className={isEntrada ? styles.movBadgeEntrada : isNeg ? styles.movBadgeBaixa : styles.movBadgeAjuste}>
-                                    {m.movement_type === 'entrada' ? '📥 Entrada' : m.movement_type === 'baixa_trato' ? '📤 Trato' : '🔧 Ajuste'}
+                                  {isEditing
+                                    ? <input type="date" value={formEditMov.entry_date}
+                                        onChange={e => setFormEditMov({ ...formEditMov, entry_date: e.target.value })}
+                                        style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.85rem' }} />
+                                    : new Date(m.entry_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </td>
+                                <td>
+                                  <span className={isEntrada ? styles.movBadgeEntrada : isTrato ? styles.movBadgeBaixa : styles.movBadgeAjuste}>
+                                    {isEntrada ? '📥 Entrada' : isTrato ? '📤 Trato' : '🔧 Ajuste'}
                                   </span>
                                 </td>
                                 <td className={isEntrada ? styles.movQtdPos : styles.movQtdNeg}>
-                                  {isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 3)} kg
+                                  {isEditing
+                                    ? <input type="number" value={formEditMov.quantity_kg}
+                                        onChange={e => setFormEditMov({ ...formEditMov, quantity_kg: e.target.value })}
+                                        step="0.001" min="0"
+                                        style={{ width: '100px', padding: '4px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.85rem' }} />
+                                    : <>{isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 3)} kg</>}
                                 </td>
-                                <td style={{ fontSize: '0.82rem', color: '#666' }}>{m.notes || '—'}</td>
+                                <td style={{ fontSize: '0.82rem', color: '#666' }}>
+                                  {isEditing
+                                    ? <input type="text" value={formEditMov.notes}
+                                        onChange={e => setFormEditMov({ ...formEditMov, notes: e.target.value })}
+                                        style={{ width: '100%', padding: '4px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.82rem' }} />
+                                    : m.notes || '—'}
+                                </td>
+                                <td>
+                                  {isEditing ? (
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      <button className={styles.btnSalvarMov} onClick={() => handleSaveMov(m, ins)} disabled={loading}>✓</button>
+                                      <button className={styles.btnCancelarMov} onClick={() => setEditingMovId(null)}>✕</button>
+                                    </div>
+                                  ) : !isTrato ? (
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      <button className={styles.btnEditarMov} onClick={() => handleEditMov(m)} title="Editar">✏️</button>
+                                      <button className={styles.btnDeletarMov} onClick={() => handleDeleteMov(m, ins)} title="Deletar">🗑</button>
+                                    </div>
+                                  ) : (
+                                    <span style={{ fontSize: '0.72rem', color: '#bbb' }}>auto</span>
+                                  )}
+                                </td>
                               </tr>
                             );
                           })}
