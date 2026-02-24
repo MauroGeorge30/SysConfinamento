@@ -1,4 +1,118 @@
-.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px; }
+.header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
+.btnAdd { background: #2e7d32; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+.btnAdd:hover { background: #1b5e20; }
+.btnAdd:disabled { background: #aaa; cursor: not-allowed; }
+
+/* Abas */
+.abas { display: flex; gap: 4px; margin-bottom: 1.2rem; border-bottom: 2px solid #e0e0e0; }
+.aba { background: none; border: none; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 6px 6px 0 0; transition: all 0.15s; }
+.aba:hover { color: #2e7d32; background: #f5fdf5; }
+.abaAtiva { color: #2e7d32; border-bottom-color: #2e7d32; background: #f0f7f0; }
+
+.formCard { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.formCard h2 { margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a1a2e; padding-bottom: 0.8rem; border-bottom: 1px solid #eee; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.row > div { display: flex; flex-direction: column; gap: 5px; }
+.row label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.row input, .row select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box; background: #fff; height: 42px; }
+.row input:focus, .row select:focus { border-color: #2e7d32; }
+.formAcoes { display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding-top: 0.8rem; border-top: 1px solid #eee; margin-top: 0.5rem; }
+.formCard button[type="submit"] { background: #2e7d32; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+.formCard button[type="submit"]:hover { background: #1b5e20; }
+.btnCancelar { background: #fff; color: #444; border: 1px solid #ccc; padding: 10px 24px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+.btnCancelar:hover { background: #f5f5f5; }
+.btnSecundario { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; white-space: nowrap; }
+.btnSecundario:hover { background: #f5f5f5; }
+
+/* Trato ordem */
+.tratoOrdemBox { display: flex; align-items: center; gap: 10px; height: 42px; background: #f0f7f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 0 12px; }
+.tratoOrdemNum { font-size: 1rem; font-weight: 700; color: #1b5e20; min-width: 70px; }
+.tratoOrdemBtns { display: flex; gap: 4px; }
+.tratoOrdemBtns button { width: 28px; height: 28px; border: 1px solid #a5d6a7; background: #fff; border-radius: 6px; font-size: 1rem; font-weight: 700; color: #2e7d32; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.tratoOrdemBtns button:hover { background: #e8f5e9; }
+
+/* Nota de cocho */
+.cochoBox { margin-bottom: 1rem; }
+.cochoBox > label { font-size: 0.88rem; font-weight: 600; color: #444; display: block; margin-bottom: 8px; }
+.cochoNotas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cochoBtn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px; border: 2px solid #ddd; border-radius: 10px; background: #fafafa; cursor: pointer; transition: all 0.15s; text-align: center; }
+.cochoBtn:hover { border-color: #aaa; background: #f5f5f5; }
+.cochoBtnActive { border-width: 2px !important; }
+.cochoBtnNota { font-size: 0.9rem; font-weight: 700; color: #333; }
+.cochoBtnDesc { font-size: 0.72rem; color: #666; }
+.cochoBtnAdj { font-size: 0.8rem; font-weight: 700; }
+
+/* Notas inline (modo lote) */
+.cochoNotasInline { display: flex; gap: 4px; }
+.cochoBtnInline { padding: 4px 8px; border: 1.5px solid #ddd; border-radius: 6px; background: #fafafa; cursor: pointer; font-size: 0.78rem; font-weight: 700; color: #555; transition: all 0.12s; }
+.cochoBtnInline:hover:not(:disabled) { border-color: #aaa; }
+.cochoBtnInline:disabled { opacity: 0.4; cursor: not-allowed; }
+.cochoBtnInlineActive { border-width: 2px !important; }
+
+/* Sugestão */
+.sugestaoBox { background: #f0f7f0; border: 1px solid #a5d6a7; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.sugestaoInfo { font-size: 0.82rem; color: #2e7d32; }
+.btnUsarSugestao { background: #2e7d32; color: #fff; border: none; border-radius: 6px; padding: 0.35rem 0.85rem; cursor: pointer; font-size: 0.8rem; white-space: nowrap; }
+.btnUsarSugestao:hover { background: #1b5e20; }
+
+/* Preview ingredientes */
+.previewIngs { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+.previewIngsTitle { font-size: 0.88rem; font-weight: 700; color: #333; margin-bottom: 0.6rem; }
+
+/* Filtros */
+.filtros { display: flex; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+.inputData { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; height: 42px; }
+.filtros select { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fff; outline: none; cursor: pointer; min-width: 160px; height: 42px; }
+.btnLimpar { background: #fff; color: #c62828; border: 1px solid #e57373; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+.btnLimpar:hover { background: #ffebee; }
+
+/* Cards batida */
+.batidasList { display: flex; flex-direction: column; gap: 0.75rem; }
+.batidaCard { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; border: 1px solid #e0e0e0; }
+.batidaHeader { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.2rem; cursor: pointer; transition: background 0.1s; flex-wrap: wrap; gap: 8px; }
+.batidaHeader:hover { background: #f9fff9; }
+.batidaHeaderLeft { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.batidaHeaderLeft strong { font-size: 1rem; color: #1a1a2e; }
+.batidaHeaderRight { display: flex; align-items: center; gap: 12px; }
+.batidaTipoBadge { padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 700; }
+.cochoBadge { padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
+.batidaTotal { font-size: 1.05rem; font-weight: 700; color: #2e7d32; }
+.expandToggle { font-size: 0.75rem; color: #aaa; }
+.batidaBody { padding: 0 1.2rem 1.2rem; border-top: 1px solid #f0f0f0; }
+.batidaBodyTitle { font-size: 0.88rem; font-weight: 700; color: #333; margin: 0.8rem 0 0.5rem; }
+.batidaNotes { margin-top: 0.75rem; background: #fffde7; border: 1px solid #ffe082; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; color: #795548; }
+.btnDeletar { background: #fff; color: #c62828; border: 1px solid #e57373; padding: 4px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btnDeletar:hover { background: #ffebee; }
+.vazio { text-align: center; padding: 60px 20px; color: #888; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+/* Modo lote */
+.loteControles { margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+.loteControlesRow { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+.loteControlesRow > div { display: flex; flex-direction: column; gap: 5px; }
+.loteControlesRow label { font-size: 0.88rem; font-weight: 600; color: #444; }
+.loteControlesRow select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fff; height: 42px; outline: none; }
+.loteTabela { overflow-x: auto; margin-bottom: 0.5rem; }
+.tabelaLotes { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tabelaLotes th { padding: 9px 12px; text-align: left; font-weight: 600; color: #555; background: #f5f5f5; border-bottom: 2px solid #ddd; white-space: nowrap; }
+.tabelaLotes td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.tabelaLotes tfoot td { background: #e8f5e9; border-top: 2px solid #c8e6c9; font-weight: 700; }
+.linhaChecked td { background: #fff; }
+.linhaUnchecked td { background: #fafafa; opacity: 0.55; }
+.selectInline { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; background: #fff; outline: none; min-width: 140px; }
+.selectInline:focus { border-color: #2e7d32; }
+.selectInline:disabled { background: #f5f5f5; }
+.inputInline { width: 100px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; outline: none; }
+.inputInline:focus { border-color: #2e7d32; }
+.inputInline:disabled { background: #f5f5f5; }
+
+@media (max-width: 768px) {
+  .cochoNotas { grid-template-columns: repeat(2, 1fr); }
+  .row { grid-template-columns: 1fr; }
+  .loteControlesRow { flex-direction: column; }
+}
+
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
 .header h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; margin: 0; }
 .btnAdd { background: #2e7d32; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
