@@ -1096,17 +1096,34 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                 </div>
               </div>
               {expandedComp === c.id && (() => {
-                // Pré-calcula Qtd MS de cada item e o total para o % MS
+                // Pré-calcula colunas derivadas por item
                 const itensComMs = (c.feed_composition_items || []).map(item => {
                   const ms = item.feed_ingredients?.dry_matter_pct;
-                  const qtdMs = ms != null ? Number(item.quantity_kg) * (Number(ms) / 100) : null;
-                  return { ...item, qtdMs };
+                  const msFrac = ms ? Number(ms) / 100 : null;
+                  const qtdMs = msFrac != null ? Number(item.quantity_kg) * msFrac : null;
+                  // Preço/kg MS = preço MN dividido pela fração de MS
+                  const precoKgMs = msFrac ? Number(item.price_per_unit) / msFrac : null;
+                  // Custo MS = qtdMs × precoKgMs (equivalente a total_cost, mas expresso em base MS)
+                  const custoMs = qtdMs != null && precoKgMs != null ? qtdMs * precoKgMs : null;
+                  return { ...item, qtdMs, precoKgMs, custoMs };
                 });
-                const totalQtdMs = itensComMs.reduce((acc, i) => acc + (i.qtdMs || 0), 0);
+
+                const totalQtdMs   = itensComMs.reduce((acc, i) => acc + (i.qtdMs  || 0), 0);
+                const totalCustoMn = itensComMs.reduce((acc, i) => acc + Number(i.total_cost || 0), 0);
+                const totalCustoMs = itensComMs.reduce((acc, i) => acc + (i.custoMs || 0), 0);
+                const baseQty      = Number(c.base_qty_kg);
+
+                // Preço/kg MN = total custo MN / quantidade MN
+                const precoKgMnFinal = baseQty > 0 ? totalCustoMn / baseQty : null;
+                // Preço/kg MS = total custo MN / quantidade MS
+                const precoKgMsFinal = totalQtdMs > 0 ? totalCustoMn / totalQtdMs : null;
+                // MS% da dieta = qtd MS / qtd MN
+                const msDieta = baseQty > 0 ? (totalQtdMs / baseQty) * 100 : null;
 
                 return (
                   <div className={styles.compCardBody}>
                     {c.notes && <p className={styles.compNotes}>{c.notes}</p>}
+                    <div style={{overflowX:'auto'}}>
                     <table className={styles.tabelaComp}>
                       <thead>
                         <tr>
@@ -1116,8 +1133,9 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                           <th>Qtd MN</th>
                           <th className={styles.thMs}>Qtd MS</th>
                           <th className={styles.thPctMs}>% MS</th>
-                          <th>R$/kg</th>
-                          <th>Custo</th>
+                          <th>R$/kg MN</th>
+                          <th className={styles.thPrecoMs}>R$/kg MS</th>
+                          <th>Custo MN</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1142,31 +1160,61 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                                   : <span style={{color:'#ccc'}}>—</span>}
                               </td>
                               <td>{fmtR(item.price_per_unit, 4)}</td>
+                              <td className={styles.tdPrecoMs}>
+                                {item.precoKgMs != null ? fmtR(item.precoKgMs, 4) : <span style={{color:'#ccc'}}>—</span>}
+                              </td>
                               <td>{fmtR(item.total_cost, 2)}</td>
                             </tr>
                           );
                         })}
                       </tbody>
                       <tfoot>
+                        {/* Linha TOTAL */}
                         <tr className={styles.totalRow}>
                           <td><strong>TOTAL</strong></td>
                           <td></td>
                           <td></td>
-                          <td><strong>{fmtN(c.base_qty_kg, 0)} kg</strong></td>
+                          <td><strong>{fmtN(baseQty, 0)} kg</strong></td>
                           <td className={styles.tdMs}><strong>{fmtN(totalQtdMs, 2)} kg</strong></td>
                           <td className={styles.tdPctMs}><strong>100%</strong></td>
                           <td></td>
-                          <td><strong>{fmtR(c.total_cost, 2)}</strong></td>
+                          <td className={styles.tdPrecoMs}></td>
+                          <td><strong>{fmtR(totalCustoMn, 2)}</strong></td>
+                        </tr>
+                        {/* Linha Preço/kg */}
+                        <tr className={styles.totalRowDestaque}>
+                          <td><strong>Preço/kg</strong></td>
+                          <td></td><td></td>
+                          <td><span className={styles.labelMn}>MN</span></td>
+                          <td className={styles.tdMs}><span className={styles.labelMs}>MS</span></td>
+                          <td className={styles.tdPctMs}></td>
+                          <td></td>
+                          <td className={styles.tdPrecoMs}></td>
+                          <td></td>
+                        </tr>
+                        <tr className={styles.totalRowPreco}>
+                          <td></td><td></td><td></td>
+                          <td><strong className={styles.precoMnFinal}>{fmtR(precoKgMnFinal, 4)}</strong></td>
+                          <td className={styles.tdMs}><strong className={styles.precoMsFinal}>{fmtR(precoKgMsFinal, 4)}</strong></td>
+                          <td className={styles.tdPctMs}></td>
+                          <td></td>
+                          <td className={styles.tdPrecoMs}></td>
+                          <td></td>
+                        </tr>
+                        {/* Linha MS% da dieta */}
+                        <tr className={styles.totalRowMs}>
+                          <td><strong>MS% da Dieta</strong></td>
+                          <td></td><td></td>
+                          <td colSpan={2} className={styles.tdMs}>
+                            <strong className={styles.msDietaFinal}>
+                              {msDieta != null ? fmtN(msDieta, 2) + '%' : '—'}
+                            </strong>
+                          </td>
+                          <td colSpan={4}></td>
                         </tr>
                       </tfoot>
                     </table>
-                    <p className={styles.compResumo}>
-                      Base: {fmtN(c.base_qty_kg, 0)} kg MN &nbsp;|&nbsp;
-                      MS total: {fmtN(totalQtdMs, 2)} kg &nbsp;|&nbsp;
-                      MS%: {totalQtdMs > 0 && c.base_qty_kg ? fmtN((totalQtdMs / Number(c.base_qty_kg)) * 100, 2) : '—'}% &nbsp;|&nbsp;
-                      Total: {fmtR(c.total_cost, 2)} &nbsp;|&nbsp;
-                      <strong>Custo/kg: {fmtR(c.cost_per_kg, 4)}</strong>
-                    </p>
+                    </div>
                   </div>
                 );
               })()}
