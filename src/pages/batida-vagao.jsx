@@ -173,30 +173,55 @@ export default function BatidaVagao() {
   const mnSugeridoDia  = mnBase ? Math.max(0, mnBase.mnTotalDia + ajusteCocho) : 0;
   const mnSugeridoTrato = form.batch_type === 'feeding' ? mnSugeridoDia / feedingsPerDay : mnSugeridoDia;
 
+
+  // Detecta próximo trato automático para o modo lote (maioria dos lotes)
+  useEffect(() => {
+    if (aba !== 'lote') return;
+    // Conta batidas existentes por lote para a data, pega o máximo
+    const maxExistente = lotes.reduce((max, l) => {
+      const ex = batidas.filter(b => b.lot_id === l.id && b.batch_date === loteData && b.batch_type === 'feeding');
+      const m  = ex.length ? Math.max(...ex.map(b => b.feeding_order || 1)) : 0;
+      return Math.max(max, m);
+    }, 0);
+    setLoteOrdem(maxExistente + 1);
+  }, [aba, loteData, batidas.length]);
+
   // Inicializa linhas do modo lote
   useEffect(() => {
     if (aba !== 'lote' || !lotes.length) return;
     setLoteLinhas(prev => {
       const novo = {};
       lotes.forEach(l => {
-        const faseAtiva = (l.lot_phases || []).find(f => loteData >= f.start_date && (!f.end_date || loteData <= f.end_date));
+        const faseAtiva  = (l.lot_phases || []).find(f => loteData >= f.start_date && (!f.end_date || loteData <= f.end_date));
         const feedTypeId = faseAtiva?.feed_types?.id || prev[l.id]?.feed_type_id || '';
         const racao      = racoes.find(r => r.id === feedTypeId);
         const mn         = racao ? calcMNBase(l, racao, loteData) : null;
         const feedD      = parseInt(l.daily_feeding_count) || 1;
         const mnTrato    = mn ? (loteTipo === 'feeding' ? mn.mnTotalDia / feedD : mn.mnTotalDia) : 0;
+
+        // Status de batidas já registradas
+        const batidasLote  = batidas.filter(b => b.lot_id === l.id && b.batch_date === loteData);
+        const batidasTrato = batidasLote.filter(b => b.batch_type === 'feeding' && b.feeding_order === loteOrdem);
+        const jaRegistrado = loteTipo === 'day'
+          ? batidasLote.some(b => b.batch_type === 'day')
+          : batidasTrato.length > 0;
+        const totalTratos  = batidasLote.filter(b => b.batch_type === 'feeding').length;
+
         novo[l.id] = {
-          checked:      prev[l.id]?.checked !== undefined ? prev[l.id].checked : true,
+          checked:      prev[l.id]?.checked !== undefined ? prev[l.id].checked : !jaRegistrado,
           cocho_note:   null,
           feed_type_id: feedTypeId,
           qty_kg:       mnTrato > 0 ? mnTrato.toFixed(1) : '',
           mn_base:      mn,
           feedingsPerDay: feedD,
+          jaRegistrado,
+          totalTratos,
+          batidasLote,
         };
       });
       return novo;
     });
-  }, [aba, loteData, loteTipo, loteOrdem, lotes.length, racoes.length]);
+  }, [aba, loteData, loteTipo, loteOrdem, lotes.length, racoes.length, batidas.length]);
 
   const handleCochoLote = (lotId, nota) => {
     setLoteLinhas(prev => {
@@ -246,6 +271,10 @@ export default function BatidaVagao() {
   const gerarOrdemFabricacao = () => {
     const selecionados = lotes.filter(l => loteLinhas[l.id]?.checked && loteLinhas[l.id]?.feed_type_id && parseFloat(loteLinhas[l.id]?.qty_kg) > 0);
     if (!selecionados.length) return alert('Nenhum lote selecionado com quantidade válida.');
+    const semBatida = selecionados.filter(l => !loteLinhas[l.id]?.jaRegistrado);
+    if (semBatida.length) {
+      return alert(`Para gerar a ordem de fabricação, todos os lotes selecionados precisam ter a batida registrada.\n\nPendentes:\n${semBatida.map(l => l.lot_code).join(', ')}\n\nRegistre as batidas primeiro e depois gere o relatório.`);
+    }
     setShowPrint(true);
   };
 
@@ -613,6 +642,7 @@ export default function BatidaVagao() {
                     <th style={{ width: 40 }}></th>
                     <th>Lote</th>
                     <th>Cab.</th>
+                    <th>Status</th>
                     <th>Ração</th>
                     <th>Nota Cocho</th>
                     <th>Qtd MN (kg)</th>
@@ -622,14 +652,42 @@ export default function BatidaVagao() {
                   {lotes.map(l => {
                     const d = loteLinhas[l.id];
                     if (!d) return null;
+
+                    // Status visual da batida
+                    const batidasDia   = (d.batidasLote || []);
+                    const batidasFeed  = batidasDia.filter(b => b.batch_type === 'feeding');
+                    const tratos       = batidasFeed.map(b => b.feeding_order).sort((a,b) => a-b);
+                    const tratoAtual   = loteTipo === 'feeding' ? loteOrdem : null;
+                    const esteTratoOk  = tratoAtual ? tratos.includes(tratoAtual) : batidasDia.some(b => b.batch_type === 'day');
+
+                    let statusEl;
+                    if (esteTratoOk) {
+                      statusEl = (
+                        <div className={styles.statusOk}>
+                          <span>✅ Registrado</span>
+                          {tratos.length > 0 && <span className={styles.statusTratos}>{tratos.map(t => `${t}º`).join(' · ')}</span>}
+                        </div>
+                      );
+                    } else if (tratos.length > 0) {
+                      statusEl = (
+                        <div className={styles.statusParcial}>
+                          <span>⚠️ Pendente</span>
+                          <span className={styles.statusTratos}>feito: {tratos.map(t => `${t}º`).join(' · ')}</span>
+                        </div>
+                      );
+                    } else {
+                      statusEl = <span className={styles.statusNenhum}>— Nenhum</span>;
+                    }
+
                     return (
-                      <tr key={l.id} className={d.checked ? styles.linhaChecked : styles.linhaUnchecked}>
+                      <tr key={l.id} className={`${d.checked ? styles.linhaChecked : styles.linhaUnchecked} ${esteTratoOk ? styles.linhaJaFeita : ''}`}>
                         <td style={{ textAlign: 'center' }}>
                           <input type="checkbox" checked={d.checked}
                             onChange={e => setLoteLinhas(p => ({ ...p, [l.id]: { ...p[l.id], checked: e.target.checked } }))} />
                         </td>
                         <td><strong>{l.lot_code}</strong></td>
                         <td>{l.head_count}</td>
+                        <td>{statusEl}</td>
                         <td>
                           <select value={d.feed_type_id} disabled={!d.checked} className={styles.selectInline}
                             onChange={e => setLoteLinhas(p => ({ ...p, [l.id]: { ...p[l.id], feed_type_id: e.target.value } }))}>
@@ -660,11 +718,18 @@ export default function BatidaVagao() {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={5} style={{ padding: '10px 12px', fontWeight: 700 }}>Total selecionado ({qtdSelecionados} lotes)</td>
+                    <td colSpan={6} style={{ padding: '10px 12px', fontWeight: 700 }}>Total selecionado ({qtdSelecionados} lotes)</td>
                     <td style={{ padding: '10px 12px' }}><strong style={{ color: '#2e7d32', fontSize: '1.05rem' }}>{fmtKg(totalSelecionado)}</strong></td>
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* Legenda de status */}
+            <div className={styles.legendaStatus}>
+              <span className={styles.statusOk}>✅ Registrado</span> — batida já salva para este trato &nbsp;·&nbsp;
+              <span className={styles.statusParcial}>⚠️ Pendente</span> — outros tratos feitos, este não &nbsp;·&nbsp;
+              <span className={styles.statusNenhum}>— Nenhum</span> — nada registrado hoje
             </div>
 
             <div className={styles.formAcoes}>
