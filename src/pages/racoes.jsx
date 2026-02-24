@@ -193,10 +193,16 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   };
 
   const handleEditMov = (m) => {
-    // Só permite editar entradas manuais (não baixas de trato)
     if (m.movement_type === 'baixa_trato') return alert('Baixas automáticas de trato não podem ser editadas.\nDelete o trato correspondente para estornar.');
     setEditingMovId(m.id);
-    setFormEditMov({ quantity_kg: String(Math.abs(m.quantity_kg)), entry_date: m.entry_date, notes: m.notes || '' });
+    // Extrai preço/ton e frete da observação ou deixa vazio para reeditar
+    setFormEditMov({
+      quantity_kg: String(Math.abs(m.quantity_kg)),
+      entry_date: m.entry_date,
+      price_per_ton: '',
+      freight_per_ton: '0',
+      notes: m.notes || '',
+    });
   };
 
   const handleSaveMov = async (m, insumo) => {
@@ -205,25 +211,39 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
     setLoading(true);
     try {
       const qtdAntiga = Math.abs(m.quantity_kg);
-      const diff = novaQtd - qtdAntiga; // positivo = aumentou, negativo = diminuiu
+      const diff = novaQtd - qtdAntiga;
 
-      // Atualiza a movimentação
+      // Recalcula preços se informados
+      const pTon = parseFloat(formEditMov.price_per_ton) || 0;
+      const frete = parseFloat(formEditMov.freight_per_ton) || 0;
+      const totalTon = pTon > 0 ? pTon + frete : null;
+      const pKg = totalTon ? totalTon / 1000 : null;
+      const pKgMs = pKg && insumo.dry_matter_pct ? pKg / (insumo.dry_matter_pct / 100) : null;
+
+      // Atualiza movimentação
       const { error: errMov } = await supabase
         .from('ingredient_stock_movements')
         .update({ quantity_kg: novaQtd, entry_date: formEditMov.entry_date, notes: formEditMov.notes || null })
         .eq('id', m.id);
       if (errMov) throw errMov;
 
-      // Ajusta saldo do insumo pela diferença
-      const { error: errIns } = await supabase
-        .from('feed_ingredients')
-        .update({ stock_qty_kg: (insumo.stock_qty_kg || 0) + diff })
-        .eq('id', insumo.id);
+      // Ajusta saldo pela diferença de quantidade
+      const updateIns = { stock_qty_kg: (insumo.stock_qty_kg || 0) + diff };
+      // Atualiza preços no insumo somente se foram informados
+      if (pKg) {
+        updateIns.price_per_ton = pTon;
+        updateIns.freight_per_ton = frete;
+        updateIns.total_price_per_ton = totalTon;
+        updateIns.price_per_kg = pKg;
+        updateIns.current_price = pKg;
+        if (pKgMs) updateIns.price_per_kg_ms = pKgMs;
+      }
+      const { error: errIns } = await supabase.from('feed_ingredients').update(updateIns).eq('id', insumo.id);
       if (errIns) throw errIns;
 
       setEditingMovId(null);
-      await loadMovimentos(insumo.id); // recarrega lista
-      loadInsumos(); // atualiza saldo no card
+      await loadMovimentos(insumo.id);
+      loadInsumos();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
   };
@@ -630,54 +650,102 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                         <tbody>
                           {movimentos.map(m => {
                             const isEntrada = m.movement_type === 'entrada';
-                            const isNeg = m.quantity_kg < 0;
                             const isTrato = m.movement_type === 'baixa_trato';
                             const isEditing = editingMovId === m.id;
+                            // preview de cálculo no form de edição
+                            const ePTon = parseFloat(formEditMov.price_per_ton) || 0;
+                            const eFrete = parseFloat(formEditMov.freight_per_ton) || 0;
+                            const eTotalTon = ePTon + eFrete;
+                            const ePKg = eTotalTon / 1000;
+                            const ePKgMs = ePKg && ins.dry_matter_pct ? ePKg / (ins.dry_matter_pct / 100) : null;
                             return (
-                              <tr key={m.id} style={isEditing ? { background: '#fffde7' } : {}}>
-                                <td>
-                                  {isEditing
-                                    ? <input type="date" value={formEditMov.entry_date}
-                                        onChange={e => setFormEditMov({ ...formEditMov, entry_date: e.target.value })}
-                                        style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.85rem' }} />
-                                    : new Date(m.entry_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                </td>
-                                <td>
-                                  <span className={isEntrada ? styles.movBadgeEntrada : isTrato ? styles.movBadgeBaixa : styles.movBadgeAjuste}>
-                                    {isEntrada ? '📥 Entrada' : isTrato ? '📤 Trato' : '🔧 Ajuste'}
-                                  </span>
-                                </td>
-                                <td className={isEntrada ? styles.movQtdPos : styles.movQtdNeg}>
-                                  {isEditing
-                                    ? <input type="number" value={formEditMov.quantity_kg}
-                                        onChange={e => setFormEditMov({ ...formEditMov, quantity_kg: e.target.value })}
-                                        step="0.001" min="0"
-                                        style={{ width: '100px', padding: '4px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.85rem' }} />
-                                    : <>{isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 3)} kg</>}
-                                </td>
-                                <td style={{ fontSize: '0.82rem', color: '#666' }}>
-                                  {isEditing
-                                    ? <input type="text" value={formEditMov.notes}
-                                        onChange={e => setFormEditMov({ ...formEditMov, notes: e.target.value })}
-                                        style={{ width: '100%', padding: '4px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.82rem' }} />
-                                    : m.notes || '—'}
-                                </td>
-                                <td>
-                                  {isEditing ? (
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                      <button className={styles.btnSalvarMov} onClick={() => handleSaveMov(m, ins)} disabled={loading}>✓</button>
-                                      <button className={styles.btnCancelarMov} onClick={() => setEditingMovId(null)}>✕</button>
-                                    </div>
-                                  ) : !isTrato ? (
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                      <button className={styles.btnEditarMov} onClick={() => handleEditMov(m)} title="Editar">✏️</button>
-                                      <button className={styles.btnDeletarMov} onClick={() => handleDeleteMov(m, ins)} title="Deletar">🗑</button>
-                                    </div>
-                                  ) : (
-                                    <span style={{ fontSize: '0.72rem', color: '#bbb' }}>auto</span>
-                                  )}
-                                </td>
-                              </tr>
+                              <>
+                                <tr key={m.id}>
+                                  <td>{new Date(m.entry_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                  <td>
+                                    <span className={isEntrada ? styles.movBadgeEntrada : isTrato ? styles.movBadgeBaixa : styles.movBadgeAjuste}>
+                                      {isEntrada ? '📥 Entrada' : isTrato ? '📤 Trato' : '🔧 Ajuste'}
+                                    </span>
+                                  </td>
+                                  <td className={isEntrada ? styles.movQtdPos : styles.movQtdNeg}>
+                                    {isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 3)} kg
+                                  </td>
+                                  <td style={{ fontSize: '0.82rem', color: '#666' }}>{m.notes || '—'}</td>
+                                  <td>
+                                    {!isTrato ? (
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button className={isEditing ? styles.btnSalvarMov : styles.btnEditarMov}
+                                          onClick={() => isEditing ? setEditingMovId(null) : handleEditMov(m)}
+                                          title={isEditing ? 'Fechar' : 'Editar'}>
+                                          {isEditing ? '✕' : '✏️'}
+                                        </button>
+                                        {!isEditing && (
+                                          <button className={styles.btnDeletarMov} onClick={() => handleDeleteMov(m, ins)} title="Deletar">🗑</button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span style={{ fontSize: '0.72rem', color: '#bbb' }}>auto</span>
+                                    )}
+                                  </td>
+                                </tr>
+
+                                {/* Painel de edição expandido */}
+                                {isEditing && (
+                                  <tr key={m.id + '_edit'}>
+                                    <td colSpan={5} style={{ padding: 0, background: '#fffde7', borderBottom: '2px solid #ffe082' }}>
+                                      <div className={styles.editMovPanel}>
+                                        <div className={styles.editMovTitle}>✏️ Editando entrada de {fmtN(Math.abs(m.quantity_kg), 3)} kg</div>
+                                        <div className={styles.row3}>
+                                          <div>
+                                            <label>Data</label>
+                                            <input type="date" value={formEditMov.entry_date}
+                                              onChange={e => setFormEditMov({ ...formEditMov, entry_date: e.target.value })} />
+                                          </div>
+                                          <div>
+                                            <label>Quantidade (kg) *</label>
+                                            <input type="number" value={formEditMov.quantity_kg}
+                                              onChange={e => setFormEditMov({ ...formEditMov, quantity_kg: e.target.value })}
+                                              step="0.001" min="0" placeholder="Ex: 10000" />
+                                          </div>
+                                          <div>
+                                            <label>Observação</label>
+                                            <input type="text" value={formEditMov.notes}
+                                              onChange={e => setFormEditMov({ ...formEditMov, notes: e.target.value })}
+                                              placeholder="Opcional..." />
+                                          </div>
+                                        </div>
+                                        <div className={styles.row}>
+                                          <div>
+                                            <label>Novo preço/ton (R$) — deixe vazio para não alterar</label>
+                                            <input type="number" value={formEditMov.price_per_ton}
+                                              onChange={e => setFormEditMov({ ...formEditMov, price_per_ton: e.target.value })}
+                                              step="0.01" min="0" placeholder={`Atual: ${fmtR(ins.price_per_ton, 2)}`} />
+                                          </div>
+                                          <div>
+                                            <label>Frete/ton (R$)</label>
+                                            <input type="number" value={formEditMov.freight_per_ton}
+                                              onChange={e => setFormEditMov({ ...formEditMov, freight_per_ton: e.target.value })}
+                                              step="0.01" min="0" placeholder={`Atual: ${fmtR(ins.freight_per_ton, 2)}`} />
+                                          </div>
+                                        </div>
+                                        {ePKg > 0 && (
+                                          <div className={styles.entradaPreview} style={{ marginBottom: '0.8rem' }}>
+                                            <div className={styles.previewItem}><span>Total/ton</span><strong>{fmtR(eTotalTon, 2)}</strong></div>
+                                            <div className={`${styles.previewItem} ${styles.previewDestaque}`}><span>Preço/kg MN</span><strong>{fmtR(ePKg, 4)}</strong></div>
+                                            {ePKgMs && <div className={`${styles.previewItem} ${styles.previewDestaqueMs}`}><span>Preço/kg MS</span><strong>{fmtR(ePKgMs, 4)}</strong></div>}
+                                          </div>
+                                        )}
+                                        <div className={styles.entradaBtns}>
+                                          <button className={styles.btnCancelar} onClick={() => setEditingMovId(null)}>Cancelar</button>
+                                          <button className={styles.btnSalvarEntrada} onClick={() => handleSaveMov(m, ins)} disabled={loading}>
+                                            {loading ? 'Salvando...' : '✅ Salvar Correção'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
                             );
                           })}
                         </tbody>
