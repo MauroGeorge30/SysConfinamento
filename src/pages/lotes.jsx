@@ -25,6 +25,7 @@ export default function Lotes() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('active');
   const [expandedLote, setExpandedLote] = useState(null);
+  const [viewingLote, setViewingLote] = useState(null);
 
   const hoje = (() => {
     const d = new Date();
@@ -411,10 +412,10 @@ export default function Lotes() {
                 </div>
                 <div className={styles.row}>
                   <div>
-                    <label>Rendimento de Carcaça (%) <span style={{color:'#888',fontWeight:400}}>padrão 52%</span></label>
+                    <label>MS% do Peso Vivo para consumo <span style={{color:'#888',fontWeight:400}}>padrão 2.5%</span></label>
                     <input type="number" value={formData.carcass_yield_pct}
                       onChange={e => setFormData({ ...formData, carcass_yield_pct: e.target.value })}
-                      placeholder="Ex: 52" step="0.1" min="40" max="70" />
+                      placeholder="Ex: 2.5" step="0.01" min="0.5" max="10" />
                   </div>
                   <div>
                     <label>Custo Operacional (R$/cab/dia)</label>
@@ -687,6 +688,7 @@ export default function Lotes() {
 
                       {/* Ações */}
                       <div className={styles.loteAcoes}>
+                        <button className={styles.btnVisualizar} onClick={() => setViewingLote(lote)}>👁 Visualizar</button>
                         {lote.status === 'active' && (
                           <button className={styles.btnFase} onClick={() => handleAddFase(lote)}>🌿 Nova Fase</button>
                         )}
@@ -708,6 +710,154 @@ export default function Lotes() {
           </div>
         )}
       </div>
+
+        {/* ── MODAL VISUALIZAR LOTE ── */}
+        {viewingLote && (() => {
+          const vl = viewingLote;
+          const faseAtiva = getFaseAtiva(vl);
+          const ultimaPesagem = getUltimaPesagem(vl);
+          const gmd = calcGMD(vl);
+          const dias = getDiasConfinamento(vl);
+          const fasesSorted = [...(vl.lot_phases || [])].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
+          // Cálculo de consumo MN baseado no MS% do PV
+          // carcass_yield_pct agora = MS% do PV para consumo
+          const msPvPct = vl.carcass_yield_pct ? parseFloat(vl.carcass_yield_pct) : null;
+          const pesoAtual = ultimaPesagem?.avg_weight_kg || vl.avg_entry_weight;
+          const faseAtivaRacao = faseAtiva?.feed_types;
+          const msDieta = faseAtivaRacao?.dry_matter_pct ? parseFloat(faseAtivaRacao.dry_matter_pct) : null;
+          // Consumo MS/dia = Peso Vivo × (MS%PV / 100)
+          const consumoMsDia = pesoAtual && msPvPct ? parseFloat(pesoAtual) * (msPvPct / 100) : null;
+          // Consumo MN/dia = Consumo MS / (MS% dieta / 100)
+          const consumoMnDia = consumoMsDia && msDieta ? consumoMsDia / (msDieta / 100) : null;
+          // Consumo MN total por cabeça/dia e por lote/dia
+          const consumoMnLoteDia = consumoMnDia ? consumoMnDia * vl.head_count : null;
+
+          // Preview compra
+          const div = parseFloat(vl.arroba_divisor) || 30;
+          const arrobaNegocia = vl.avg_entry_weight ? parseFloat(vl.avg_entry_weight) / div : null;
+          const precoCab = arrobaNegocia && vl.purchase_price_arroba ? arrobaNegocia * parseFloat(vl.purchase_price_arroba) : null;
+
+          return (
+            <div className={styles.modalOverlay} onClick={() => setViewingLote(null)}>
+              <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                  <div>
+                    <h2 className={styles.modalTitulo}>📦 {vl.lot_code}</h2>
+                    <div style={{display:'flex',gap:'8px',marginTop:'4px',flexWrap:'wrap'}}>
+                      <span className={styles.badgeCategoria}>{vl.category}</span>
+                      <span className={vl.status === 'active' ? styles.badgeAtivo : styles.badgeEncerrado}>
+                        {STATUS_LABELS[vl.status]}
+                      </span>
+                      {vl.pens && <span className={styles.metaItem}>🏠 {vl.pens.pen_number}</span>}
+                    </div>
+                  </div>
+                  <button className={styles.modalFechar} onClick={() => setViewingLote(null)}>✕</button>
+                </div>
+
+                <div className={styles.modalBody}>
+
+                  {/* Bloco 1: Identificação */}
+                  <div className={styles.modalSecao}>
+                    <div className={styles.modalSecaoTitulo}>📋 Identificação</div>
+                    <div className={styles.modalGrid}>
+                      <div><span>Código</span><strong>{vl.lot_code}</strong></div>
+                      <div><span>Categoria</span><strong>{vl.category}</strong></div>
+                      <div><span>Origem</span><strong>{vl.origin || '—'}</strong></div>
+                      <div><span>Baia</span><strong>{vl.pens?.pen_number || '—'}</strong></div>
+                      <div><span>Data Entrada</span><strong>{new Date(vl.entry_date + 'T12:00:00').toLocaleDateString('pt-BR')}</strong></div>
+                      <div><span>Dias Confinamento</span><strong>{dias} dias</strong></div>
+                      <div><span>Status</span><strong>{STATUS_LABELS[vl.status]}</strong></div>
+                      {vl.notes && <div style={{gridColumn:'1/-1'}}><span>Observações</span><strong>{vl.notes}</strong></div>}
+                    </div>
+                  </div>
+
+                  {/* Bloco 2: Animais e Pesagens */}
+                  <div className={styles.modalSecao}>
+                    <div className={styles.modalSecaoTitulo}>🐂 Animais e Pesagens</div>
+                    <div className={styles.modalGrid}>
+                      <div><span>Cabeças</span><strong>{vl.head_count} cab.</strong></div>
+                      <div><span>Peso Médio Entrada</span><strong>{vl.avg_entry_weight ? `${Number(vl.avg_entry_weight).toFixed(1)} kg` : '—'}</strong></div>
+                      <div><span>Último Peso</span><strong>{ultimaPesagem ? `${Number(ultimaPesagem.avg_weight_kg).toFixed(1)} kg` : '—'}</strong></div>
+                      <div><span>Data Último Peso</span><strong>{ultimaPesagem ? new Date(ultimaPesagem.weighing_date + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</strong></div>
+                      <div><span>GMD Real</span><strong style={{color: gmd && vl.target_gmd && parseFloat(gmd) >= vl.target_gmd ? '#1b5e20' : '#c62828'}}>{gmd ? `${parseFloat(gmd).toFixed(3)} kg/d` : '—'}</strong></div>
+                      <div><span>Meta GMD</span><strong>{vl.target_gmd ? `${Number(vl.target_gmd).toFixed(3)} kg/d` : '—'}</strong></div>
+                      <div><span>Meta Sobra</span><strong>{vl.target_leftover_pct ? `${Number(vl.target_leftover_pct).toFixed(1)}%` : '—'}</strong></div>
+                      <div><span>Total pesagens</span><strong>{(vl.lot_weighings || []).length}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Bloco 3: Consumo calculado */}
+                  {msPvPct && (
+                    <div className={styles.modalSecao} style={{borderLeftColor:'#1565c0'}}>
+                      <div className={styles.modalSecaoTitulo} style={{color:'#1565c0'}}>🌿 Consumo Estimado (fase atual)</div>
+                      <div className={styles.modalGrid}>
+                        <div><span>MS% do PV</span><strong style={{color:'#1565c0'}}>{msPvPct.toFixed(2)}%</strong></div>
+                        <div><span>Peso base (atual)</span><strong>{pesoAtual ? `${Number(pesoAtual).toFixed(1)} kg` : '—'}</strong></div>
+                        <div><span>Consumo MS/cab/dia</span><strong>{consumoMsDia ? `${consumoMsDia.toFixed(2)} kg MS` : '—'}</strong></div>
+                        <div><span>MS% da dieta atual</span><strong>{msDieta ? `${msDieta.toFixed(2)}%` : <span style={{color:'#aaa'}}>Sem composição</span>}</strong></div>
+                        <div style={{background:'#e8f5e9',borderRadius:'8px',padding:'8px 12px'}}>
+                          <span>Consumo MN/cab/dia</span>
+                          <strong style={{color:'#1b5e20',fontSize:'1.1rem'}}>{consumoMnDia ? `${consumoMnDia.toFixed(2)} kg MN` : '—'}</strong>
+                        </div>
+                        <div style={{background:'#e3f2fd',borderRadius:'8px',padding:'8px 12px'}}>
+                          <span>Consumo MN/lote/dia ({vl.head_count} cab)</span>
+                          <strong style={{color:'#1565c0',fontSize:'1.1rem'}}>{consumoMnLoteDia ? `${consumoMnLoteDia.toFixed(1)} kg MN` : '—'}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bloco 4: Dados financeiros */}
+                  <div className={styles.modalSecao} style={{borderLeftColor:'#e65100'}}>
+                    <div className={styles.modalSecaoTitulo} style={{color:'#e65100'}}>💰 Dados Financeiros</div>
+                    <div className={styles.modalGrid}>
+                      <div><span>Preço de Compra</span><strong>{vl.purchase_price_arroba ? `R$ ${Number(vl.purchase_price_arroba).toFixed(2)}/@` : '—'}</strong></div>
+                      <div><span>Divisor @ negociada</span><strong>{vl.arroba_divisor || 30}</strong></div>
+                      <div><span>@ negociada/cab</span><strong>{arrobaNegocia ? `${arrobaNegocia.toFixed(2)} @` : '—'}</strong></div>
+                      <div><span>Custo de compra/cab</span><strong>{precoCab ? `R$ ${precoCab.toFixed(2)}` : '—'}</strong></div>
+                      <div><span>Custo total compra</span><strong>{precoCab ? `R$ ${(precoCab * vl.head_count).toFixed(2)}` : '—'}</strong></div>
+                      <div><span>Custo Operac./cab/dia</span><strong>{vl.cost_per_head_day ? `R$ ${Number(vl.cost_per_head_day).toFixed(2)}` : '—'}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Bloco 5: Fases */}
+                  {fasesSorted.length > 0 && (
+                    <div className={styles.modalSecao} style={{borderLeftColor:'#e65100'}}>
+                      <div className={styles.modalSecaoTitulo} style={{color:'#e65100'}}>🌿 Fases de Dieta ({fasesSorted.length})</div>
+                      {fasesSorted.map((fase, idx) => {
+                        const fimTs = fase.end_date ? new Date(fase.end_date) : null;
+                        const isConcluida = fimTs && fimTs < new Date();
+                        const diasFase = fase.end_date
+                          ? Math.floor((new Date(fase.end_date) - new Date(fase.start_date)) / 86400000)
+                          : Math.floor((new Date() - new Date(fase.start_date)) / 86400000);
+                        return (
+                          <div key={fase.id} className={styles.modalFaseItem}>
+                            <div className={styles.modalFaseHeader}>
+                              <strong>{fase.phase_name}</strong>
+                              <span className={isConcluida ? styles.badgeFaseConcluida : styles.badgeFaseEmProcesso}>
+                                {isConcluida ? '✓ Concluída' : '⏳ Em Processo'}
+                              </span>
+                              <span className={styles.faseTimelineDias}>{diasFase}d</span>
+                            </div>
+                            <div className={styles.modalFaseDetalhes}>
+                              {fase.feed_types?.name && <span>🌾 {fase.feed_types.name}</span>}
+                              {fase.feed_types?.dry_matter_pct && <span>MS: {fase.feed_types.dry_matter_pct}%</span>}
+                              {fase.cms_pct_pv && <span>CMS: {fase.cms_pct_pv}% PV</span>}
+                              {fase.feed_types?.cost_per_kg && <span>R$ {Number(fase.feed_types.cost_per_kg).toFixed(4)}/kg</span>}
+                              <span>📅 {new Date(fase.start_date + 'T12:00:00').toLocaleDateString('pt-BR')} → {fase.end_date ? new Date(fase.end_date + 'T12:00:00').toLocaleDateString('pt-BR') : <em style={{color:'#e65100'}}>em andamento</em>}</span>
+                            </div>
+                            {fase.notes && <div style={{fontSize:'0.8rem',color:'#888',marginTop:'4px'}}>{fase.notes}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </Layout>
   );
 }
