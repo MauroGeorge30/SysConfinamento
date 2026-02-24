@@ -978,36 +978,81 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                   <span className={styles.expandIcon}>{expandedComp === c.id ? '▲' : '▼'}</span>
                 </div>
               </div>
-              {expandedComp === c.id && (
-                <div className={styles.compCardBody}>
-                  {c.notes && <p className={styles.compNotes}>{c.notes}</p>}
-                  <table className={styles.tabelaComp}>
-                    <thead><tr><th>Ingrediente</th><th>MS%</th><th>Proporção</th><th>Qtd</th><th>R$/kg</th><th>Custo</th></tr></thead>
-                    <tbody>
-                      {(c.feed_composition_items || []).map(item => (
-                        <tr key={item.id}>
-                          <td>{item.feed_ingredients?.name || '—'}</td>
-                          <td style={{ color: '#1565c0', fontSize: '0.85rem' }}>
-                            {item.feed_ingredients?.dry_matter_pct ? fmtN(item.feed_ingredients.dry_matter_pct, 1) + '%' : '—'}
-                          </td>
-                          <td>{fmtN(item.proportion_pct, 2)}%</td>
-                          <td>{fmtN(item.quantity_kg, 3)} kg</td>
-                          <td>{fmtR(item.price_per_unit, 4)}</td>
-                          <td>{fmtR(item.total_cost, 2)}</td>
+              {expandedComp === c.id && (() => {
+                // Pré-calcula Qtd MS de cada item e o total para o % MS
+                const itensComMs = (c.feed_composition_items || []).map(item => {
+                  const ms = item.feed_ingredients?.dry_matter_pct;
+                  const qtdMs = ms != null ? Number(item.quantity_kg) * (Number(ms) / 100) : null;
+                  return { ...item, qtdMs };
+                });
+                const totalQtdMs = itensComMs.reduce((acc, i) => acc + (i.qtdMs || 0), 0);
+
+                return (
+                  <div className={styles.compCardBody}>
+                    {c.notes && <p className={styles.compNotes}>{c.notes}</p>}
+                    <table className={styles.tabelaComp}>
+                      <thead>
+                        <tr>
+                          <th>Ingrediente</th>
+                          <th>MS%</th>
+                          <th>Proporção</th>
+                          <th>Qtd MN</th>
+                          <th className={styles.thMs}>Qtd MS</th>
+                          <th className={styles.thPctMs}>% MS</th>
+                          <th>R$/kg</th>
+                          <th>Custo</th>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className={styles.totalRow}>
-                        <td><strong>TOTAL</strong></td><td></td><td></td>
-                        <td><strong>{fmtN(c.base_qty_kg, 0)} kg</strong></td><td></td>
-                        <td><strong>{fmtR(c.total_cost, 2)}</strong></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                  <p className={styles.compResumo}>Base: {fmtN(c.base_qty_kg, 0)} kg | Total: {fmtR(c.total_cost, 2)} | <strong>Custo/kg: {fmtR(c.cost_per_kg, 4)}</strong></p>
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {itensComMs.map(item => {
+                          const pctMs = totalQtdMs > 0 && item.qtdMs != null
+                            ? (item.qtdMs / totalQtdMs) * 100 : null;
+                          return (
+                            <tr key={item.id}>
+                              <td>{item.feed_ingredients?.name || '—'}</td>
+                              <td style={{ color: '#1565c0', fontSize: '0.85rem' }}>
+                                {item.feed_ingredients?.dry_matter_pct
+                                  ? fmtN(item.feed_ingredients.dry_matter_pct, 2) + '%' : '—'}
+                              </td>
+                              <td>{fmtN(item.proportion_pct, 3)}%</td>
+                              <td>{fmtN(item.quantity_kg, 3)} kg</td>
+                              <td className={styles.tdMs}>
+                                {item.qtdMs != null ? fmtN(item.qtdMs, 2) + ' kg' : <span style={{color:'#ccc'}}>—</span>}
+                              </td>
+                              <td className={styles.tdPctMs}>
+                                {pctMs != null
+                                  ? <span className={styles.badgePctMs}>{fmtN(pctMs, 2)}%</span>
+                                  : <span style={{color:'#ccc'}}>—</span>}
+                              </td>
+                              <td>{fmtR(item.price_per_unit, 4)}</td>
+                              <td>{fmtR(item.total_cost, 2)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className={styles.totalRow}>
+                          <td><strong>TOTAL</strong></td>
+                          <td></td>
+                          <td></td>
+                          <td><strong>{fmtN(c.base_qty_kg, 0)} kg</strong></td>
+                          <td className={styles.tdMs}><strong>{fmtN(totalQtdMs, 2)} kg</strong></td>
+                          <td className={styles.tdPctMs}><strong>100%</strong></td>
+                          <td></td>
+                          <td><strong>{fmtR(c.total_cost, 2)}</strong></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                    <p className={styles.compResumo}>
+                      Base: {fmtN(c.base_qty_kg, 0)} kg MN &nbsp;|&nbsp;
+                      MS total: {fmtN(totalQtdMs, 2)} kg &nbsp;|&nbsp;
+                      MS%: {totalQtdMs > 0 && c.base_qty_kg ? fmtN((totalQtdMs / Number(c.base_qty_kg)) * 100, 2) : '—'}% &nbsp;|&nbsp;
+                      Total: {fmtR(c.total_cost, 2)} &nbsp;|&nbsp;
+                      <strong>Custo/kg: {fmtR(c.cost_per_kg, 4)}</strong>
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>
