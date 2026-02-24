@@ -319,13 +319,14 @@ export default function Alimentacao() {
     ) || null;
   })();
 
-  // Sugestão: usa batida se existir, senão cálculo próprio
+  // Sugestão: usa realizado da batida se existir, senão previsto, senão cálculo
   const sugestao = (() => {
     if (batidaAtual) {
-      const total = Number(batidaAtual.total_qty_kg);
+      const temRealizado  = batidaAtual.qty_realizada_kg != null;
+      const total         = Number(temRealizado ? batidaAtual.qty_realizada_kg : batidaAtual.total_qty_kg);
       const feedingsPerDay = parseInt(loteAtual?.daily_feeding_count) || 1;
-      const mnPorTrato = batidaAtual.batch_type === 'day' ? total / feedingsPerDay : total;
-      return { mnPorTrato, fromBatida: true, batidaTotal: total, batch_type: batidaAtual.batch_type, feedingsPerDay };
+      const mnPorTrato    = batidaAtual.batch_type === 'day' ? total / feedingsPerDay : total;
+      return { mnPorTrato, fromBatida: true, temRealizado, batidaTotal: total, batch_type: batidaAtual.batch_type, feedingsPerDay };
     }
     return calcMNSugerido();
   })();
@@ -460,12 +461,12 @@ export default function Alimentacao() {
           </div>
           <div className={styles.resumoCard}>
             <span>Fornecido Hoje</span>
-            <strong>{totalFornecidoHoje.toFixed(0)} kg</strong>
+            <strong>{Number(totalFornecidoHoje).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg</strong>
           </div>
           <div className={styles.resumoCard} style={{ borderLeftColor: totalSobraHoje > 0 ? '#f57c00' : '#2e7d32' }}>
             <span>Sobra Hoje</span>
             <strong style={{ color: totalSobraHoje > 0 ? '#f57c00' : '#2e7d32' }}>
-              {totalSobraHoje.toFixed(0)} kg
+              {Number(totalSobraHoje).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg
               {sobraPctHoje && <span style={{ fontSize: '0.85rem' }}> ({sobraPctHoje}%)</span>}
             </strong>
           </div>
@@ -552,37 +553,38 @@ export default function Alimentacao() {
                     <div>
                       {sugestao.fromBatida ? (
                         <>
-                          <strong>🚜 Batida de Vagão: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
+                          <strong>🚜 Batida de Vagão: {Number(sugestao.mnPorTrato).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg</strong>
+                          {sugestao.temRealizado
+                            ? <span style={{ marginLeft: 8, background: '#c8e6c9', color: '#1b5e20', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>✅ baseado no REALIZADO</span>
+                            : <span style={{ marginLeft: 8, background: '#fff3e0', color: '#e65100', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>⏳ baseado no PREVISTO — lance o realizado na batida</span>
+                          }
                           {sugestao.batch_type === 'day' && sugestao.feedingsPerDay > 1 && (
                             <span style={{ color: '#555', marginLeft: '0.5rem' }}>
-                              (total do dia {sugestao.batidaTotal.toFixed(1)} kg ÷ {sugestao.feedingsPerDay} tratos)
+                              (total {Number(sugestao.batidaTotal).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg ÷ {sugestao.feedingsPerDay} tratos)
                             </span>
                           )}
-                          <div style={{ color: '#555', marginTop: '2px' }}>
-                            Quantidade definida na Batida de Vagão
-                          </div>
                         </>
                       ) : (
                         <>
-                          <strong>🌿 MN sugerido: {sugestao.mnPorTrato.toFixed(1)} kg</strong>
+                          <strong>🌿 MN sugerido: {Number(sugestao.mnPorTrato).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg</strong>
                           {sugestao.feedingsPerDay > 1 && (
                             <span style={{ color: '#555', marginLeft: '0.5rem' }}>
-                              ({sugestao.feedingsPerDay} tratos/dia — total {sugestao.mnAjustadoDia.toFixed(1)} kg)
+                              ({sugestao.feedingsPerDay} tratos/dia — total {Number(sugestao.mnAjustadoDia).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg)
                             </span>
                           )}
                           <div style={{ color: '#555', marginTop: '2px' }}>
-                            Peso est. {sugestao.pesoEstimado.toFixed(1)} kg ({sugestao.dias}d desde {sugestao.dataBase}) → MS {sugestao.msCab.toFixed(2)} kg/cab → MN base {sugestao.mnTotalDia.toFixed(1)} kg/dia
+                            Peso est. {Number(sugestao.pesoEstimado).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg ({sugestao.dias}d) → MS {Number(sugestao.msCab).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg/cab → MN base {Number(sugestao.mnTotalDia).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg/dia
                           </div>
                           {sugestao.sobraDiaAnterior > 0 && (
                             <div style={{ color: '#e65100', marginTop: '2px', fontWeight: 500 }}>
-                              ⚠️ Sobra de ontem: -{sugestao.sobraDiaAnterior.toFixed(1)} kg → total ajustado: {sugestao.mnAjustadoDia.toFixed(1)} kg
+                              ⚠️ Sobra de ontem: -{Number(sugestao.sobraDiaAnterior).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg → ajustado: {Number(sugestao.mnAjustadoDia).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg
                             </div>
                           )}
                         </>
                       )}
                     </div>
                     <button type="button"
-                      onClick={() => setFormData(p => ({ ...p, quantity_kg: sugestao.mnPorTrato.toFixed(1) }))}
+                      onClick={() => setFormData(p => ({ ...p, quantity_kg: Number(sugestao.mnPorTrato).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) }))}
                       style={{ background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.35rem 0.85rem', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                       Usar sugestão
                     </button>
