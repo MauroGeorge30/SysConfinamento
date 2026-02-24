@@ -415,7 +415,7 @@ export default function Lotes() {
                     <label>MS% do Peso Vivo para consumo <span style={{color:'#888',fontWeight:400}}>padrão 2.5%</span></label>
                     <input type="number" value={formData.carcass_yield_pct}
                       onChange={e => setFormData({ ...formData, carcass_yield_pct: e.target.value })}
-                      placeholder="Ex: 2.5" step="0.01" min="0.5" max="10" />
+                      placeholder="Ex: 2.5" step="0.01" min="0" />
                   </div>
                   <div>
                     <label>Custo Operacional (R$/cab/dia)</label>
