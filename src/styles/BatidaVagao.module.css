@@ -201,3 +201,10 @@
 @media (max-width: 480px) {
   .batidaHeader { flex-direction: column; align-items: flex-start; }
 }
+
+/* Agrupamento por trato */
+.tratoGrupo { margin-bottom: 1rem; }
+.tratoGrupoHeader { background: #1a1a2e; color: #fff; padding: 0.7rem 1.2rem; border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.95rem; }
+.tratoGrupoLotes { display: flex; flex-direction: column; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px; overflow: hidden; }
+.tratoGrupoLotes .batidaCard { border-radius: 0; border: none; border-bottom: 1px solid #f0f0f0; box-shadow: none; }
+.tratoGrupoLotes .batidaCard:last-child { border-bottom: none; }
