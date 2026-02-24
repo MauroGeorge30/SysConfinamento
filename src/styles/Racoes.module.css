@@ -190,3 +190,10 @@
 
 .btnDeletarIns { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btnDeletarIns:hover { background: #ffcdd2; }
+
+/* Colunas Qtd MS e % MS na tabela de composição */
+.thMs    { background: #e3f2fd !important; color: #1565c0 !important; }
+.thPctMs { background: #fff8e1 !important; color: #e65100 !important; }
+.tdMs    { background: #f0f8ff; color: #1565c0; font-weight: 600; font-size: 0.85rem; }
+.tdPctMs { background: #fffde7; text-align: center; }
+.badgePctMs { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; }
