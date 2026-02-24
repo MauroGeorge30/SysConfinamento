@@ -41,7 +41,7 @@ function AbaRacoes({ currentFarm, canCreate, canEdit, canDelete }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = { name: formData.name, dry_matter_pct: formData.dry_matter_pct ? parseFloat(formData.dry_matter_pct) : null, farm_id: currentFarm.id };
+      const payload = { name: formData.name, farm_id: currentFarm.id };
       if (editingId) {
         const { error } = await supabase.from('feed_types').update(payload).eq('id', editingId);
         if (error) throw error;
@@ -73,10 +73,6 @@ function AbaRacoes({ currentFarm, canCreate, canEdit, canDelete }) {
               <div>
                 <label>Nome da Ração *</label>
                 <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-              </div>
-              <div>
-                <label>MS% da ração (mistura final)</label>
-                <input type="number" value={formData.dry_matter_pct} onChange={e => setFormData({ ...formData, dry_matter_pct: e.target.value })} placeholder="Ex: 54.0" step="0.01" min="0" max="100" />
               </div>
             </div>
             <div className={styles.formAcoes}>
