@@ -15,6 +15,7 @@ export default function Alimentacao() {
   const [baias, setBaias] = useState([]);
   const [racoes, setRacoes] = useState([]);
   const [lotes, setLotes] = useState([]);
+  const [pesagens, setPesagens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -56,7 +57,7 @@ export default function Alimentacao() {
   const loadDados = async () => {
     setLoading(true);
     try {
-      const [{ data: regData, error: regError }, { data: baiasData }, { data: racoesData }, { data: lotesData }] = await Promise.all([
+      const [{ data: regData, error: regError }, { data: baiasData }, { data: racoesData }, { data: lotesData }, { data: pesagensData }] = await Promise.all([
         supabase.from('feeding_records')
           .select('*, pens(pen_number), feed_types(name, cost_per_kg, dry_matter_pct), lots(lot_code)')
           .eq('farm_id', currentFarm.id)
@@ -64,13 +65,15 @@ export default function Alimentacao() {
           .limit(200),
         supabase.from('pens').select('id, pen_number, min_feed_kg, max_feed_kg, min_leftover_kg, max_leftover_kg').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
-        supabase.from('lots').select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name)), lot_weighings(id, weighing_date, avg_weight)').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
+        supabase.from('lots').select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name))').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
+        supabase.from('lot_weighings').select('id, lot_id, weighing_date, avg_weight_kg').eq('farm_id', currentFarm.id).order('weighing_date', { ascending: false }),
       ]);
       if (regError) throw regError;
       setRegistros(regData || []);
       setBaias(baiasData || []);
       setRacoes(racoesData || []);
       setLotes(lotesData || []);
+      setPesagens(pesagensData || []);
     } catch (error) {
       alert('Erro ao carregar: ' + error.message);
     } finally {
@@ -220,14 +223,14 @@ export default function Alimentacao() {
 
     // Peso base: última pesagem anterior à data do trato, ou peso de entrada
     const dataRef = formData.feeding_date || new Date().toISOString().slice(0, 10);
-    const pesagens = (loteAtual.lot_weighings || [])
-      .filter(p => p.weighing_date <= dataRef)
+    const pesagensDoLote = pesagens
+      .filter(p => p.lot_id === loteAtual.id && p.weighing_date <= dataRef)
       .sort((a, b) => b.weighing_date.localeCompare(a.weighing_date));
 
     let pesoBase, dataBase;
-    if (pesagens.length > 0) {
-      pesoBase = parseFloat(pesagens[0].avg_weight);
-      dataBase = pesagens[0].weighing_date;
+    if (pesagensDoLote.length > 0) {
+      pesoBase = parseFloat(pesagensDoLote[0].avg_weight_kg);
+      dataBase = pesagensDoLote[0].weighing_date;
     } else {
       pesoBase = parseFloat(loteAtual.avg_entry_weight) || 0;
       dataBase = loteAtual.entry_date;
@@ -246,7 +249,7 @@ export default function Alimentacao() {
     const mnTotalDia = mnCab * headCount;
     const mnPorTrato = mnTotalDia / feedingsPerDay;
 
-    return { pesoEstimado, msCab, mnCab, mnTotalDia, mnPorTrato, feedingsPerDay, dias, dataBase: pesagens.length > 0 ? 'pesagem' : 'entrada' };
+    return { pesoEstimado, msCab, mnCab, mnTotalDia, mnPorTrato, feedingsPerDay, dias, dataBase: pesagensDoLote.length > 0 ? 'pesagem' : 'entrada' };
   };
   const sugestao = calcMNSugerido();
 
