@@ -373,8 +373,12 @@ export default function Alimentacao() {
           (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
         );
         const feedingsPerDay = parseInt(l.daily_feeding_count) || 1;
+        // Usa realizado se disponível, senão previsto
+        const qtdBase = batida
+          ? Number(batida.qty_realizada_kg ?? batida.total_qty_kg)
+          : 0;
         const qtyKg = batida
-          ? (batida.batch_type === 'day' ? Number(batida.total_qty_kg) / feedingsPerDay : Number(batida.total_qty_kg))
+          ? (batida.batch_type === 'day' ? qtdBase / feedingsPerDay : qtdBase)
           : '';
         const feedTypeId = batida?.feed_type_id || prev[l.id]?.feed_type_id || '';
         const penId      = l.pen_id || prev[l.id]?.pen_id || '';
@@ -382,9 +386,10 @@ export default function Alimentacao() {
           checked:      prev[l.id]?.checked !== undefined ? prev[l.id].checked : !!batida,
           feed_type_id: feedTypeId,
           pen_id:       penId,
-          quantity_kg:  prev[l.id]?.quantity_kg || qtyKg.toString(),
+          quantity_kg:  qtyKg.toString(),  // sempre refresh da batida ao mudar data/ordem
           leftover_kg:  '',
           temBatida:    !!batida,
+          usouRealizado: batida?.qty_realizada_kg != null,
         };
       });
       return novo;
@@ -1038,7 +1043,12 @@ export default function Alimentacao() {
                         <td>{l.head_count}</td>
                         <td>
                           {d.temBatida
-                            ? <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.85rem' }}>✅ OK</span>
+                            ? <span style={{ display:'flex', flexDirection:'column', gap:1 }}>
+                                <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.85rem' }}>✅ OK</span>
+                                <span style={{ fontSize: '0.72rem', color: d.usouRealizado ? '#2e7d32' : '#e65100', fontWeight: 600 }}>
+                                  {d.usouRealizado ? 'realizado' : '⏳ previsto'}
+                                </span>
+                              </span>
                             : <span style={{ color: '#c62828', fontSize: '0.85rem' }}>⚠️ Sem batida</span>
                           }
                         </td>
