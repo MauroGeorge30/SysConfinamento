@@ -277,7 +277,7 @@ export default function BatidaVagao() {
             quantity_kg:    qtdAjuste,
             entry_date:     batida.batch_date,
             registered_by:  user.id,
-            notes: `Ajuste realizado vs previsto — Batida ${new Date(batida.batch_date + 'T00:00:00').toLocaleDateString('pt-BR')} (prev: ${fmtKg(previsto)}, real: ${fmtKg(qtdRealizada)})`,
+            notes: `Ajuste batida ${qtdAjuste < 0 ? '(desconto extra)' : '(devolução)'} — prev: ${fmtKg(previsto)}, real: ${fmtKg(qtdRealizada)} — ${new Date(batida.batch_date + 'T00:00:00').toLocaleDateString('pt-BR')}`,
           }]);
           if (errMov) throw errMov;
         }
