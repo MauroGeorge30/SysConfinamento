@@ -190,6 +190,24 @@ export default function Alimentacao() {
       }
     }
 
+    // Verificar duplicata — trato já registrado para este lote/data/ordem
+    if (formData.lot_id && !editingId) {
+      const ordemAtual = formData.feeding_order || 1;
+      const { data: tratoExistente } = await supabase
+        .from('feeding_records')
+        .select('id')
+        .eq('farm_id', currentFarm.id)
+        .eq('lot_id', formData.lot_id)
+        .eq('feeding_date', formData.feeding_date)
+        .eq('feeding_order', ordemAtual)
+        .limit(1);
+      if (tratoExistente && tratoExistente.length > 0) {
+        const loteCod = lotes.find(l => l.id === formData.lot_id)?.lot_code || '';
+        const dataFmt = new Date(formData.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR');
+        return alert('❌ Trato duplicado!\n\nO ' + ordemAtual + 'º trato do lote ' + loteCod + ' em ' + dataFmt + ' já foi registrado.\n\nSe precisar corrigir, edite o registro existente.');
+      }
+    }
+
     setLoading(true);
     try {
       const racaoAtual = racoes.find(r => r.id === formData.feed_type_id);
@@ -458,7 +476,20 @@ export default function Alimentacao() {
       }
     }
     const invalidos = selecionados.filter(l => !tratoLinhas[l.id]?.feed_type_id || !parseFloat(tratoLinhas[l.id]?.quantity_kg));
-    if (invalidos.length) return alert(`Lotes sem ração ou quantidade:\n${invalidos.map(l => l.lot_code).join(', ')}`);
+    if (invalidos.length) return alert('Lotes sem ração ou quantidade:\n' + invalidos.map(l => l.lot_code).join(', '));
+
+    // Verificar duplicata — busca fresh do banco
+    const { data: tratosDuplicados } = await supabase
+      .from('feeding_records')
+      .select('id, lot_id, feeding_order')
+      .eq('farm_id', currentFarm.id)
+      .eq('feeding_date', tratoLoteData)
+      .eq('feeding_order', tratoLoteOrdem)
+      .in('lot_id', selecionados.map(l => l.id));
+    if (tratosDuplicados && tratosDuplicados.length > 0) {
+      const lotesRepetidos = tratosDuplicados.map(t => lotes.find(l => l.id === t.lot_id)?.lot_code || t.lot_id);
+      return alert('❌ Trato duplicado!\n\nO ' + tratoLoteOrdem + 'º trato já foi registrado para:\n' + lotesRepetidos.join(', ') + '\n\nSe precisar corrigir, edite o registro existente.');
+    }
 
     setSalvandoLote(true);
     try {
