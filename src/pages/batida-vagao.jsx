@@ -190,7 +190,7 @@ export default function BatidaVagao() {
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
         supabase.from('lot_weighings').select('id, lot_id, weighing_date, avg_weight_kg').eq('farm_id', currentFarm.id).order('weighing_date', { ascending: false }),
         supabase.from('feed_compositions')
-          .select('*, feed_composition_items(*, feed_ingredients(id, name, unit, dry_matter_pct))')
+          .select('*, feed_composition_items(id, ingredient_id, quantity_kg, proportion_pct, feed_ingredients(id, name, unit, dry_matter_pct))')
           .eq('farm_id', currentFarm.id).eq('is_current', true),
         supabase.from('feed_ingredients').select('id, name, stock_qty_kg').eq('farm_id', currentFarm.id),
       ]);
@@ -251,7 +251,10 @@ export default function BatidaVagao() {
     const comp = compositions.find(c => c.feed_type_id === feedTypeId);
     if (!comp) return [];
     return (comp.feed_composition_items || []).map(item => {
-      const propPct = Number(item.quantity_kg) / Number(comp.base_qty_kg);
+      // Usa proportion_pct diretamente se disponível; fallback para quantity_kg/base_qty_kg
+      const propPct = item.proportion_pct != null
+        ? Number(item.proportion_pct) / 100
+        : Number(item.quantity_kg) / Number(comp.base_qty_kg);
       const qtdKg   = propPct * totalKg;
       const ing     = item.feed_ingredients;
       return {
@@ -1187,12 +1190,15 @@ export default function BatidaVagao() {
           const calcMSBatida = (b, qtdKg) => {
             const comp = compositions.find(c => c.feed_type_id === b.feed_type_id);
             if (!comp) return null;
-            return (comp.feed_composition_items || []).reduce((acc, item) => {
+            const total = (comp.feed_composition_items || []).reduce((acc, item) => {
               const ing = item.feed_ingredients;
               if (!ing?.dry_matter_pct) return acc;
-              const propPct = Number(item.quantity_kg) / Number(comp.base_qty_kg);
+              const propPct = item.proportion_pct != null
+                ? Number(item.proportion_pct) / 100
+                : Number(item.quantity_kg) / Number(comp.base_qty_kg);
               return acc + (propPct * qtdKg * (ing.dry_matter_pct / 100));
             }, 0);
+            return total > 0 ? total : null;
           };
 
           return (
@@ -1594,12 +1600,15 @@ export default function BatidaVagao() {
           const calcMS = (feedTypeId, qtdKg) => {
             const comp = compositions.find(c => c.feed_type_id === feedTypeId);
             if (!comp) return null;
-            return (comp.feed_composition_items || []).reduce((acc, item) => {
+            const total = (comp.feed_composition_items || []).reduce((acc, item) => {
               const ing = item.feed_ingredients;
               if (!ing?.dry_matter_pct) return acc;
-              const prop = Number(item.quantity_kg) / Number(comp.base_qty_kg);
+              const prop = item.proportion_pct != null
+                ? Number(item.proportion_pct) / 100
+                : Number(item.quantity_kg) / Number(comp.base_qty_kg);
               return acc + prop * qtdKg * (ing.dry_matter_pct / 100);
             }, 0);
+            return total > 0 ? total : null;
           };
           const calcCustoKg = (feedTypeId) => {
             const r = racoes.find(r => r.id === feedTypeId);
