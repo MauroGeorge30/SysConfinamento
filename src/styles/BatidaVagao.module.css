@@ -146,6 +146,12 @@
 .modalBody td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; }
 .modalBody tfoot td { background: #e8f5e9; font-weight: 700; border-top: 2px solid #c8e6c9; }
 
+/* Tabela Realizado */
+.tabelaRealizado { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tabelaRealizado th { padding: 9px 12px; text-align: left; font-weight: 600; color: #555; background: #f5f5f5; border-bottom: 2px solid #ddd; white-space: nowrap; }
+.tabelaRealizado td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.tabelaRealizado tfoot td { background: #e8f5e9; border-top: 2px solid #c8e6c9; font-weight: 700; }
+
 @media (max-width: 768px) {
   .cochoNotas { grid-template-columns: repeat(2, 1fr); }
   .row { grid-template-columns: 1fr; }
