@@ -135,6 +135,7 @@ export default function BatidaVagao() {
   const [racoes, setRacoes]         = useState([]);
   const [pesagens, setPesagens]     = useState([]);
   const [compositions, setCompositions] = useState([]);
+  const [ingredientes, setIngredientes] = useState([]); // com stock_qty_kg
   const [loading, setLoading]       = useState(true);
   const [salvando, setSalvando]     = useState(false);
   const [showForm, setShowForm]     = useState(false);
@@ -168,6 +169,7 @@ export default function BatidaVagao() {
         { data: racoesData },
         { data: pesagensData },
         { data: compData },
+        { data: ingsData },
       ] = await Promise.all([
         supabase.from('wagon_batches').select('*').eq('farm_id', currentFarm.id)
           .order('batch_date', { ascending: false }).order('feeding_order', { ascending: true }),
@@ -179,12 +181,14 @@ export default function BatidaVagao() {
         supabase.from('feed_compositions')
           .select('*, feed_composition_items(*, feed_ingredients(id, name, unit, dry_matter_pct))')
           .eq('farm_id', currentFarm.id).eq('is_current', true),
+        supabase.from('feed_ingredients').select('id, name, stock_qty_kg').eq('farm_id', currentFarm.id),
       ]);
       setBatidas(batidasData || []);
       setLotes(lotesData || []);
       setRacoes(racoesData || []);
       setPesagens(pesagensData || []);
       setCompositions(compData || []);
+      setIngredientes(ingsData || []);
     } catch (e) {
       alert('Erro ao carregar: ' + e.message);
     } finally {
@@ -243,6 +247,35 @@ export default function BatidaVagao() {
         qtdMS: ing?.dry_matter_pct ? qtdKg * (ing.dry_matter_pct / 100) : null,
       };
     }).sort((a, b) => b.qtdMN - a.qtdMN);
+  };
+
+  // ── Valida estoque antes de registrar ────────────────────────
+  // Recebe array de { feedTypeId, totalKg } e retorna array de alertas
+  const validarEstoque = (itens) => {
+    // Soma necessária por ingrediente em todos os itens
+    const necessario = {};
+    itens.forEach(({ feedTypeId, totalKg }) => {
+      calcIngredientes(feedTypeId, totalKg).forEach(ing => {
+        if (!ing.ingId) return;
+        necessario[ing.ingId] = (necessario[ing.ingId] || { nome: ing.nome, qtd: 0 });
+        necessario[ing.ingId].qtd += ing.qtdMN;
+      });
+    });
+    // Compara com saldo
+    const alertas = [];
+    Object.entries(necessario).forEach(([ingId, { nome, qtd }]) => {
+      const ing = ingredientes.find(i => i.id === ingId);
+      const saldo = Number(ing?.stock_qty_kg || 0);
+      if (saldo < qtd) {
+        alertas.push({
+          nome,
+          necessario: qtd,
+          saldo,
+          falta: qtd - saldo,
+        });
+      }
+    });
+    return alertas;
   };
 
   // ── Salvar realizado + ajuste de estoque ────────────────────
@@ -356,6 +389,21 @@ export default function BatidaVagao() {
     });
   };
 
+  // ── Mensagem de alerta de estoque ──────────────────────────
+  const msgAlertaEstoque = (alertas) =>
+    `⚠️ Estoque insuficiente para registrar esta batida:
+
+` +
+    alertas.map(a =>
+      `• ${a.nome}
+  Necessário: ${fmtKg(a.necessario)}  |  Saldo: ${fmtKg(a.saldo)}  |  Falta: ${fmtKg(a.falta)}`
+    ).join('
+
+') +
+    `
+
+Registre uma entrada de estoque antes de continuar.`;
+
   // ── Salvar batida individual ─────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -363,6 +411,10 @@ export default function BatidaVagao() {
     if (!total || total <= 0) return alert('Informe a quantidade total.');
     if (!form.lot_id)         return alert('Selecione o lote.');
     if (!form.feed_type_id)   return alert('Selecione a ração.');
+    // Valida estoque
+    const alertasEst = validarEstoque([{ feedTypeId: form.feed_type_id, totalKg: total }]);
+    if (alertasEst.length) return alert(msgAlertaEstoque(alertasEst));
+
     const payload = {
       farm_id: currentFarm.id, lot_id: form.lot_id, feed_type_id: form.feed_type_id,
       batch_date: form.batch_date, batch_type: form.batch_type,
@@ -397,6 +449,14 @@ export default function BatidaVagao() {
     if (invalidos.length) return alert(`Lotes sem ração ou quantidade:\n${invalidos.map(l => l.lot_code).join(', ')}`);
     setSalvando(true);
     try {
+      // Valida estoque consolidado de todos os lotes selecionados
+      const itensParaValidar = selecionados.map(l => ({
+        feedTypeId: loteLinhas[l.id].feed_type_id,
+        totalKg: parseFloat(String(loteLinhas[l.id].qty_kg).replace(',', '.')),
+      }));
+      const alertasEst = validarEstoque(itensParaValidar);
+      if (alertasEst.length) { setSalvando(false); return alert(msgAlertaEstoque(alertasEst)); }
+
       const payloads = selecionados.map(l => {
         const d   = loteLinhas[l.id];
         const adj = d.cocho_note !== null ? calcAjusteCocho(d.cocho_note, parseInt(l.head_count) || 0) : 0;
@@ -621,9 +681,20 @@ export default function BatidaVagao() {
                   {form.feed_type_id && parseFloat(String(form.total_qty_kg).replace(',', '.')) > 0 && (() => {
                     const ings = calcIngredientes(form.feed_type_id, parseFloat(String(form.total_qty_kg).replace(',', '.')));
                     if (!ings.length) return null;
+                    const alertasEst = validarEstoque([{ feedTypeId: form.feed_type_id, totalKg: parseFloat(String(form.total_qty_kg).replace(',', '.')) }]);
                     return (
                       <div className={styles.previewIngs}>
                         <div className={styles.previewIngsTitle}>📋 Ordem de fabricação (previsto) — {fmtKg(parseFloat(String(form.total_qty_kg).replace(',', '.')))}</div>
+                        {alertasEst.length > 0 && (
+                          <div style={{ background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: '0.83rem', color: '#c62828' }}>
+                            <strong>⚠️ Estoque insuficiente:</strong>
+                            {alertasEst.map(a => (
+                              <div key={a.nome} style={{ marginTop: 3 }}>
+                                • <strong>{a.nome}</strong> — necessário {fmtKg(a.necessario)}, saldo {fmtKg(a.saldo)} <span style={{ fontWeight: 700 }}>(falta {fmtKg(a.falta)})</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <TabelaIngredientes ings={ings} />
                       </div>
                     );
@@ -870,6 +941,22 @@ export default function BatidaVagao() {
               <span className={styles.statusNenhum}>— Nenhum</span> — nada registrado hoje
             </div>
 
+            {/* Alerta de estoque insuficiente para lotes selecionados */}
+            {(() => {
+              const selecionados = lotes.filter(l => loteLinhas[l.id]?.checked && loteLinhas[l.id]?.feed_type_id && parseFloat(String(loteLinhas[l.id]?.qty_kg).replace(',','.')) > 0);
+              const alertasEst = validarEstoque(selecionados.map(l => ({ feedTypeId: loteLinhas[l.id].feed_type_id, totalKg: parseFloat(String(loteLinhas[l.id].qty_kg).replace(',','.')) })));
+              if (!alertasEst.length) return null;
+              return (
+                <div style={{ background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontSize: '0.83rem', color: '#c62828' }}>
+                  <strong>⚠️ Estoque insuficiente para registrar:</strong>
+                  {alertasEst.map(a => (
+                    <div key={a.nome} style={{ marginTop: 3 }}>
+                      • <strong>{a.nome}</strong> — necessário {fmtKg(a.necessario)}, saldo {fmtKg(a.saldo)} <span style={{ fontWeight: 700 }}>(falta {fmtKg(a.falta)})</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className={styles.formAcoes}>
               <span style={{ fontSize: '0.85rem', color: '#888' }}>{qtdSelecionados} lote(s) selecionado(s)</span>
               <button type="button" className={styles.btnSecundario} onClick={gerarOrdemFabricacao}>🖨️ Ordem de Fabricação</button>
