@@ -165,7 +165,7 @@ export default function Alimentacao() {
     if (formData.lot_id && !editingId) {
       const { data: wBatidas } = await supabase
         .from('wagon_batches')
-        .select('id, batch_type, feeding_order, qty_realizada_kg')
+        .select('id, batch_type, feeding_order, qty_realizada_kg, qty_entregue_cocho_kg')
         .eq('farm_id', currentFarm.id)
         .eq('lot_id', formData.lot_id)
         .eq('batch_date', formData.feeding_date);
@@ -183,7 +183,10 @@ export default function Alimentacao() {
         return alert('❌ Batida de Vagão não encontrada.\n\nRegistre a batida para o lote ' + loteCod + ' — ' + ordemAtual + 'º trato em ' + dataFmt + ' antes de registrar o trato.');
       }
       if (batidaRef.qty_realizada_kg == null) {
-        return alert('⚠️ Realizado de fabricação não lançado.\n\nO lote ' + loteCod + ' — ' + ordemAtual + 'º trato em ' + dataFmt + ' ainda não tem o peso realizado de fabricação registrado.\n\nVá em Batida de Vagão → Lançar Realizado antes de registrar o trato.');
+        return alert('⚠️ Fabricado não lançado.\n\nLote ' + loteCod + ' — ' + ordemAtual + 'º trato em ' + dataFmt + ' ainda não tem o peso de fabricação registrado.\n\nVá em Batida de Vagão → Lançar Realizado (Seção 1).');
+      }
+      if (batidaRef.qty_entregue_cocho_kg == null) {
+        return alert('⚠️ Entregue no Cocho não lançado.\n\nLote ' + loteCod + ' — ' + ordemAtual + 'º trato em ' + dataFmt + ' ainda não tem o peso entregue no cocho registrado.\n\nVá em Batida de Vagão → Lançar Realizado (Seção 2).');
       }
     }
 
@@ -427,20 +430,31 @@ export default function Alimentacao() {
     if (lotesComBatida.length > 0) {
       const { data: wBatidasFresh } = await supabase
         .from('wagon_batches')
-        .select('id, lot_id, batch_type, feeding_order, qty_realizada_kg')
+        .select('id, lot_id, batch_type, feeding_order, qty_realizada_kg, qty_entregue_cocho_kg')
         .eq('farm_id', currentFarm.id)
         .eq('batch_date', tratoLoteData)
         .in('lot_id', lotesComBatida.map(l => l.id));
 
-      const semRealizado = lotesComBatida.filter(l => {
+      const semFabricado = lotesComBatida.filter(l => {
         const batida = (wBatidasFresh || []).find(b =>
           b.lot_id === l.id &&
           (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
         );
         return batida && batida.qty_realizada_kg == null;
       });
-      if (semRealizado.length) {
-        return alert('⚠️ Realizado de fabricação não lançado para:\n' + semRealizado.map(l => l.lot_code).join(', ') + '\n\nVá em Batida de Vagão → Lançar Realizado antes de registrar os tratos.');
+      if (semFabricado.length) {
+        return alert('⚠️ Fabricado não lançado para:\n' + semFabricado.map(l => l.lot_code).join(', ') + '\n\nVá em Batida de Vagão → Lançar Realizado (Seção 1).');
+      }
+
+      const semEntrega = lotesComBatida.filter(l => {
+        const batida = (wBatidasFresh || []).find(b =>
+          b.lot_id === l.id &&
+          (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
+        );
+        return batida && batida.qty_entregue_cocho_kg == null;
+      });
+      if (semEntrega.length) {
+        return alert('⚠️ Entregue no Cocho não lançado para:\n' + semEntrega.map(l => l.lot_code).join(', ') + '\n\nVá em Batida de Vagão → Lançar Realizado (Seção 2).');
       }
     }
     const invalidos = selecionados.filter(l => !tratoLinhas[l.id]?.feed_type_id || !parseFloat(tratoLinhas[l.id]?.quantity_kg));
