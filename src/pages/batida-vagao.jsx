@@ -1154,14 +1154,40 @@ export default function BatidaVagao() {
 
         {/* ═══ ABA LANÇAR REALIZADO ═══ */}
         {aba === 'realizado' && (() => {
-          const insumos     = calcInsumosPrevistosDia(realizadoData);
-          const batidasDia  = batidas.filter(b => b.batch_date === realizadoData);
-          const jaLancadas  = batidasDia.filter(b => b.qty_realizada_kg != null);
+          const batidasDia   = batidas.filter(b => b.batch_date === realizadoData);
+          const insumos      = calcInsumosPrevistosDia(realizadoData);
           const totalBatidas = batidasDia.length;
+          const todasFabricadas  = totalBatidas > 0 && batidasDia.every(b => b.qty_realizada_kg != null);
+          const todasEntregues   = totalBatidas > 0 && batidasDia.every(b => b.qty_entregue_cocho_kg != null);
+          const algumaSemFab     = batidasDia.some(b => b.qty_realizada_kg == null);
+          const algumaSemEntrega = batidasDia.some(b => b.qty_entregue_cocho_kg == null);
+
+          // Calcula MN e MS por batida para o histórico
+          const calcMSBatida = (b, qtdKg) => {
+            const comp = compositions.find(c => c.feed_type_id === b.feed_type_id);
+            if (!comp) return null;
+            return (comp.feed_composition_items || []).reduce((acc, item) => {
+              const ing = item.feed_ingredients;
+              if (!ing?.dry_matter_pct) return acc;
+              const propPct = Number(item.quantity_kg) / Number(comp.base_qty_kg);
+              return acc + (propPct * qtdKg * (ing.dry_matter_pct / 100));
+            }, 0);
+          };
 
           return (
             <div className={styles.formCard}>
               <h2>✅ Lançar Realizado do Dia</h2>
+
+              {/* Loading overlay */}
+              {salvandoRealizado && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ background: '#fff', borderRadius: 16, padding: '2rem 3rem', textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: 12 }}>⏳</div>
+                    <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1a1a2e', marginBottom: 4 }}>Processando...</div>
+                    <div style={{ fontSize: '0.88rem', color: '#666' }}>Aguarde, atualizando estoque e batidas.</div>
+                  </div>
+                </div>
+              )}
 
               {/* Controle de data */}
               <div className={styles.loteControles}>
@@ -1173,9 +1199,18 @@ export default function BatidaVagao() {
                       className={styles.inputData} />
                   </div>
                   <div style={{ alignSelf: 'flex-end', fontSize: '0.85rem', color: '#666' }}>
-                    {totalBatidas > 0
-                      ? <>{totalBatidas} batida(s) — <span style={{ color: jaLancadas.length === totalBatidas ? '#2e7d32' : '#e65100', fontWeight: 700 }}>{jaLancadas.length} com realizado lançado</span></>
-                      : <span style={{ color: '#aaa' }}>Nenhuma batida nesta data</span>
+                    {totalBatidas === 0
+                      ? <span style={{ color: '#aaa' }}>Nenhuma batida nesta data</span>
+                      : <span>
+                          {totalBatidas} batida(s) —{' '}
+                          <span style={{ color: todasFabricadas ? '#2e7d32' : '#e65100', fontWeight: 700 }}>
+                            {todasFabricadas ? '✅ Fabricação ok' : `⏳ ${batidasDia.filter(b => b.qty_realizada_kg != null).length}/${totalBatidas} fabricadas`}
+                          </span>
+                          {' · '}
+                          <span style={{ color: todasEntregues ? '#2e7d32' : '#e65100', fontWeight: 700 }}>
+                            {todasEntregues ? '✅ Entrega ok' : `⏳ ${batidasDia.filter(b => b.qty_entregue_cocho_kg != null).length}/${totalBatidas} entregues`}
+                          </span>
+                        </span>
                     }
                   </div>
                 </div>
@@ -1189,163 +1224,254 @@ export default function BatidaVagao() {
                 </div>
               ) : (
                 <>
-                  {/* Instrução */}
-                  <div style={{ background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: '0.88rem', color: '#1565c0' }}>
-                    <strong>Como funciona:</strong> Informe o total de cada insumo usado no dia. O sistema distribui proporcionalmente entre as {totalBatidas} batida(s) com base no previsto de cada uma.
-                  </div>
-
-                  {/* Tabela de insumos */}
-                  <div className={styles.loteTabela}>
-                    <table className={styles.tabelaRealizado}>
-                      <thead>
-                        <tr>
-                          <th>Insumo</th>
-                          <th style={{ textAlign: 'right' }}>Previsto Total</th>
-                          <th style={{ textAlign: 'right', color: '#2e7d32' }}>Realizado Total</th>
-                          <th style={{ textAlign: 'right' }}>Diferença</th>
-                          <th style={{ textAlign: 'right' }}>Dif. %</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {insumos.map(ing => {
-                          const rawVal   = realizadoInputs[ing.ingId] ?? '';
-                          const realVal  = parseFloat(String(rawVal).replace(',', '.'));
-                          const temValor = !isNaN(realVal) && realVal >= 0;
-                          const delta    = temValor ? realVal - ing.qtdPrevistaDia : null;
-                          const deltaPct = delta != null && ing.qtdPrevistaDia > 0 ? (delta / ing.qtdPrevistaDia) * 100 : null;
-                          const corDelta = delta == null ? '#aaa' : delta > 0 ? '#e65100' : delta < 0 ? '#1565c0' : '#2e7d32';
-                          const alertaTol = deltaPct != null && Math.abs(deltaPct) > TOLERANCIA_PCT;
-                          return (
-                            <tr key={ing.ingId} style={{ background: alertaTol ? '#fff8e1' : undefined }}>
-                              <td>
-                                <strong>{ing.nome}</strong>
-                                {alertaTol && <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#e65100', fontWeight: 700 }}>⚠️ &gt;{TOLERANCIA_PCT}%</span>}
-                              </td>
-                              <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(ing.qtdPrevistaDia)}</td>
-                              <td style={{ textAlign: 'right' }}>
-                                <div className={styles.realizadoEdit} style={{ justifyContent: 'flex-end' }}>
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={rawVal}
-                                    placeholder={fmtN(ing.qtdPrevistaDia, 2)}
-                                    onChange={e => setRealizadoInputs(p => ({ ...p, [ing.ingId]: e.target.value }))}
-                                    className={styles.inputRealizado}
-                                    style={{ width: 120 }}
-                                  />
-                                  <span style={{ fontSize: '0.8rem', color: '#888' }}>kg</span>
-                                </div>
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: corDelta }}>
-                                {delta != null ? `${delta >= 0 ? '+' : ''}${fmtKg(delta)}` : '—'}
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: corDelta }}>
-                                {deltaPct != null ? `${deltaPct >= 0 ? '+' : ''}${fmtPct(deltaPct)}` : '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td><strong>TOTAL</strong></td>
-                          <td style={{ textAlign: 'right' }}>
-                            <strong>{fmtKg(insumos.reduce((s, i) => s + i.qtdPrevistaDia, 0))}</strong>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <strong style={{ color: '#2e7d32' }}>
-                              {fmtKg(insumos.reduce((s, i) => {
-                                const v = parseFloat(String(realizadoInputs[i.ingId] || '0').replace(',', '.'));
-                                return s + (isNaN(v) ? 0 : v);
-                              }, 0))}
-                            </strong>
-                          </td>
-                          <td colSpan={2}></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-
-                  {/* Preview da distribuição por batida */}
-                  {Object.keys(realizadoInputs).length > 0 && (() => {
-                    // Calcula realizado por batida
-                    const realizadoPorBatida = {};
-                    batidasDia.forEach(b => { realizadoPorBatida[b.id] = 0; });
-                    insumos.forEach(ing => {
-                      const totalRealizado = parseFloat(String(realizadoInputs[ing.ingId] || '0').replace(',', '.'));
-                      if (isNaN(totalRealizado)) return;
-                      const totalPrevisto = ing.qtdPrevistaDia;
-                      if (totalPrevisto <= 0) return;
-                      ing.batidas.forEach(({ batidaId, ingQtdBatida }) => {
-                        const proporcao = ingQtdBatida / totalPrevisto;
-                        realizadoPorBatida[batidaId] = (realizadoPorBatida[batidaId] || 0) + (proporcao * totalRealizado);
-                      });
-                    });
-                    return (
-                      <div style={{ marginTop: 16 }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#333', marginBottom: 8 }}>
-                          📊 Distribuição por batida (preview)
-                        </div>
-                        <div className={styles.loteTabela}>
-                          <table className={styles.tabelaLotes}>
-                            <thead>
-                              <tr>
-                                <th>Lote</th>
-                                <th>Ração</th>
-                                <th>Trato</th>
-                                <th style={{ textAlign: 'right' }}>Previsto</th>
-                                <th style={{ textAlign: 'right', color: '#2e7d32' }}>Realizado</th>
-                                <th style={{ textAlign: 'right' }}>Δ %</th>
+                  {/* ── HISTÓRICO DE BATIDAS DO DIA ── */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a2e', marginBottom: 8 }}>
+                      📋 Resumo das batidas — {new Date(realizadoData + 'T00:00:00').toLocaleDateString('pt-BR')}
+                    </div>
+                    <div className={styles.loteTabela}>
+                      <table className={styles.tabelaRealizado}>
+                        <thead>
+                          <tr>
+                            <th>Lote</th>
+                            <th>Trato</th>
+                            <th style={{ textAlign: 'right' }}>Previsto MN</th>
+                            <th style={{ textAlign: 'right' }}>Previsto MS</th>
+                            <th style={{ textAlign: 'right', color: '#1565c0' }}>Fabricado</th>
+                            <th style={{ textAlign: 'right', color: '#2e7d32' }}>Entregue Cocho</th>
+                            <th style={{ textAlign: 'center' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {batidasDia.map(b => {
+                            const lote     = lotes.find(l => l.id === b.lot_id);
+                            const racao    = racoes.find(r => r.id === b.feed_type_id);
+                            const prev     = Number(b.total_qty_kg);
+                            const fab      = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : null;
+                            const entregue = b.qty_entregue_cocho_kg != null ? Number(b.qty_entregue_cocho_kg) : null;
+                            const prevMS   = calcMSBatida(b, prev);
+                            const fabMS    = fab != null ? calcMSBatida(b, fab) : null;
+                            const cochoEntry = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
+                            const status =
+                              entregue != null ? { label: '✅ Completo', cor: '#2e7d32', bg: '#e8f5e9' } :
+                              fab != null      ? { label: '🐄 Aguarda entrega', cor: '#1565c0', bg: '#e3f2fd' } :
+                                                 { label: '⏳ Sem fabricado', cor: '#e65100', bg: '#fff3e0' };
+                            return (
+                              <tr key={b.id} style={{ background: status.bg + '55' }}>
+                                <td>
+                                  <strong>{lote?.lot_code || '—'}</strong>
+                                  <div style={{ fontSize: '0.75rem', color: '#888' }}>{racao?.name || '—'}</div>
+                                </td>
+                                <td style={{ fontSize: '0.82rem', color: '#666' }}>
+                                  {b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <strong>{fmtKg(prev)}</strong>
+                                  {prevMS != null && <div style={{ fontSize: '0.72rem', color: '#1565c0' }}>MS: {fmtKg(prevMS)}</div>}
+                                </td>
+                                <td style={{ textAlign: 'right', color: '#1565c0', fontSize: '0.85rem' }}>
+                                  {prevMS != null ? fmtKg(prevMS) : '—'}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {fab != null
+                                    ? <><strong style={{ color: '#1565c0' }}>{fmtKg(fab)}</strong>
+                                        {fabMS != null && <div style={{ fontSize: '0.72rem', color: '#1565c0' }}>MS: {fmtKg(fabMS)}</div>}
+                                        <div style={{ fontSize: '0.72rem', color: fab > prev ? '#e65100' : '#1565c0' }}>
+                                          {fab > prev ? '+' : ''}{fmtKg(fab - prev)}
+                                        </div>
+                                      </>
+                                    : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>— não lançado</span>
+                                  }
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {entregue != null
+                                    ? <><strong style={{ color: '#2e7d32' }}>{fmtKg(entregue)}</strong>
+                                        {cochoEntry && <div style={{ fontSize: '0.72rem', color: cochoEntry.cor, fontWeight: 700 }}>{cochoEntry.label}</div>}
+                                        <div style={{ fontSize: '0.72rem', color: entregue > (fab ?? prev) ? '#e65100' : '#1565c0' }}>
+                                          {entregue > (fab ?? prev) ? '+' : ''}{fmtKg(entregue - (fab ?? prev))}
+                                        </div>
+                                      </>
+                                    : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>— não lançado</span>
+                                  }
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span style={{ background: status.bg, color: status.cor, padding: '2px 8px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                    {status.label}
+                                  </span>
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {batidasDia.map(b => {
-                                const lote    = lotes.find(l => l.id === b.lot_id);
-                                const racao   = racoes.find(r => r.id === b.feed_type_id);
-                                const prev    = Number(b.total_qty_kg);
-                                const real    = realizadoPorBatida[b.id] || 0;
-                                const delta   = real - prev;
-                                const deltaPct = prev > 0 ? (delta / prev) * 100 : 0;
-                                const corD    = delta > 0.5 ? '#e65100' : delta < -0.5 ? '#1565c0' : '#2e7d32';
-                                return (
-                                  <tr key={b.id}>
-                                    <td><strong>{lote?.lot_code || '—'}</strong></td>
-                                    <td style={{ fontSize: '0.82rem', color: '#666' }}>{racao?.name || '—'}</td>
-                                    <td style={{ fontSize: '0.82rem', color: '#888' }}>
-                                      {b.batch_type === 'day' ? 'Dia' : `${b.feeding_order}º trato`}
-                                    </td>
-                                    <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(prev)}</td>
-                                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#2e7d32' }}>{fmtKg(real)}</td>
-                                    <td style={{ textAlign: 'right', fontWeight: 700, color: corD, fontSize: '0.82rem' }}>
-                                      {`${deltaPct >= 0 ? '+' : ''}${fmtPct(deltaPct)}`}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div className={styles.formAcoes}>
-                    <button type="button" className={styles.btnCancelar} onClick={() => { setRealizadoInputs({}); setEntregaInputs({}); setMostrarEntrega(false); }}>Limpar</button>
-                    <button type="button" className={styles.btnAdd} onClick={handleSalvarRealizadoDia} disabled={salvandoRealizado || Object.keys(realizadoInputs).length === 0}>
-                      {salvandoRealizado ? 'Salvando...' : '💾 1. Confirmar Realizado Fabricação (' + batidasDia.length + ' batidas)'}
-                    </button>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={2}><strong>TOTAL</strong></td>
+                            <td style={{ textAlign: 'right' }}><strong>{fmtKg(batidasDia.reduce((s, b) => s + Number(b.total_qty_kg), 0))}</strong></td>
+                            <td style={{ textAlign: 'right', color: '#1565c0' }}>
+                              <strong>{fmtKg(batidasDia.reduce((s, b) => s + (calcMSBatida(b, Number(b.total_qty_kg)) || 0), 0))}</strong>
+                            </td>
+                            <td style={{ textAlign: 'right', color: '#1565c0' }}>
+                              <strong>{fmtKg(batidasDia.filter(b => b.qty_realizada_kg != null).reduce((s, b) => s + Number(b.qty_realizada_kg), 0))}</strong>
+                            </td>
+                            <td style={{ textAlign: 'right', color: '#2e7d32' }}>
+                              <strong>{fmtKg(batidasDia.filter(b => b.qty_entregue_cocho_kg != null).reduce((s, b) => s + Number(b.qty_entregue_cocho_kg), 0))}</strong>
+                            </td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
 
-                  {/* ── Seção 2: Entrega no Cocho — aparece após preencher insumos ── */}
-                  {(mostrarEntrega || Object.keys(entregaInputs).length > 0) && (() => {
-                    // Calcula base de cada batida: realizado fab se existir, senão previsto
+                  {/* ── SEÇÃO 1: Lançar Fabricação — só se há batidas sem fabricado ── */}
+                  {algumaSemFab && (
+                    <div style={{ marginBottom: 20, border: '1px solid #90caf9', borderRadius: 10, padding: '1rem' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1565c0', marginBottom: 8 }}>
+                        🏭 Seção 1 — Realizado de Fabricação (por insumo)
+                      </div>
+                      <div style={{ background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: '0.85rem', color: '#1565c0' }}>
+                        Informe o total de cada insumo usado no dia. O sistema distribui proporcionalmente entre as batidas com base no previsto.
+                      </div>
+                      <div className={styles.loteTabela}>
+                        <table className={styles.tabelaRealizado}>
+                          <thead>
+                            <tr>
+                              <th>Insumo</th>
+                              <th style={{ textAlign: 'right' }}>Previsto Total</th>
+                              <th style={{ textAlign: 'right', color: '#1565c0' }}>Realizado Total</th>
+                              <th style={{ textAlign: 'right' }}>Diferença</th>
+                              <th style={{ textAlign: 'right' }}>Dif. %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {insumos.map(ing => {
+                              const rawVal   = realizadoInputs[ing.ingId] ?? '';
+                              const realVal  = parseFloat(String(rawVal).replace(',', '.'));
+                              const temValor = !isNaN(realVal) && realVal >= 0;
+                              const delta    = temValor ? realVal - ing.qtdPrevistaDia : null;
+                              const deltaPct = delta != null && ing.qtdPrevistaDia > 0 ? (delta / ing.qtdPrevistaDia) * 100 : null;
+                              const corDelta = delta == null ? '#aaa' : delta > 0 ? '#e65100' : delta < 0 ? '#1565c0' : '#2e7d32';
+                              const alertaTol = deltaPct != null && Math.abs(deltaPct) > TOLERANCIA_PCT;
+                              return (
+                                <tr key={ing.ingId} style={{ background: alertaTol ? '#fff8e1' : undefined }}>
+                                  <td>
+                                    <strong>{ing.nome}</strong>
+                                    {alertaTol && <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#e65100', fontWeight: 700 }}>⚠️ &gt;{TOLERANCIA_PCT}%</span>}
+                                  </td>
+                                  <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(ing.qtdPrevistaDia)}</td>
+                                  <td style={{ textAlign: 'right' }}>
+                                    <div className={styles.realizadoEdit} style={{ justifyContent: 'flex-end' }}>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={rawVal}
+                                        placeholder={fmtN(ing.qtdPrevistaDia, 2)}
+                                        onChange={e => setRealizadoInputs(p => ({ ...p, [ing.ingId]: e.target.value }))}
+                                        className={styles.inputRealizado}
+                                        style={{ width: 120 }}
+                                      />
+                                      <span style={{ fontSize: '0.8rem', color: '#888' }}>kg</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700, color: corDelta }}>
+                                    {delta != null ? `${delta >= 0 ? '+' : ''}${fmtKg(delta)}` : '—'}
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700, color: corDelta }}>
+                                    {deltaPct != null ? `${deltaPct >= 0 ? '+' : ''}${fmtPct(deltaPct)}` : '—'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td><strong>TOTAL</strong></td>
+                              <td style={{ textAlign: 'right' }}><strong>{fmtKg(insumos.reduce((s, i) => s + i.qtdPrevistaDia, 0))}</strong></td>
+                              <td style={{ textAlign: 'right' }}>
+                                <strong style={{ color: '#1565c0' }}>
+                                  {fmtKg(insumos.reduce((s, i) => {
+                                    const v = parseFloat(String(realizadoInputs[i.ingId] || '0').replace(',', '.'));
+                                    return s + (isNaN(v) ? 0 : v);
+                                  }, 0))}
+                                </strong>
+                              </td>
+                              <td colSpan={2}></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+
+                      {/* Preview distribuição */}
+                      {Object.keys(realizadoInputs).length > 0 && (() => {
+                        const realizadoPorBatida = {};
+                        batidasDia.forEach(b => { realizadoPorBatida[b.id] = 0; });
+                        insumos.forEach(ing => {
+                          const totalRealizado = parseFloat(String(realizadoInputs[ing.ingId] || '0').replace(',', '.'));
+                          if (isNaN(totalRealizado)) return;
+                          const totalPrevisto = ing.qtdPrevistaDia;
+                          if (totalPrevisto <= 0) return;
+                          ing.batidas.forEach(({ batidaId, ingQtdBatida }) => {
+                            const proporcao = ingQtdBatida / totalPrevisto;
+                            realizadoPorBatida[batidaId] = (realizadoPorBatida[batidaId] || 0) + (proporcao * totalRealizado);
+                          });
+                        });
+                        return (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#333', marginBottom: 6 }}>📊 Distribuição por batida (preview)</div>
+                            <div className={styles.loteTabela}>
+                              <table className={styles.tabelaLotes}>
+                                <thead>
+                                  <tr>
+                                    <th>Lote</th><th>Trato</th>
+                                    <th style={{ textAlign: 'right' }}>Previsto</th>
+                                    <th style={{ textAlign: 'right', color: '#1565c0' }}>Fabricado</th>
+                                    <th style={{ textAlign: 'right' }}>Δ %</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {batidasDia.filter(b => b.qty_realizada_kg == null).map(b => {
+                                    const lote = lotes.find(l => l.id === b.lot_id);
+                                    const prev = Number(b.total_qty_kg);
+                                    const real = realizadoPorBatida[b.id] || 0;
+                                    const delta = real - prev;
+                                    const deltaPct = prev > 0 ? (delta / prev) * 100 : 0;
+                                    const corD = delta > 0.5 ? '#e65100' : delta < -0.5 ? '#1565c0' : '#2e7d32';
+                                    return (
+                                      <tr key={b.id}>
+                                        <td><strong>{lote?.lot_code || '—'}</strong></td>
+                                        <td style={{ fontSize: '0.82rem', color: '#888' }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}</td>
+                                        <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(prev)}</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#1565c0' }}>{fmtKg(real)}</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 700, color: corD, fontSize: '0.82rem' }}>{(deltaPct >= 0 ? '+' : '') + fmtPct(deltaPct)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className={styles.formAcoes}>
+                        <button type="button" className={styles.btnCancelar} onClick={() => { setRealizadoInputs({}); setEntregaInputs({}); setMostrarEntrega(false); }}>Limpar</button>
+                        <button type="button" className={styles.btnAdd} onClick={handleSalvarRealizadoDia}
+                          disabled={salvandoRealizado || Object.keys(realizadoInputs).length === 0}>
+                          💾 1. Confirmar Realizado Fabricação
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── SEÇÃO 2: Entrega no Cocho — aparece se fabricação ok e há batidas sem entrega ── */}
+                  {(algumaSemEntrega && (todasFabricadas || mostrarEntrega)) && (() => {
                     const getBase = (b) => b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
                     return (
-                      <div style={{ marginTop: 24, borderTop: '2px dashed #c8e6c9', paddingTop: 20 }}>
-                        <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a2e', marginBottom: 4 }}>
+                      <div style={{ border: '1px solid #a5d6a7', borderRadius: 10, padding: '1rem' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#2e7d32', marginBottom: 8 }}>
                           🐄 Seção 2 — Entrega no Cocho por Lote
                         </div>
-                        <div style={{ fontSize: '0.83rem', color: '#666', marginBottom: 14 }}>
+                        <div style={{ fontSize: '0.83rem', color: '#666', marginBottom: 12 }}>
                           Informe o peso jogado de fato no cocho de cada lote e a nota de cocho lida no momento da entrega.
                         </div>
                         <div className={styles.loteTabela}>
@@ -1361,7 +1487,7 @@ export default function BatidaVagao() {
                               </tr>
                             </thead>
                             <tbody>
-                              {batidasDia.map(b => {
+                              {batidasDia.filter(b => b.qty_entregue_cocho_kg == null).map(b => {
                                 const lote     = lotes.find(l => l.id === b.lot_id);
                                 const base     = getBase(b);
                                 const rawQty   = entregaInputs[b.id]?.qty_kg ?? '';
@@ -1374,20 +1500,13 @@ export default function BatidaVagao() {
                                 return (
                                   <tr key={b.id}>
                                     <td><strong>{lote?.lot_code || '—'}</strong></td>
-                                    <td style={{ fontSize: '0.82rem', color: '#888' }}>
-                                      {b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}
-                                    </td>
+                                    <td style={{ fontSize: '0.82rem', color: '#888' }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}</td>
                                     <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(base)}</td>
                                     <td style={{ textAlign: 'right' }}>
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={rawQty}
+                                      <input type="text" inputMode="decimal" value={rawQty}
                                         placeholder={fmtN(base, 2)}
                                         onChange={e => setEntregaInputs(p => ({ ...p, [b.id]: { ...p[b.id], qty_kg: e.target.value } }))}
-                                        className={styles.inputRealizado}
-                                        style={{ width: 120 }}
-                                      />
+                                        className={styles.inputRealizado} style={{ width: 120 }} />
                                     </td>
                                     <td style={{ textAlign: 'right', fontWeight: 700, color: corD, fontSize: '0.82rem', minWidth: 90 }}>
                                       {delta != null ? (delta >= 0 ? '+' : '') + fmtKg(delta) : '—'}
@@ -1419,7 +1538,7 @@ export default function BatidaVagao() {
                           <button type="button" className={styles.btnAdd}
                             onClick={handleSalvarEntregaCocho}
                             disabled={salvandoRealizado || Object.keys(entregaInputs).length === 0}>
-                            {salvandoRealizado ? 'Salvando...' : '🐄 2. Confirmar Entrega no Cocho'}
+                            🐄 2. Confirmar Entrega no Cocho
                           </button>
                         </div>
                       </div>
