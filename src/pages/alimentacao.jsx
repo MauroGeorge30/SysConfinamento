@@ -79,7 +79,7 @@ export default function Alimentacao() {
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
         supabase.from('lots').select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name))').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
         supabase.from('lot_weighings').select('id, lot_id, weighing_date, avg_weight_kg').eq('farm_id', currentFarm.id).order('weighing_date', { ascending: false }),
-        supabase.from('wagon_batches').select('id, lot_id, feed_type_id, batch_date, batch_type, feeding_order, total_qty_kg').eq('farm_id', currentFarm.id).order('batch_date', { ascending: false }),
+        supabase.from('wagon_batches').select('id, lot_id, feed_type_id, batch_date, batch_type, feeding_order, total_qty_kg, qty_realizada_kg').eq('farm_id', currentFarm.id).order('batch_date', { ascending: false }),
       ]);
       if (regError) throw regError;
       setRegistros(regData || []);
@@ -390,6 +390,17 @@ export default function Alimentacao() {
       return novo;
     });
   }, [aba, tratoLoteData, tratoLoteOrdem, lotes.length, batidasVagao.length]);
+
+  // ── Auto-detecta próximo trato (conta feeding_records já existentes) ──
+  useEffect(() => {
+    if (aba !== 'lote' || !registros.length) return;
+    const maxExistente = lotes.reduce((max, l) => {
+      const ex = registros.filter(r => r.lot_id === l.id && r.feeding_date === tratoLoteData);
+      const m  = ex.length ? Math.max(...ex.map(r => r.feeding_order || 1)) : 0;
+      return Math.max(max, m);
+    }, 0);
+    setTratoLoteOrdem(maxExistente + 1);
+  }, [aba, tratoLoteData, registros.length]);
 
   const handleSalvarTratoLote = async () => {
     const selecionados = lotes.filter(l => tratoLinhas[l.id]?.checked);
@@ -1059,7 +1070,7 @@ export default function Alimentacao() {
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <strong style={{ color: '#2e7d32' }}>
-                        {lotes.filter(l => tratoLinhas[l.id]?.checked).reduce((acc, l) => acc + (parseFloat(tratoLinhas[l.id]?.quantity_kg) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
+                        {lotes.filter(l => tratoLinhas[l.id]?.checked).reduce((acc, l) => acc + (parseFloat(tratoLinhas[l.id]?.quantity_kg) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
                       </strong>
                     </td>
                     <td></td>
