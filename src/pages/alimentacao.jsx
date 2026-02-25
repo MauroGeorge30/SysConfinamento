@@ -50,10 +50,11 @@ export default function Alimentacao() {
     }) || null;
   };
 
-  const hoje = (() => {
+  // Calculado uma única vez fora do ciclo de render para não causar loops em useEffect
+  const [hoje] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  })();
+  });
 
   const [formData, setFormData] = useState({
     pen_id: '', lot_id: '', feed_type_id: '',
