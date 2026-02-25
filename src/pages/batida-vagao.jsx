@@ -134,6 +134,7 @@ export default function BatidaVagao() {
   const [realizadoInputs, setRealizadoInputs] = useState({}); // { ingId: valorDigitado }
   const [salvandoRealizado, setSalvandoRealizado] = useState(false);
   const [entregaInputs, setEntregaInputs] = useState({}); // { batidaId: { qty_kg, cocho_note } }
+  const [mostrarEntrega, setMostrarEntrega] = useState(false); // controla visibilidade da Seção 2
   const [batidas, setBatidas]       = useState([]);
   const [lotes, setLotes]           = useState([]);
   const [racoes, setRacoes]         = useState([]);
@@ -427,8 +428,8 @@ export default function BatidaVagao() {
         }
       }
 
-      alert(`✅ Realizado lançado para ${batidasDia.length} batida(s)!`);
-      setRealizadoInputs({});
+      alert('✅ Realizado de fabricação lançado! Preencha agora a Seção 2 — Entrega no Cocho.');
+      setMostrarEntrega(true);
       loadDados();
     } catch (e) {
       alert('Erro ao salvar: ' + e.message);
@@ -469,13 +470,16 @@ export default function BatidaVagao() {
           .from('wagon_batches')
           .update({
             qty_entregue_cocho_kg: entrega,
-            cocho_note: cochoNote,
+            cocho_note: cochoNote !== null ? cochoNote : undefined,
+            entregue_at: new Date().toISOString(),
           })
           .eq('id', batida.id);
         if (error) throw error;
       }
       alert('✅ Entrega no cocho registrada para ' + comEntrega.length + ' lote(s)!\n\nNao esqueca de registrar os tratos na aba Tratos Diarios.');
       setEntregaInputs({});
+      setRealizadoInputs({});
+      setMostrarEntrega(false);
       loadDados();
     } catch (e) {
       alert('Erro ao salvar entrega: ' + e.message);
@@ -1165,7 +1169,7 @@ export default function BatidaVagao() {
                   <div>
                     <label>Data</label>
                     <input type="date" value={realizadoData}
-                      onChange={e => { setRealizadoData(e.target.value); setRealizadoInputs({}); }}
+                      onChange={e => { setRealizadoData(e.target.value); setRealizadoInputs({}); setEntregaInputs({}); setMostrarEntrega(false); }}
                       className={styles.inputData} />
                   </div>
                   <div style={{ alignSelf: 'flex-end', fontSize: '0.85rem', color: '#666' }}>
@@ -1326,14 +1330,14 @@ export default function BatidaVagao() {
                   })()}
 
                   <div className={styles.formAcoes}>
-                    <button type="button" className={styles.btnCancelar} onClick={() => { setRealizadoInputs({}); setEntregaInputs({}); }}>Limpar</button>
+                    <button type="button" className={styles.btnCancelar} onClick={() => { setRealizadoInputs({}); setEntregaInputs({}); setMostrarEntrega(false); }}>Limpar</button>
                     <button type="button" className={styles.btnAdd} onClick={handleSalvarRealizadoDia} disabled={salvandoRealizado || Object.keys(realizadoInputs).length === 0}>
                       {salvandoRealizado ? 'Salvando...' : '💾 1. Confirmar Realizado Fabricação (' + batidasDia.length + ' batidas)'}
                     </button>
                   </div>
 
                   {/* ── Seção 2: Entrega no Cocho — aparece após preencher insumos ── */}
-                  {Object.keys(realizadoInputs).length > 0 && (() => {
+                  {(mostrarEntrega || Object.keys(entregaInputs).length > 0) && (() => {
                     // Calcula base de cada batida: realizado fab se existir, senão previsto
                     const getBase = (b) => b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
                     return (
