@@ -1236,9 +1236,9 @@ export default function BatidaVagao() {
                             <th>Lote</th>
                             <th>Trato</th>
                             <th style={{ textAlign: 'right' }}>Previsto MN</th>
-                            <th style={{ textAlign: 'right' }}>Previsto MS</th>
                             <th style={{ textAlign: 'right', color: '#1565c0' }}>Fabricado</th>
                             <th style={{ textAlign: 'right', color: '#2e7d32' }}>Entregue Cocho</th>
+                            <th style={{ textAlign: 'right', color: '#2e7d32' }}>MS Entregue</th>
                             <th style={{ textAlign: 'center' }}>Status</th>
                           </tr>
                         </thead>
@@ -1267,15 +1267,10 @@ export default function BatidaVagao() {
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   <strong>{fmtKg(prev)}</strong>
-                                  {prevMS != null && <div style={{ fontSize: '0.72rem', color: '#1565c0' }}>MS: {fmtKg(prevMS)}</div>}
-                                </td>
-                                <td style={{ textAlign: 'right', color: '#1565c0', fontSize: '0.85rem' }}>
-                                  {prevMS != null ? fmtKg(prevMS) : '—'}
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   {fab != null
                                     ? <><strong style={{ color: '#1565c0' }}>{fmtKg(fab)}</strong>
-                                        {fabMS != null && <div style={{ fontSize: '0.72rem', color: '#1565c0' }}>MS: {fmtKg(fabMS)}</div>}
                                         <div style={{ fontSize: '0.72rem', color: fab > prev ? '#e65100' : '#1565c0' }}>
                                           {fab > prev ? '+' : ''}{fmtKg(fab - prev)}
                                         </div>
@@ -1294,6 +1289,12 @@ export default function BatidaVagao() {
                                     : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>— não lançado</span>
                                   }
                                 </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {entregue != null
+                                    ? <strong style={{ color: '#2e7d32' }}>{calcMSBatida(b, entregue) != null ? fmtKg(calcMSBatida(b, entregue)) : '—'}</strong>
+                                    : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>—</span>
+                                  }
+                                </td>
                                 <td style={{ textAlign: 'center' }}>
                                   <span style={{ background: status.bg, color: status.cor, padding: '2px 8px', borderRadius: 8, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                     {status.label}
@@ -1308,13 +1309,13 @@ export default function BatidaVagao() {
                             <td colSpan={2}><strong>TOTAL</strong></td>
                             <td style={{ textAlign: 'right' }}><strong>{fmtKg(batidasDia.reduce((s, b) => s + Number(b.total_qty_kg), 0))}</strong></td>
                             <td style={{ textAlign: 'right', color: '#1565c0' }}>
-                              <strong>{fmtKg(batidasDia.reduce((s, b) => s + (calcMSBatida(b, Number(b.total_qty_kg)) || 0), 0))}</strong>
-                            </td>
-                            <td style={{ textAlign: 'right', color: '#1565c0' }}>
                               <strong>{fmtKg(batidasDia.filter(b => b.qty_realizada_kg != null).reduce((s, b) => s + Number(b.qty_realizada_kg), 0))}</strong>
                             </td>
                             <td style={{ textAlign: 'right', color: '#2e7d32' }}>
                               <strong>{fmtKg(batidasDia.filter(b => b.qty_entregue_cocho_kg != null).reduce((s, b) => s + Number(b.qty_entregue_cocho_kg), 0))}</strong>
+                            </td>
+                            <td style={{ textAlign: 'right', color: '#2e7d32' }}>
+                              <strong>{fmtKg(batidasDia.filter(b => b.qty_entregue_cocho_kg != null).reduce((s, b) => s + (calcMSBatida(b, Number(b.qty_entregue_cocho_kg)) || 0), 0))}</strong>
                             </td>
                             <td></td>
                           </tr>
