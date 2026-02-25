@@ -135,7 +135,10 @@ export default function BatidaVagao() {
   const [salvandoRealizado, setSalvandoRealizado] = useState(false);
   const [entregaInputs, setEntregaInputs] = useState({}); // { batidaId: { qty_kg, cocho_note } }
   const [mostrarEntrega, setMostrarEntrega] = useState(false); // controla visibilidade da Seção 2
-  const [toleranciaEntregaPct, setToleranciaEntregaPct] = useState(10); // % tolerância para alerta de diferença
+  const [toleranciaEntregaPct, setToleranciaEntregaPct] = useState(10);
+  const [panoramaDataInicio, setPanoramaDataInicio] = useState('');
+  const [panoramaDataFim, setPanoramaDataFim]       = useState(hoje);
+  const [panoramaMaxLinhas, setPanoramaMaxLinhas]   = useState(15); // % tolerância para alerta de diferença
   const [modalAjuste, setModalAjuste] = useState(null); // { totalFab, totalEntregue, delta, batidasDia, entregaParaSalvar }
   const [baiaSelecionada, setBaiaSelecionada] = useState(''); // batidaId escolhida para receber o ajuste
   const [batidas, setBatidas]       = useState([]);
@@ -193,6 +196,10 @@ export default function BatidaVagao() {
       ]);
       setBatidas(batidasData || []);
       setLotes(lotesData || []);
+      if (lotesData && lotesData.length > 0) {
+        const minEntry = lotesData.reduce((min, l) => (!min || l.entry_date < min) ? l.entry_date : min, '');
+        if (minEntry) setPanoramaDataInicio(prev => prev || minEntry);
+      }
       setRacoes(racoesData || []);
       setPesagens(pesagensData || []);
       setCompositions(compData || []);
@@ -755,6 +762,7 @@ export default function BatidaVagao() {
           <button className={`${styles.aba} ${aba === 'individual' ? styles.abaAtiva : ''}`} onClick={() => { setAba('individual'); setShowForm(false); }}>📋 Individual</button>
           <button className={`${styles.aba} ${aba === 'lote' ? styles.abaAtiva : ''}`} onClick={() => setAba('lote')}>⚡ Todos os Lotes</button>
           <button className={`${styles.aba} ${aba === 'realizado' ? styles.abaAtiva : ''}`} onClick={() => setAba('realizado')}>✅ Lançar Realizado</button>
+          <button className={`${styles.aba} ${aba === 'panorama' ? styles.abaAtiva : ''}`} onClick={() => setAba('panorama')}>📊 Panorâmico</button>
         </div>
 
         {/* ═══ ABA INDIVIDUAL ═══ */}
@@ -1573,6 +1581,221 @@ export default function BatidaVagao() {
                   })()}
                 </>
               )}
+            </div>
+          );
+        })()}
+
+        {/* ═══ ABA PANORÂMICO ═══ */}
+        {aba === 'panorama' && (() => {
+          const diasEntre = (d1, d2) => {
+            if (!d1 || !d2) return 0;
+            return Math.max(0, Math.round((new Date(d2 + 'T00:00:00') - new Date(d1 + 'T00:00:00')) / 86400000));
+          };
+          const calcMS = (feedTypeId, qtdKg) => {
+            const comp = compositions.find(c => c.feed_type_id === feedTypeId);
+            if (!comp) return null;
+            return (comp.feed_composition_items || []).reduce((acc, item) => {
+              const ing = item.feed_ingredients;
+              if (!ing?.dry_matter_pct) return acc;
+              const prop = Number(item.quantity_kg) / Number(comp.base_qty_kg);
+              return acc + prop * qtdKg * (ing.dry_matter_pct / 100);
+            }, 0);
+          };
+          const calcCustoKg = (feedTypeId) => {
+            const r = racoes.find(r => r.id === feedTypeId);
+            return r ? Number(r.cost_per_kg) : 0;
+          };
+          const fmtMoeda = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const fmtDataBR = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+          const COCHO_COR = { 0: '#1565c0', 1: '#2e7d32', 2: '#f57c00', 3: '#b71c1c' };
+
+          const batidasPeriodo = batidas.filter(b =>
+            (!panoramaDataInicio || b.batch_date >= panoramaDataInicio) &&
+            (!panoramaDataFim    || b.batch_date <= panoramaDataFim)
+          );
+
+          const dadosPorLote = lotes.map(lote => {
+            const batidasLotePer = batidasPeriodo.filter(b => b.lot_id === lote.id);
+            const batidasLoteTot = batidas.filter(b => b.lot_id === lote.id);
+            if (!batidasLotePer.length) return null;
+
+            const linhas = [...batidasLotePer].sort((a, b) =>
+              a.batch_date.localeCompare(b.batch_date) || (a.feeding_order || 0) - (b.feeding_order || 0)
+            ).map(b => {
+              const previsto   = Number(b.total_qty_kg);
+              const fabricado  = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : null;
+              const entregue   = b.qty_entregue_cocho_kg != null ? Number(b.qty_entregue_cocho_kg) : null;
+              const msEntregue = entregue != null ? calcMS(b.feed_type_id, entregue) : null;
+              const qtdCusto   = entregue ?? fabricado ?? previsto;
+              const custo      = qtdCusto * calcCustoKg(b.feed_type_id);
+              const status     = entregue != null ? 'completo' : fabricado != null ? 'entrega' : 'pendente';
+              return { b, previsto, fabricado, entregue, msEntregue, custo, status };
+            });
+
+            // GMD real
+            const pesLote = pesagens.filter(p => p.lot_id === lote.id).sort((a, b) => b.weighing_date.localeCompare(a.weighing_date));
+            let gmdReal = null;
+            if (pesLote.length > 0 && lote.avg_entry_weight && lote.entry_date) {
+              const ultima = pesLote[0];
+              const dias = diasEntre(lote.entry_date, ultima.weighing_date);
+              if (dias > 0) gmdReal = (Number(ultima.avg_weight_kg) - Number(lote.avg_entry_weight)) / dias;
+            }
+
+            const custoPeriodo = linhas.reduce((s, l) => s + l.custo, 0);
+            const custoTotal   = batidasLoteTot.reduce((s, b) => {
+              const qtd = b.qty_entregue_cocho_kg != null ? Number(b.qty_entregue_cocho_kg) : b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
+              return s + qtd * calcCustoKg(b.feed_type_id);
+            }, 0);
+
+            const totPrevisto  = linhas.reduce((s, l) => s + l.previsto, 0);
+            const totFabricado = linhas.filter(l => l.fabricado != null).reduce((s, l) => s + l.fabricado, 0);
+            const totEntregue  = linhas.filter(l => l.entregue != null).reduce((s, l) => s + l.entregue, 0);
+            const totMS        = linhas.filter(l => l.msEntregue != null).reduce((s, l) => s + l.msEntregue, 0);
+
+            return { lote, linhas, gmdReal, custoPeriodo, custoTotal, totPrevisto, totFabricado, totEntregue, totMS };
+          }).filter(Boolean);
+
+          return (
+            <div className={styles.formCard}>
+              <h2>📊 Panorâmico — Batidas por Lote</h2>
+
+              {/* Controles */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end', marginBottom: 20, padding: '12px 16px', background: '#f8f9fa', borderRadius: 10, border: '1px solid #e0e0e0' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#666', display: 'block', marginBottom: 4 }}>Data Início</label>
+                  <input type="date" value={panoramaDataInicio} onChange={e => setPanoramaDataInicio(e.target.value)} className={styles.inputData} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#666', display: 'block', marginBottom: 4 }}>Data Fim</label>
+                  <input type="date" value={panoramaDataFim} onChange={e => setPanoramaDataFim(e.target.value)} className={styles.inputData} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#666', display: 'block', marginBottom: 4 }}>Linhas por lote</label>
+                  <select value={panoramaMaxLinhas} onChange={e => setPanoramaMaxLinhas(Number(e.target.value))}
+                    style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 6, fontSize: '0.88rem' }}>
+                    <option value={10}>10 linhas</option>
+                    <option value={15}>15 linhas</option>
+                    <option value={20}>20 linhas</option>
+                    <option value={50}>50 linhas</option>
+                    <option value={9999}>Todas</option>
+                  </select>
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#666', alignSelf: 'flex-end', paddingBottom: 4 }}>
+                  <strong>{batidasPeriodo.length}</strong> batidas · <strong>{dadosPorLote.length}</strong> lotes · {fmtDataBR(panoramaDataInicio)} a {fmtDataBR(panoramaDataFim)}
+                </div>
+              </div>
+
+              {dadosPorLote.length === 0 ? (
+                <div className={styles.vazio}>
+                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>📭</div>
+                  <p>Nenhuma batida no período selecionado.</p>
+                </div>
+              ) : dadosPorLote.map(({ lote, linhas, gmdReal, custoPeriodo, custoTotal, totPrevisto, totFabricado, totEntregue, totMS }) => {
+                const diasConf = lote.entry_date ? diasEntre(lote.entry_date, hoje) : null;
+                const linhasVis = linhas.slice(0, panoramaMaxLinhas);
+                const temMais = linhas.length > panoramaMaxLinhas;
+                const alturaTabela = Math.min(panoramaMaxLinhas, linhas.length) * 38 + 84;
+
+                return (
+                  <div key={lote.id} style={{ marginBottom: 32 }}>
+                    {/* Cabeçalho do lote */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', padding: '10px 16px', background: 'linear-gradient(135deg, #1a237e, #283593)', borderRadius: '10px 10px 0 0', color: '#fff' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>🐄 {lote.lot_code}</div>
+                        <div style={{ fontSize: '0.78rem', opacity: 0.8, marginTop: 2 }}>{lote.head_count} cab. · Entrada: {fmtDataBR(lote.entry_date)}{diasConf != null ? ' (' + diasConf + 'd)' : ''}</div>
+                      </div>
+                      <div style={{ fontSize: '0.85rem' }}>
+                        <div>GMD Meta: <strong>{lote.target_gmd ? fmtN(lote.target_gmd, 3) + ' kg/d' : '—'}</strong></div>
+                        <div>GMD Real: <strong style={{ color: gmdReal != null ? (gmdReal >= (Number(lote.target_gmd) || 0) ? '#a5d6a7' : '#ffcc80') : '#fff9c4' }}>
+                          {gmdReal != null ? fmtN(gmdReal, 3) + ' kg/d' : '⏳ Pendente'}
+                        </strong></div>
+                      </div>
+                      <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: '0.83rem' }}>
+                        <div>Custo período: <strong>{fmtMoeda(custoPeriodo)}</strong></div>
+                        <div style={{ opacity: 0.8 }}>Custo total confinamento: <strong>{fmtMoeda(custoTotal)}</strong></div>
+                      </div>
+                    </div>
+
+                    {/* Tabela planilha */}
+                    <div style={{ border: '1px solid #c5cae9', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
+                      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: alturaTabela }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', minWidth: 800 }}>
+                          <thead>
+                            <tr style={{ background: '#e8eaf6', position: 'sticky', top: 0, zIndex: 2 }}>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, color: '#283593', borderBottom: '2px solid #9fa8da', whiteSpace: 'nowrap', minWidth: 90 }}>Data</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 700, color: '#283593', borderBottom: '2px solid #9fa8da', minWidth: 60 }}>Trato</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 700, color: '#283593', borderBottom: '2px solid #9fa8da', minWidth: 130 }}>Ração</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, color: '#555', borderBottom: '2px solid #9fa8da', minWidth: 90 }}>Previsto</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, color: '#1565c0', borderBottom: '2px solid #9fa8da', minWidth: 90 }}>Fabricado</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, color: '#2e7d32', borderBottom: '2px solid #9fa8da', minWidth: 90 }}>Entregue</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, color: '#6a1b9a', borderBottom: '2px solid #9fa8da', minWidth: 80 }}>MS Entr.</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 700, color: '#283593', borderBottom: '2px solid #9fa8da', minWidth: 55 }}>Nota</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, color: '#e65100', borderBottom: '2px solid #9fa8da', minWidth: 100 }}>Custo</th>
+                              <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 700, color: '#283593', borderBottom: '2px solid #9fa8da', minWidth: 70 }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {linhasVis.map(({ b, previsto, fabricado, entregue, msEntregue, custo, status }, idx) => {
+                              const racao = racoes.find(r => r.id === b.feed_type_id);
+                              const bgRow = idx % 2 === 0 ? '#fff' : '#f5f5ff';
+                              const statusInfo =
+                                status === 'completo' ? { label: '✅', bg: '#e8f5e9', cor: '#2e7d32' } :
+                                status === 'entrega'  ? { label: '🐄', bg: '#e3f2fd', cor: '#1565c0' } :
+                                                        { label: '⏳', bg: '#fff8e1', cor: '#f57c00' };
+                              const cochoNote = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
+                              return (
+                                <tr key={b.id} style={{ background: bgRow, borderBottom: '1px solid #eeeeee' }}>
+                                  <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', fontWeight: 500, color: '#333' }}>{fmtDataBR(b.batch_date)}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', color: '#666' }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º'}</td>
+                                  <td style={{ padding: '6px 8px', color: '#444', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={racao?.name}>{racao?.name || '—'}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#555' }}>{fmtKg(previsto)}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1565c0', fontWeight: fabricado != null ? 600 : 400 }}>
+                                    {fabricado != null ? fmtKg(fabricado) : <span style={{ color: '#ccc' }}>—</span>}
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#2e7d32', fontWeight: entregue != null ? 600 : 400 }}>
+                                    {entregue != null ? fmtKg(entregue) : <span style={{ color: '#ccc' }}>—</span>}
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6a1b9a' }}>
+                                    {msEntregue != null ? fmtKg(msEntregue) : <span style={{ color: '#ccc' }}>—</span>}
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                    {cochoNote
+                                      ? <span style={{ fontWeight: 700, fontSize: '0.9rem', color: COCHO_COR[cochoNote.nota] ?? '#555' }}>{cochoNote.label}</span>
+                                      : <span style={{ color: '#ccc' }}>—</span>}
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#e65100' }}>{fmtMoeda(custo)}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', background: statusInfo.bg }}>
+                                    <span style={{ color: statusInfo.cor, fontWeight: 700 }}>{statusInfo.label}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr style={{ background: '#e8f5e9', borderTop: '2px solid #a5d6a7', fontWeight: 700 }}>
+                              <td colSpan={3} style={{ padding: '7px 10px', color: '#1b5e20' }}>
+                                TOTAL — {linhas.length} batidas{temMais ? ' (exibindo ' + panoramaMaxLinhas + ')' : ''}
+                              </td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#333' }}>{fmtKg(totPrevisto)}</td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#1565c0' }}>{totFabricado > 0 ? fmtKg(totFabricado) : '—'}</td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#2e7d32' }}>{totEntregue > 0 ? fmtKg(totEntregue) : '—'}</td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#6a1b9a' }}>{totMS > 0 ? fmtKg(totMS) : '—'}</td>
+                              <td></td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#e65100' }}>{fmtMoeda(custoPeriodo)}</td>
+                              <td></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      {temMais && (
+                        <div style={{ padding: '6px 14px', background: '#fff3e0', fontSize: '0.8rem', color: '#e65100', borderTop: '1px solid #ffe0b2' }}>
+                          ⚠️ Exibindo {panoramaMaxLinhas} de {linhas.length} linhas. Aumente o limite acima para ver todas.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
