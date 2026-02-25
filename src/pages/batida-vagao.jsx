@@ -267,30 +267,19 @@ export default function BatidaVagao() {
 
         for (const ing of ingsBase) {
           if (!ing.ingId) continue;
-          const qtdAjuste = ing.qtdMN * sinal; // negativo = desconto, positivo = devolução
+          const qtdAjuste = ing.qtdMN * sinal; // negativo = desconto extra, positivo = devolução
 
-          // Busca saldo atual
-          const { data: ingData } = await supabase
-            .from('feed_ingredients')
-            .select('stock_qty_kg')
-            .eq('id', ing.ingId)
-            .single();
-          const saldoAtual = Number(ingData?.stock_qty_kg || 0);
-
-          // Registra movimentação de ajuste
-          await supabase.from('ingredient_stock_movements').insert([{
+          // Insere movimentação — a trigger do banco atualiza stock_qty_kg automaticamente
+          const { error: errMov } = await supabase.from('ingredient_stock_movements').insert([{
             ingredient_id:  ing.ingId,
             farm_id:        currentFarm.id,
             movement_type:  'ajuste_batida',
             quantity_kg:    qtdAjuste,
-            movement_date:  batida.batch_date,
+            entry_date:     batida.batch_date,
+            registered_by:  user.id,
             notes: `Ajuste realizado vs previsto — Batida ${new Date(batida.batch_date + 'T00:00:00').toLocaleDateString('pt-BR')} (prev: ${fmtKg(previsto)}, real: ${fmtKg(qtdRealizada)})`,
           }]);
-
-          // Atualiza saldo
-          await supabase.from('feed_ingredients')
-            .update({ stock_qty_kg: saldoAtual + qtdAjuste })
-            .eq('id', ing.ingId);
+          if (errMov) throw errMov;
         }
       }
 
