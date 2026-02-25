@@ -250,7 +250,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
 
   const handleDeleteMov = async (m, insumo) => {
     if (m.movement_type === 'baixa_trato' || m.movement_type === 'ajuste_batida') return alert('Este movimento é automático e não pode ser deletado diretamente.\nPara corrigir, ajuste o peso realizado na Batida de Vagão.');
-    if (!confirm(`Deletar esta movimentação de ${fmtN(Math.abs(m.quantity_kg), 3)} kg?\nO estoque será ajustado automaticamente.`)) return;
+    if (!confirm(`Deletar esta movimentação de ${fmtN(Math.abs(m.quantity_kg), 2)} kg?\nO estoque será ajustado automaticamente.`)) return;
     setLoading(true);
     try {
       const { error: errMov } = await supabase.from('ingredient_stock_movements').delete().eq('id', m.id);
@@ -669,7 +669,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                                     </span>
                                   </td>
                                   <td className={isEntrada ? styles.movQtdPos : styles.movQtdNeg}>
-                                    {isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 3)} kg
+                                    {isEntrada ? '+' : ''}{fmtN(m.quantity_kg, 2)} kg
                                   </td>
                                   <td style={{ fontSize: '0.82rem', color: '#666' }}>{m.notes || '—'}</td>
                                   <td>
@@ -695,7 +695,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                                   <tr key={m.id + '_edit'}>
                                     <td colSpan={5} style={{ padding: 0, background: '#fffde7', borderBottom: '2px solid #ffe082' }}>
                                       <div className={styles.editMovPanel}>
-                                        <div className={styles.editMovTitle}>✏️ Editando entrada de {fmtN(Math.abs(m.quantity_kg), 3)} kg</div>
+                                        <div className={styles.editMovTitle}>✏️ Editando entrada de {fmtN(Math.abs(m.quantity_kg), 2)} kg</div>
                                         <div className={styles.row3}>
                                           <div>
                                             <label>Data</label>
@@ -1151,7 +1151,7 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
                                   ? fmtN(item.feed_ingredients.dry_matter_pct, 2) + '%' : '—'}
                               </td>
                               <td>{fmtN(item.proportion_pct, 3)}%</td>
-                              <td>{fmtN(item.quantity_kg, 3)} kg</td>
+                              <td>{fmtN(item.quantity_kg, 2)} kg</td>
                               <td className={styles.tdMs}>
                                 {item.qtdMs != null ? fmtN(item.qtdMs, 2) + ' kg' : <span style={{color:'#ccc'}}>—</span>}
                               </td>
