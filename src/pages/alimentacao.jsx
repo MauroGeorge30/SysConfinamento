@@ -399,12 +399,13 @@ export default function Alimentacao() {
   // ── Auto-detecta próximo trato (conta feeding_records já existentes) ──
   useEffect(() => {
     if (aba !== 'lote' || !registros.length) return;
+    const maxTratos = lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : 99;
     const maxExistente = lotes.reduce((max, l) => {
       const ex = registros.filter(r => r.lot_id === l.id && r.feeding_date === tratoLoteData);
       const m  = ex.length ? Math.max(...ex.map(r => r.feeding_order || 1)) : 0;
       return Math.max(max, m);
     }, 0);
-    setTratoLoteOrdem(maxExistente + 1);
+    setTratoLoteOrdem(Math.min(maxExistente + 1, maxTratos));
   }, [aba, tratoLoteData, registros.length]);
 
   const handleSalvarTratoLote = async () => {
@@ -1002,10 +1003,18 @@ export default function Alimentacao() {
                 <div>
                   <label>Nº do Trato</label>
                   <div className={styles.tratoOrdemBox}>
-                    <span className={styles.tratoOrdemNum}>{tratoLoteOrdem}º Trato</span>
+                    <span className={styles.tratoOrdemNum}>
+                      {tratoLoteOrdem}º Trato
+                      <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 400, marginLeft: 4 }}>
+                        / {lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : '?'}
+                      </span>
+                    </span>
                     <div className={styles.tratoOrdemBtns}>
                       <button type="button" onClick={() => setTratoLoteOrdem(o => Math.max(1, o - 1))}>−</button>
-                      <button type="button" onClick={() => setTratoLoteOrdem(o => o + 1)}>+</button>
+                      <button type="button" onClick={() => {
+                        const maxTratos = lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : 99;
+                        setTratoLoteOrdem(o => Math.min(o + 1, maxTratos));
+                      }}>+</button>
                     </div>
                   </div>
                 </div>
