@@ -135,6 +135,9 @@ export default function BatidaVagao() {
   const [salvandoRealizado, setSalvandoRealizado] = useState(false);
   const [entregaInputs, setEntregaInputs] = useState({}); // { batidaId: { qty_kg, cocho_note } }
   const [mostrarEntrega, setMostrarEntrega] = useState(false); // controla visibilidade da Seção 2
+  const [toleranciaEntregaPct, setToleranciaEntregaPct] = useState(10); // % tolerância para alerta de diferença
+  const [modalAjuste, setModalAjuste] = useState(null); // { totalFab, totalEntregue, delta, batidasDia, entregaParaSalvar }
+  const [baiaSelecionada, setBaiaSelecionada] = useState(''); // batidaId escolhida para receber o ajuste
   const [batidas, setBatidas]       = useState([]);
   const [lotes, setLotes]           = useState([]);
   const [racoes, setRacoes]         = useState([]);
@@ -447,25 +450,33 @@ export default function BatidaVagao() {
     });
     if (!comEntrega.length) return alert('Informe a entrega de ao menos um lote.');
 
-    const linhas = comEntrega.map(b => {
-      const lote = lotes.find(l => l.id === b.lot_id);
-      const base = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
-      const entrega = parseFloat(String(entregaInputs[b.id].qty_kg).replace(',', '.'));
-      const delta = entrega - base;
-      const deltaPct = base > 0 ? ((delta / base) * 100).toFixed(1) : 0;
-      return (lote?.lot_code || b.id) + ': ' + fmtKg(entrega) + ' (' + (delta >= 0 ? '+' : '') + deltaPct + '%)';
-    });
+    // Calcula totais fabricado x entregue
+    const totalFab      = comEntrega.reduce((s, b) => s + (b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg)), 0);
+    const totalEntregue = comEntrega.reduce((s, b) => s + parseFloat(String(entregaInputs[b.id].qty_kg).replace(',', '.')), 0);
+    const delta         = totalEntregue - totalFab;
+    const deltaPct      = totalFab > 0 ? Math.abs(delta / totalFab) * 100 : 0;
 
-    const dataFmt = new Date(realizadoData + 'T00:00:00').toLocaleDateString('pt-BR');
-    const ok = confirm('Confirma entrega no cocho para ' + comEntrega.length + ' lote(s) em ' + dataFmt + '?\n\n' + linhas.join('\n') + '\n\nApos confirmar, registre os tratos na aba Tratos Diarios.');
-    if (!ok) return;
+    // Se diferença acima da tolerância → abrir modal de ajuste
+    if (deltaPct > toleranciaEntregaPct) {
+      setBaiaSelecionada('');
+      setModalAjuste({ totalFab, totalEntregue, delta, batidasDia: comEntrega, entregaParaSalvar: entregaInputs });
+      return;
+    }
 
+    // Sem diferença relevante → salvar direto
+    await _executarSalvarEntrega(comEntrega, entregaInputs);
+  };
+
+  const _executarSalvarEntrega = async (comEntrega, inputsParaSalvar, batidaAjusteId = null, deltaAjuste = 0) => {
     setSalvandoRealizado(true);
     try {
       for (const batida of comEntrega) {
-        const entrega = parseFloat(String(entregaInputs[batida.id].qty_kg).replace(',', '.'));
-        const cochoNote = entregaInputs[batida.id].cocho_note ?? null;
-        // Salva qty_entregue_cocho_kg e cocho_note na batida
+        let entrega = parseFloat(String(inputsParaSalvar[batida.id].qty_kg).replace(',', '.'));
+        // Se esta é a baia escolhida para absorver o ajuste, aplica a diferença
+        if (batidaAjusteId && batida.id === batidaAjusteId) {
+          entrega = parseFloat((entrega - deltaAjuste).toFixed(3));
+        }
+        const cochoNote = inputsParaSalvar[batida.id].cocho_note ?? null;
         const { error } = await supabase
           .from('wagon_batches')
           .update({
@@ -476,10 +487,12 @@ export default function BatidaVagao() {
           .eq('id', batida.id);
         if (error) throw error;
       }
-      alert('✅ Entrega no cocho registrada para ' + comEntrega.length + ' lote(s)!\n\nNao esqueca de registrar os tratos na aba Tratos Diarios.');
+      alert('✅ Entrega no cocho registrada!\n\nNao esqueca de registrar os tratos na aba Tratos Diarios.');
       setEntregaInputs({});
       setRealizadoInputs({});
       setMostrarEntrega(false);
+      setModalAjuste(null);
+      setBaiaSelecionada('');
       loadDados();
     } catch (e) {
       alert('Erro ao salvar entrega: ' + e.message);
@@ -1534,7 +1547,20 @@ export default function BatidaVagao() {
                             </tbody>
                           </table>
                         </div>
-                        <div className={styles.formAcoes} style={{ marginTop: 12 }}>
+                        {/* Campo de tolerância configurável */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, padding: '8px 12px', background: '#f5f5f5', borderRadius: 8, fontSize: '0.85rem', color: '#555' }}>
+                          <span>⚙️ Tolerância para alerta de diferença:</span>
+                          <input
+                            type="number" min="0" max="100" step="0.5"
+                            value={toleranciaEntregaPct}
+                            onChange={e => setToleranciaEntregaPct(parseFloat(e.target.value) || 0)}
+                            style={{ width: 60, padding: '3px 6px', border: '1px solid #ccc', borderRadius: 6, textAlign: 'center' }}
+                          />
+                          <span>%</span>
+                          <span style={{ marginLeft: 4, color: '#999', fontSize: '0.78rem' }}>(diferença acima deste % abre alerta de ajuste)</span>
+                        </div>
+
+                        <div className={styles.formAcoes} style={{ marginTop: 10 }}>
                           <button type="button" className={styles.btnCancelar} onClick={() => setEntregaInputs({})}>Limpar entrega</button>
                           <button type="button" className={styles.btnAdd}
                             onClick={handleSalvarEntregaCocho}
@@ -1550,6 +1576,124 @@ export default function BatidaVagao() {
             </div>
           );
         })()}
+
+        {/* ═══ MODAL AJUSTE ENTREGA COCHO ═══ */}
+        {modalAjuste && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '1.5rem 2rem', width: '100%', maxWidth: 560, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#b71c1c', marginBottom: 4 }}>⚠️ Diferença acima da tolerância</div>
+              <div style={{ fontSize: '0.9rem', color: '#555', marginBottom: 16 }}>
+                O total entregue é diferente do total fabricado. Verifique os valores e, se estiver correto, selecione a baia que deve absorver a diferença.
+              </div>
+
+              {/* Resumo da diferença */}
+              <div style={{ background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: '0.88rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, textAlign: 'center' }}>
+                  <div>
+                    <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: 2 }}>Total Fabricado</div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1565c0' }}>{fmtKg(modalAjuste.totalFab)}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: 2 }}>Total Entregue</div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#2e7d32' }}>{fmtKg(modalAjuste.totalEntregue)}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: 2 }}>Diferença</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: modalAjuste.delta < 0 ? '#b71c1c' : '#e65100' }}>
+                      {modalAjuste.delta >= 0 ? '+' : ''}{fmtKg(modalAjuste.delta)}
+                      <span style={{ fontSize: '0.75rem', marginLeft: 4 }}>
+                        ({modalAjuste.totalFab > 0 ? ((modalAjuste.delta / modalAjuste.totalFab) * 100).toFixed(1) : 0}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalhes por lote */}
+              <div style={{ fontSize: '0.83rem', color: '#555', marginBottom: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #eee' }}>
+                      <th style={{ textAlign: 'left', padding: '4px 8px', color: '#888', fontWeight: 600 }}>Lote</th>
+                      <th style={{ textAlign: 'right', padding: '4px 8px', color: '#888', fontWeight: 600 }}>Fabricado</th>
+                      <th style={{ textAlign: 'right', padding: '4px 8px', color: '#888', fontWeight: 600 }}>Digitado</th>
+                      <th style={{ textAlign: 'right', padding: '4px 8px', color: '#888', fontWeight: 600 }}>Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalAjuste.batidasDia.map(b => {
+                      const lote    = lotes.find(l => l.id === b.lot_id);
+                      const fab     = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
+                      const digit   = parseFloat(String(modalAjuste.entregaParaSalvar[b.id]?.qty_kg || '0').replace(',', '.'));
+                      const d       = digit - fab;
+                      return (
+                        <tr key={b.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                          <td style={{ padding: '5px 8px' }}>
+                            <strong>{lote?.lot_code || '—'}</strong>
+                            <span style={{ fontSize: '0.75rem', color: '#999', marginLeft: 4 }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}</span>
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '5px 8px', color: '#1565c0' }}>{fmtKg(fab)}</td>
+                          <td style={{ textAlign: 'right', padding: '5px 8px', color: '#2e7d32', fontWeight: 700 }}>{fmtKg(digit)}</td>
+                          <td style={{ textAlign: 'right', padding: '5px 8px', color: d < 0 ? '#b71c1c' : d > 0 ? '#e65100' : '#888', fontWeight: 700 }}>
+                            {d >= 0 ? '+' : ''}{fmtKg(d)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Seleção da baia para ajuste */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#333', marginBottom: 8 }}>
+                  Em qual lote/baia aplicar o ajuste de <strong style={{ color: modalAjuste.delta < 0 ? '#b71c1c' : '#e65100' }}>{modalAjuste.delta >= 0 ? '+' : ''}{fmtKg(modalAjuste.delta)}</strong>?
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {modalAjuste.batidasDia.map(b => {
+                    const lote    = lotes.find(l => l.id === b.lot_id);
+                    const fab     = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
+                    const digit   = parseFloat(String(modalAjuste.entregaParaSalvar[b.id]?.qty_kg || '0').replace(',', '.'));
+                    const ajustado = parseFloat((digit - modalAjuste.delta).toFixed(3));
+                    const selected = baiaSelecionada === b.id;
+                    return (
+                      <label key={b.id}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: '2px solid ' + (selected ? '#2e7d32' : '#e0e0e0'), background: selected ? '#e8f5e9' : '#fafafa', cursor: 'pointer' }}>
+                        <input type="radio" name="baiaAjuste" value={b.id} checked={selected}
+                          onChange={() => setBaiaSelecionada(b.id)} style={{ accentColor: '#2e7d32' }} />
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: 700 }}>{lote?.lot_code || '—'}</span>
+                          <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: 6 }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}</span>
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
+                          <span style={{ color: '#555' }}>{fmtKg(digit)}</span>
+                          <span style={{ color: '#aaa', margin: '0 4px' }}>→</span>
+                          <span style={{ fontWeight: 700, color: '#2e7d32' }}>{fmtKg(ajustado)}</span>
+                          <span style={{ fontSize: '0.72rem', color: '#888', display: 'block' }}>fab: {fmtKg(fab)}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Ações do modal */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button type="button"
+                  style={{ padding: '8px 18px', border: '1px solid #ccc', borderRadius: 8, background: '#f5f5f5', cursor: 'pointer', fontSize: '0.9rem' }}
+                  onClick={() => { setModalAjuste(null); setBaiaSelecionada(''); }}>
+                  ← Voltar e corrigir
+                </button>
+                <button type="button"
+                  style={{ padding: '8px 18px', border: 'none', borderRadius: 8, background: '#2e7d32', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, opacity: baiaSelecionada ? 1 : 0.5 }}
+                  disabled={!baiaSelecionada || salvandoRealizado}
+                  onClick={() => _executarSalvarEntrega(modalAjuste.batidasDia, modalAjuste.entregaParaSalvar, baiaSelecionada, modalAjuste.delta)}>
+                  {salvandoRealizado ? 'Salvando...' : '✅ Confirmar com ajuste'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ═══ MODAL ORDEM DE FABRICAÇÃO ═══ */}
         {showPrint && (() => {
