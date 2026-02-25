@@ -503,19 +503,12 @@ export default function BatidaVagao() {
   };
 
   // ── Mensagem de alerta de estoque ──────────────────────────
-  const msgAlertaEstoque = (alertas) =>
-    `⚠️ Estoque insuficiente para registrar esta batida:
-
-` +
-    alertas.map(a =>
-      `• ${a.nome}
-  Necessário: ${fmtKg(a.necessario)}  |  Saldo: ${fmtKg(a.saldo)}  |  Falta: ${fmtKg(a.falta)}`
-    ).join('
-
-') +
-    `
-
-Registre uma entrada de estoque antes de continuar.`;
+  const msgAlertaEstoque = (alertas) => {
+    const linhas = alertas.map(a =>
+      '\u2022 ' + a.nome + '\n  Necess\u00e1rio: ' + fmtKg(a.necessario) + '  |  Saldo: ' + fmtKg(a.saldo) + '  |  Falta: ' + fmtKg(a.falta)
+    ).join('\n\n');
+    return '\u26a0\ufe0f Estoque insuficiente:\n\n' + linhas + '\n\nRegistre uma entrada de estoque antes de continuar.';
+  };
 
   // ── Salvar batida individual ─────────────────────────────────
   const handleSubmit = async (e) => {
