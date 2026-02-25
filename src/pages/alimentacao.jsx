@@ -161,22 +161,29 @@ export default function Alimentacao() {
       return alert('❌ Sobra não pode ser maior que o fornecido.');
     }
 
-    // Verificar se existe batida de vagão para este lote/data/trato
+    // Verificar batida de vagão e realizado antes de registrar trato
     if (formData.lot_id && !editingId) {
-      const { data: batidas } = await supabase
+      const { data: wBatidas } = await supabase
         .from('wagon_batches')
-        .select('id, batch_type, feeding_order')
+        .select('id, batch_type, feeding_order, qty_realizada_kg')
         .eq('farm_id', currentFarm.id)
         .eq('lot_id', formData.lot_id)
         .eq('batch_date', formData.feeding_date);
 
       const ordemAtual = formData.feeding_order || 1;
-      const temBatida = (batidas || []).some(b =>
+      const loteCod = lotes.find(l => l.id === formData.lot_id)?.lot_code || '';
+      const dataFmt = new Date(formData.feeding_date + 'T00:00:00').toLocaleDateString('pt-BR');
+
+      const batidaRef = (wBatidas || []).find(b =>
         b.batch_type === 'day' ||
         (b.batch_type === 'feeding' && b.feeding_order === ordemAtual)
       );
-      if (!temBatida) {
-        return alert(`❌ Batida de Vagão não encontrada.\n\nRegistre a batida para o lote ${lotes.find(l=>l.id===formData.lot_id)?.lot_code || ''} — ${ordemAtual}º trato em ${new Date(formData.feeding_date+'T00:00:00').toLocaleDateString('pt-BR')} antes de registrar o trato.`);
+
+      if (!batidaRef) {
+        return alert('❌ Batida de Vagão não encontrada.\n\nRegistre a batida para o lote ' + loteCod + ' — ' + ordemAtual + 'º trato em ' + dataFmt + ' antes de registrar o trato.');
+      }
+      if (batidaRef.qty_realizada_kg == null) {
+        return alert('⚠️ Realizado de fabricação não lançado.\n\nO lote ' + loteCod + ' — ' + ordemAtual + 'º trato em ' + dataFmt + ' ainda não tem o peso realizado de fabricação registrado.\n\nVá em Batida de Vagão → Lançar Realizado antes de registrar o trato.');
       }
     }
 
@@ -413,7 +420,19 @@ export default function Alimentacao() {
     if (!selecionados.length) return alert('Selecione ao menos um lote.');
     const semBatida = selecionados.filter(l => !tratoLinhas[l.id]?.temBatida);
     if (semBatida.length) {
-      return alert(`Lotes sem Batida de Vagão para esta data/trato:\n${semBatida.map(l => l.lot_code).join(', ')}\n\nRegistre as batidas primeiro.`);
+      return alert('Lotes sem Batida de Vagão para esta data/trato:\n' + semBatida.map(l => l.lot_code).join(', ') + '\n\nRegistre as batidas primeiro.');
+    }
+    // Bloqueia se batida existe mas realizado não foi lançado
+    const semRealizado = selecionados.filter(l => {
+      if (!tratoLinhas[l.id]?.temBatida) return false;
+      const batida = batidasVagao.find(b =>
+        b.lot_id === l.id && b.batch_date === tratoLoteData &&
+        (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
+      );
+      return batida && batida.qty_realizada_kg == null;
+    });
+    if (semRealizado.length) {
+      return alert('⚠️ Realizado de fabricação não lançado para:\n' + semRealizado.map(l => l.lot_code).join(', ') + '\n\nVá em Batida de Vagão → Lançar Realizado antes de registrar os tratos.');
     }
     const invalidos = selecionados.filter(l => !tratoLinhas[l.id]?.feed_type_id || !parseFloat(tratoLinhas[l.id]?.quantity_kg));
     if (invalidos.length) return alert(`Lotes sem ração ou quantidade:\n${invalidos.map(l => l.lot_code).join(', ')}`);
