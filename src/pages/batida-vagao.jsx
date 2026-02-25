@@ -133,6 +133,7 @@ export default function BatidaVagao() {
   const [realizadoData, setRealizadoData] = useState(hoje);
   const [realizadoInputs, setRealizadoInputs] = useState({}); // { ingId: valorDigitado }
   const [salvandoRealizado, setSalvandoRealizado] = useState(false);
+  const [entregaInputs, setEntregaInputs] = useState({}); // { batidaId: { qty_kg, cocho_note } }
   const [batidas, setBatidas]       = useState([]);
   const [lotes, setLotes]           = useState([]);
   const [racoes, setRacoes]         = useState([]);
@@ -431,6 +432,53 @@ export default function BatidaVagao() {
       loadDados();
     } catch (e) {
       alert('Erro ao salvar: ' + e.message);
+    } finally {
+      setSalvandoRealizado(false);
+    }
+  };
+
+  // ── Aba Realizado: salva entrega no cocho por lote ─────────
+  const handleSalvarEntregaCocho = async () => {
+    const batidasDia = batidas.filter(b => b.batch_date === realizadoData);
+    const comEntrega = batidasDia.filter(b => {
+      const v = parseFloat(String(entregaInputs[b.id]?.qty_kg || '').replace(',', '.'));
+      return !isNaN(v) && v > 0;
+    });
+    if (!comEntrega.length) return alert('Informe a entrega de ao menos um lote.');
+
+    const linhas = comEntrega.map(b => {
+      const lote = lotes.find(l => l.id === b.lot_id);
+      const base = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
+      const entrega = parseFloat(String(entregaInputs[b.id].qty_kg).replace(',', '.'));
+      const delta = entrega - base;
+      const deltaPct = base > 0 ? ((delta / base) * 100).toFixed(1) : 0;
+      return (lote?.lot_code || b.id) + ': ' + fmtKg(entrega) + ' (' + (delta >= 0 ? '+' : '') + deltaPct + '%)';
+    });
+
+    const dataFmt = new Date(realizadoData + 'T00:00:00').toLocaleDateString('pt-BR');
+    const ok = confirm('Confirma entrega no cocho para ' + comEntrega.length + ' lote(s) em ' + dataFmt + '?\n\n' + linhas.join('\n') + '\n\nApos confirmar, registre os tratos na aba Tratos Diarios.');
+    if (!ok) return;
+
+    setSalvandoRealizado(true);
+    try {
+      for (const batida of comEntrega) {
+        const entrega = parseFloat(String(entregaInputs[batida.id].qty_kg).replace(',', '.'));
+        const cochoNote = entregaInputs[batida.id].cocho_note ?? null;
+        // Salva qty_entregue_cocho_kg e cocho_note na batida
+        const { error } = await supabase
+          .from('wagon_batches')
+          .update({
+            qty_entregue_cocho_kg: entrega,
+            cocho_note: cochoNote,
+          })
+          .eq('id', batida.id);
+        if (error) throw error;
+      }
+      alert('✅ Entrega no cocho registrada para ' + comEntrega.length + ' lote(s)!\n\nNao esqueca de registrar os tratos na aba Tratos Diarios.');
+      setEntregaInputs({});
+      loadDados();
+    } catch (e) {
+      alert('Erro ao salvar entrega: ' + e.message);
     } finally {
       setSalvandoRealizado(false);
     }
@@ -1278,11 +1326,101 @@ export default function BatidaVagao() {
                   })()}
 
                   <div className={styles.formAcoes}>
-                    <button type="button" className={styles.btnCancelar} onClick={() => setRealizadoInputs({})}>Limpar</button>
+                    <button type="button" className={styles.btnCancelar} onClick={() => { setRealizadoInputs({}); setEntregaInputs({}); }}>Limpar</button>
                     <button type="button" className={styles.btnAdd} onClick={handleSalvarRealizadoDia} disabled={salvandoRealizado || Object.keys(realizadoInputs).length === 0}>
-                      {salvandoRealizado ? 'Salvando...' : `💾 Confirmar Realizado (${batidasDia.length} batidas)`}
+                      {salvandoRealizado ? 'Salvando...' : '💾 1. Confirmar Realizado Fabricação (' + batidasDia.length + ' batidas)'}
                     </button>
                   </div>
+
+                  {/* ── Seção 2: Entrega no Cocho — aparece após preencher insumos ── */}
+                  {Object.keys(realizadoInputs).length > 0 && (() => {
+                    // Calcula base de cada batida: realizado fab se existir, senão previsto
+                    const getBase = (b) => b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : Number(b.total_qty_kg);
+                    return (
+                      <div style={{ marginTop: 24, borderTop: '2px dashed #c8e6c9', paddingTop: 20 }}>
+                        <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1a1a2e', marginBottom: 4 }}>
+                          🐄 Seção 2 — Entrega no Cocho por Lote
+                        </div>
+                        <div style={{ fontSize: '0.83rem', color: '#666', marginBottom: 14 }}>
+                          Informe o peso jogado de fato no cocho de cada lote e a nota de cocho lida no momento da entrega.
+                        </div>
+                        <div className={styles.loteTabela}>
+                          <table className={styles.tabelaRealizado}>
+                            <thead>
+                              <tr>
+                                <th>Lote</th>
+                                <th>Trato</th>
+                                <th style={{ textAlign: 'right' }}>Base (fab.)</th>
+                                <th style={{ textAlign: 'right', color: '#2e7d32' }}>Entregue no Cocho (kg)</th>
+                                <th style={{ textAlign: 'right' }}>Δ</th>
+                                <th>Nota Cocho</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {batidasDia.map(b => {
+                                const lote     = lotes.find(l => l.id === b.lot_id);
+                                const base     = getBase(b);
+                                const rawQty   = entregaInputs[b.id]?.qty_kg ?? '';
+                                const entrega  = parseFloat(String(rawQty).replace(',', '.'));
+                                const temVal   = !isNaN(entrega) && entrega > 0;
+                                const delta    = temVal ? entrega - base : null;
+                                const deltaPct = delta != null && base > 0 ? (delta / base) * 100 : null;
+                                const corD     = delta == null ? '#aaa' : delta > 0.5 ? '#e65100' : delta < -0.5 ? '#1565c0' : '#2e7d32';
+                                const cochoAtual = entregaInputs[b.id]?.cocho_note ?? null;
+                                return (
+                                  <tr key={b.id}>
+                                    <td><strong>{lote?.lot_code || '—'}</strong></td>
+                                    <td style={{ fontSize: '0.82rem', color: '#888' }}>
+                                      {b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}
+                                    </td>
+                                    <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(base)}</td>
+                                    <td style={{ textAlign: 'right' }}>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={rawQty}
+                                        placeholder={fmtN(base, 2)}
+                                        onChange={e => setEntregaInputs(p => ({ ...p, [b.id]: { ...p[b.id], qty_kg: e.target.value } }))}
+                                        className={styles.inputRealizado}
+                                        style={{ width: 120 }}
+                                      />
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontWeight: 700, color: corD, fontSize: '0.82rem', minWidth: 90 }}>
+                                      {delta != null ? (delta >= 0 ? '+' : '') + fmtKg(delta) : '—'}
+                                      {deltaPct != null && <span style={{ display: 'block', fontSize: '0.72rem' }}>{(deltaPct >= 0 ? '+' : '') + fmtPct(deltaPct)}</span>}
+                                    </td>
+                                    <td>
+                                      <div className={styles.cochoNotasInline}>
+                                        {COCHO_NOTES.map(n => (
+                                          <button key={n.nota} type="button"
+                                            className={styles.cochoBtnInline + (cochoAtual === n.nota ? ' ' + styles.cochoBtnInlineActive : '')}
+                                            style={cochoAtual === n.nota ? { background: n.bgCor, borderColor: n.cor, color: n.cor } : {}}
+                                            onClick={() => setEntregaInputs(p => ({
+                                              ...p,
+                                              [b.id]: { ...p[b.id], cocho_note: p[b.id]?.cocho_note === n.nota ? null : n.nota }
+                                            }))}>
+                                            {n.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className={styles.formAcoes} style={{ marginTop: 12 }}>
+                          <button type="button" className={styles.btnCancelar} onClick={() => setEntregaInputs({})}>Limpar entrega</button>
+                          <button type="button" className={styles.btnAdd}
+                            onClick={handleSalvarEntregaCocho}
+                            disabled={salvandoRealizado || Object.keys(entregaInputs).length === 0}>
+                            {salvandoRealizado ? 'Salvando...' : '🐄 2. Confirmar Entrega no Cocho'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </div>
