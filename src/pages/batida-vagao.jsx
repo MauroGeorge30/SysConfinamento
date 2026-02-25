@@ -302,12 +302,14 @@ export default function BatidaVagao() {
   // ── Detecta próximo trato automático modo lote ───────────────
   useEffect(() => {
     if (aba !== 'lote') return;
+    const maxTratos = lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : 99;
     const maxExistente = lotes.reduce((max, l) => {
       const ex = batidas.filter(b => b.lot_id === l.id && b.batch_date === loteData && b.batch_type === 'feeding');
       const m  = ex.length ? Math.max(...ex.map(b => b.feeding_order || 1)) : 0;
       return Math.max(max, m);
     }, 0);
-    setLoteOrdem(maxExistente + 1);
+    const proximoTrato = Math.min(maxExistente + 1, maxTratos);
+    setLoteOrdem(proximoTrato);
   }, [aba, loteData, batidas.length]);
 
   // ── Inicializa linhas do modo lote ───────────────────────────
@@ -756,10 +758,18 @@ export default function BatidaVagao() {
                   <div>
                     <label>Nº do Trato</label>
                     <div className={styles.tratoOrdemBox}>
-                      <span className={styles.tratoOrdemNum}>{loteOrdem}º Trato</span>
+                      <span className={styles.tratoOrdemNum}>
+                      {loteOrdem}º Trato
+                      <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 400, marginLeft: 4 }}>
+                        / {lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : '?'}
+                      </span>
+                    </span>
                       <div className={styles.tratoOrdemBtns}>
                         <button type="button" onClick={() => setLoteOrdem(o => Math.max(1, o - 1))}>−</button>
-                        <button type="button" onClick={() => setLoteOrdem(o => o + 1)}>+</button>
+                        <button type="button" onClick={() => {
+                          const maxTratos = lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : 99;
+                          setLoteOrdem(o => Math.min(o + 1, maxTratos));
+                        }}>+</button>
                       </div>
                     </div>
                   </div>
