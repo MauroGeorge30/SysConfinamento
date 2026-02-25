@@ -1703,7 +1703,6 @@ export default function BatidaVagao() {
                 const diasConf = lote.entry_date ? diasEntre(lote.entry_date, hoje) : null;
                 const linhasVis = linhas.slice(0, panoramaMaxLinhas);
                 const temMais = linhas.length > panoramaMaxLinhas;
-                const alturaTabela = Math.min(panoramaMaxLinhas, linhas.length) * 38 + 84;
 
                 return (
                   <div key={lote.id} style={{ marginBottom: 32 }}>
@@ -1726,8 +1725,8 @@ export default function BatidaVagao() {
                     </div>
 
                     {/* Tabela planilha */}
-                    <div style={{ border: '1px solid #c5cae9', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
-                      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: alturaTabela }}>
+                    <div style={{ border: '1px solid #c5cae9', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 480 }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', minWidth: 800 }}>
                           <thead>
                             <tr style={{ background: '#e8eaf6', position: 'sticky', top: 0, zIndex: 2 }}>
