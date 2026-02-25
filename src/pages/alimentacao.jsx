@@ -422,17 +422,26 @@ export default function Alimentacao() {
     if (semBatida.length) {
       return alert('Lotes sem Batida de Vagão para esta data/trato:\n' + semBatida.map(l => l.lot_code).join(', ') + '\n\nRegistre as batidas primeiro.');
     }
-    // Bloqueia se batida existe mas realizado não foi lançado
-    const semRealizado = selecionados.filter(l => {
-      if (!tratoLinhas[l.id]?.temBatida) return false;
-      const batida = batidasVagao.find(b =>
-        b.lot_id === l.id && b.batch_date === tratoLoteData &&
-        (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
-      );
-      return batida && batida.qty_realizada_kg == null;
-    });
-    if (semRealizado.length) {
-      return alert('⚠️ Realizado de fabricação não lançado para:\n' + semRealizado.map(l => l.lot_code).join(', ') + '\n\nVá em Batida de Vagão → Lançar Realizado antes de registrar os tratos.');
+    // Bloqueia se batida existe mas realizado não foi lançado — busca fresh do banco
+    const lotesComBatida = selecionados.filter(l => tratoLinhas[l.id]?.temBatida);
+    if (lotesComBatida.length > 0) {
+      const { data: wBatidasFresh } = await supabase
+        .from('wagon_batches')
+        .select('id, lot_id, batch_type, feeding_order, qty_realizada_kg')
+        .eq('farm_id', currentFarm.id)
+        .eq('batch_date', tratoLoteData)
+        .in('lot_id', lotesComBatida.map(l => l.id));
+
+      const semRealizado = lotesComBatida.filter(l => {
+        const batida = (wBatidasFresh || []).find(b =>
+          b.lot_id === l.id &&
+          (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
+        );
+        return batida && batida.qty_realizada_kg == null;
+      });
+      if (semRealizado.length) {
+        return alert('⚠️ Realizado de fabricação não lançado para:\n' + semRealizado.map(l => l.lot_code).join(', ') + '\n\nVá em Batida de Vagão → Lançar Realizado antes de registrar os tratos.');
+      }
     }
     const invalidos = selecionados.filter(l => !tratoLinhas[l.id]?.feed_type_id || !parseFloat(tratoLinhas[l.id]?.quantity_kg));
     if (invalidos.length) return alert(`Lotes sem ração ou quantidade:\n${invalidos.map(l => l.lot_code).join(', ')}`);
