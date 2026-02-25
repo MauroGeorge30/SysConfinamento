@@ -536,7 +536,24 @@ export default function BatidaVagao() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Excluir esta batida? O ajuste de estoque do realizado NÃO será estornado automaticamente.')) return;
+    const batida = batidas.find(b => b.id === id);
+    const lote   = lotes.find(l => l.id === batida?.lot_id);
+    const temRealizado = batida?.qty_realizada_kg != null;
+
+    const msg = [
+      'Confirma exclusao desta batida?',
+      '',
+      'Lote: ' + (lote?.lot_code || '—'),
+      'Data: ' + (batida?.batch_date || '—'),
+      'Previsto: ' + fmtKg(batida?.total_qty_kg),
+      '',
+      'O estoque do PREVISTO sera estornado automaticamente pelo banco.',
+      temRealizado
+        ? 'ATENCAO: Esta batida tem realizado lancado (' + fmtKg(batida.qty_realizada_kg) + '). O ajuste do realizado NAO sera estornado — verifique o saldo dos insumos apos excluir.'
+        : 'Nenhum realizado lancado — sem impacto adicional no estoque.',
+    ].join('\n');
+
+    if (!confirm(msg)) return;
     const { error } = await supabase.from('wagon_batches').delete().eq('id', id);
     if (error) return alert('Erro: ' + error.message);
     loadDados();
@@ -641,8 +658,17 @@ export default function BatidaVagao() {
   const batidasFiltradas = batidas.filter(b =>
     (!filtroData || b.batch_date === filtroData) && (!filtroLote || b.lot_id === filtroLote)
   );
-  const totalSelecionado = lotes.filter(l => loteLinhas[l.id]?.checked)
-    .reduce((acc, l) => acc + (parseFloat(String(loteLinhas[l.id]?.qty_kg).replace(',', '.')) || 0), 0);
+  const totalSelecionado = lotes.filter(l => loteLinhas[l.id]?.checked).reduce((acc, l) => {
+    const d = loteLinhas[l.id];
+    if (!d) return acc;
+    const digitado = parseFloat(String(d.qty_kg).replace(',', '.'));
+    if (!isNaN(digitado) && digitado > 0) return acc + digitado;
+    if (d.mn_base) {
+      const feedD = d.feedingsPerDay || 1;
+      return acc + (loteTipo === 'feeding' ? d.mn_base.mnTotalDia / feedD : d.mn_base.mnTotalDia);
+    }
+    return acc;
+  }, 0);
   const qtdSelecionados  = lotes.filter(l => loteLinhas[l.id]?.checked).length;
 
   if (authLoading || loading) return <Layout><div style={{ padding: '2rem' }}>Carregando...</div></Layout>;
