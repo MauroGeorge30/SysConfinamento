@@ -1,0 +1,104 @@
+/* ── Container ─────────────────────────────────────────────── */
+.container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+/* ── Header ─────────────────────────────────────────────────── */
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+.header h1 { font-size: 1.5rem; font-weight: 800; color: #1a1a2e; margin: 0 0 4px 0; }
+.subtitle { font-size: 0.88rem; color: #888; margin: 0; }
+
+.resultadoHeader { display: flex; flex-direction: column; align-items: flex-end; padding: 12px 20px; border-radius: 12px; gap: 2px; }
+.resultadoHeader span { font-size: 0.78rem; font-weight: 700; letter-spacing: 1px; }
+.resultadoHeader strong { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+.resultadoHeader small { font-size: 0.75rem; opacity: 0.8; }
+.resultadoPositivo { background: #e8f5e9; color: #1b5e20; border: 2px solid #4caf50; }
+.resultadoNegativo { background: #ffebee; color: #b71c1c; border: 2px solid #ef5350; }
+
+/* ── Card ────────────────────────────────────────────────────── */
+.card { background: #fff; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border: 1px solid #ebebeb; }
+.cardHeader { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; margin-bottom: 1rem; padding-bottom: 0.6rem; border-bottom: 2px solid #f0f0f0; }
+.cardHeaderRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.6rem; border-bottom: 2px solid #f0f0f0; }
+.cardHeaderRow .cardHeader { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+/* ── Seleção de lote ─────────────────────────────────────────── */
+.row3 { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; align-items: start; }
+.row3 label { font-size: 0.85rem; font-weight: 600; color: #444; display: block; margin-bottom: 5px; }
+.row3 select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; background: #fff; outline: none; cursor: pointer; }
+.row3 select:focus { border-color: #2e7d32; }
+.infoBox { background: #f0f7f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: #2e7d32; line-height: 1.5; }
+
+/* ── Tabela de fases ─────────────────────────────────────────── */
+.tabelaWrap { overflow-x: auto; }
+.tabelaFases { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1000px; }
+.tabelaFases thead tr { background: #1a1a2e; }
+.tabelaFases th { padding: 9px 8px; text-align: right; color: #fff; font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
+.tabelaFases th:first-child { text-align: left; }
+.tabelaFases th:nth-child(3) { text-align: left; }
+.tabelaFases td { padding: 6px 8px; }
+.linhaA { background: #fafafa; }
+.linhaB { background: #f5f5f5; }
+.linhaTotal { background: #e8f5e9; border-top: 2px solid #2e7d32; }
+.linhaTotal td { padding: 8px; font-size: 0.82rem; color: #1b5e20; text-align: right; }
+.linhaTotal td:first-child { text-align: left; }
+
+.tdCalc { text-align: right; color: #1565c0; font-weight: 500; white-space: nowrap; }
+.tdDestaque { color: #2e7d32 !important; font-weight: 700 !important; }
+
+.inputFaseNome { width: 100px; padding: 5px 7px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; }
+.inputFaseNum  { width: 75px; padding: 5px 7px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; text-align: right; }
+.selectFase    { width: 130px; padding: 5px 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.79rem; }
+.inputFaseNome:focus, .inputFaseNum:focus, .selectFase:focus { border-color: #2e7d32; outline: none; }
+
+.btnAddFase { background: #2e7d32; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btnAddFase:hover { background: #1b5e20; }
+.btnRemoveFase { background: none; border: 1px solid #e57373; color: #e57373; border-radius: 6px; width: 24px; height: 24px; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; }
+.btnRemoveFase:hover { background: #ffebee; }
+
+/* ── Grid de parâmetros ──────────────────────────────────────── */
+.gridParams { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; }
+@media (max-width: 1100px) { .gridParams { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px)  { .gridParams { grid-template-columns: 1fr; } }
+
+.paramGrid { display: flex; flex-direction: column; gap: 8px; }
+.paramRow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+.paramRow label { font-size: 0.82rem; color: #555; flex: 1; }
+.paramRow input { width: 130px; padding: 7px 10px; border: 1px solid #ddd; border-radius: 7px; font-size: 0.88rem; text-align: right; outline: none; flex-shrink: 0; }
+.paramRow input:focus { border-color: #2e7d32; }
+.paramCalc span { width: 130px; text-align: right; font-size: 0.88rem; color: #1565c0; font-weight: 600; flex-shrink: 0; }
+.paramDestaque span { color: #1b5e20 !important; font-weight: 700 !important; }
+
+/* ── Resultado final ─────────────────────────────────────────── */
+.resultadoGrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 900px) { .resultadoGrid { grid-template-columns: 1fr; } }
+
+.resultadoBloco { display: flex; flex-direction: column; gap: 4px; }
+.resultadoTitulo { font-size: 0.78rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #f0f0f0; }
+
+.resultadoLinha { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f5f5f5; }
+.resultadoLinha span { font-size: 0.85rem; color: #555; }
+.resultadoLinha strong { font-size: 0.92rem; font-weight: 700; color: #333; }
+
+.resultadoTotalLinha { background: #f5f5f5; padding: 8px 10px; border-radius: 8px; margin-top: 4px; }
+.resultadoTotalLinha span { font-weight: 600; color: #333; }
+.resultadoTotalLinha strong { font-size: 1rem; color: #1a1a2e; }
+
+.resultadoReceitaLinha { background: #e3f2fd; padding: 8px 10px; border-radius: 8px; }
+.resultadoReceitaLinha span { font-weight: 600; color: #1565c0; }
+.resultadoReceitaLinha strong { font-size: 1rem; color: #1565c0; }
+
+.lucroPositivoLinha { background: #e8f5e9; padding: 10px 10px; border-radius: 8px; }
+.lucroPositivoLinha span { font-weight: 700; color: #1b5e20; }
+.lucroPositivoLinha strong { font-size: 1.1rem; color: #1b5e20; }
+
+.lucroNegativoLinha { background: #ffebee; padding: 10px 10px; border-radius: 8px; }
+.lucroNegativoLinha span { font-weight: 700; color: #b71c1c; }
+.lucroNegativoLinha strong { font-size: 1.1rem; color: #b71c1c; }
+
+/* ── Indicadores ─────────────────────────────────────────────── */
+.resultadoIndicadores { background: #f9f9f9; border-radius: 10px; padding: 1rem; }
+.indicadorItem { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+.indicadorItem span { font-size: 0.83rem; color: #666; }
+.indicadorItem strong { font-size: 0.92rem; font-weight: 700; color: #333; }
+.indPositivo { background: #e8f5e9; padding: 8px 10px; border-radius: 8px; border-bottom: none !important; }
+.indPositivo span, .indPositivo strong { color: #1b5e20 !important; }
+.indNegativo { background: #ffebee; padding: 8px 10px; border-radius: 8px; border-bottom: none !important; }
+.indNegativo span, .indNegativo strong { color: #b71c1c !important; }
