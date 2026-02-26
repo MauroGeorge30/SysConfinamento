@@ -659,6 +659,15 @@ export default function BatidaVagao() {
     ].join('\n');
 
     if (!confirm(msg)) return;
+
+    // Primeiro deletar movimentações de estoque vinculadas a esta batida
+    const { error: errMov } = await supabase
+      .from('ingredient_stock_movements')
+      .delete()
+      .eq('wagon_batch_id', id);
+    if (errMov) return alert('Erro ao estornar movimentações de estoque: ' + errMov.message);
+
+    // Agora deletar a batida (trigger do banco estorna o previsto)
     const { error } = await supabase.from('wagon_batches').delete().eq('id', id);
     if (error) return alert('Erro: ' + error.message);
     loadDados();
