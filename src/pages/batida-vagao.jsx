@@ -1361,8 +1361,12 @@ export default function BatidaVagao() {
                             const prevMS   = calcMSBatida(b, prev);
                             const fabMS    = fab != null ? calcMSBatida(b, fab) : null;
                             const cochoEntry = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
-                            const diffFabPct  = fab != null && prev > 0 ? Math.abs((fab - prev) / prev) * 100 : 0;
-                            const temExcesso   = diffFabPct > toleranciaFabPct;
+                            const diffFabPct   = fab != null && prev > 0 ? Math.abs((fab - prev) / prev) * 100 : 0;
+                            const base4entrega = fab ?? prev;
+                            const diffEntPct   = entregue != null && base4entrega > 0 ? Math.abs((entregue - base4entrega) / base4entrega) * 100 : 0;
+                            const temExcFab    = diffFabPct > toleranciaFabPct;
+                            const temExcEnt    = diffEntPct > toleranciaFabPct;
+                            const temExcesso   = temExcFab || temExcEnt;
                             const status =
                               entregue != null ? { label: '✅ Completo', cor: '#2e7d32', bg: '#e8f5e9' } :
                               fab != null      ? { label: '🐄 Aguarda entrega', cor: '#1565c0', bg: '#e3f2fd' } :
@@ -1401,11 +1405,17 @@ export default function BatidaVagao() {
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   {entregue != null
-                                    ? <><strong style={{ color: '#2e7d32' }}>{fmtKg(entregue)}</strong>
+                                    ? <>
+                                        <strong style={{ color: temExcEnt ? '#b71c1c' : '#2e7d32' }}>{fmtKg(entregue)}</strong>
                                         {cochoEntry && <div style={{ fontSize: '0.72rem', color: cochoEntry.cor, fontWeight: 700 }}>{cochoEntry.label}</div>}
                                         <div style={{ fontSize: '0.72rem', color: entregue > (fab ?? prev) ? '#e65100' : '#1565c0' }}>
                                           {entregue > (fab ?? prev) ? '+' : ''}{fmtKg(entregue - (fab ?? prev))}
                                         </div>
+                                        {temExcEnt && (
+                                          <span style={{ display: 'inline-block', fontSize: '0.68rem', fontWeight: 800, color: '#fff', background: '#b71c1c', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
+                                            ⚠️ {entregue > base4entrega ? '+' : ''}{diffEntPct.toFixed(1)}%
+                                          </span>
+                                        )}
                                       </>
                                     : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>— não lançado</span>
                                   }
@@ -1736,7 +1746,7 @@ export default function BatidaVagao() {
             if (!batidasLotePer.length) return null;
 
             const linhas = [...batidasLotePer].sort((a, b) =>
-              a.batch_date.localeCompare(b.batch_date) || (a.feeding_order || 0) - (b.feeding_order || 0)
+              b.batch_date.localeCompare(a.batch_date) || (b.feeding_order || 0) - (a.feeding_order || 0)
             ).map(b => {
               const previsto   = Number(b.total_qty_kg);
               const fabricado  = b.qty_realizada_kg != null ? Number(b.qty_realizada_kg) : null;
@@ -1852,7 +1862,10 @@ export default function BatidaVagao() {
                           <tbody>
                             {linhasVis.map(({ b, previsto, fabricado, entregue, msEntregue, custo, status }, idx) => {
                               const racao = racoes.find(r => r.id === b.feed_type_id);
-                              const diffPanPct  = fabricado != null && previsto > 0 ? Math.abs((fabricado - previsto) / previsto) * 100 : 0;
+                              const diffPanFab  = fabricado != null && previsto > 0 ? Math.abs((fabricado - previsto) / previsto) * 100 : 0;
+                              const base4ent    = fabricado ?? previsto;
+                              const diffPanEnt  = entregue != null && base4ent > 0 ? Math.abs((entregue - base4ent) / base4ent) * 100 : 0;
+                              const diffPanPct  = Math.max(diffPanFab, diffPanEnt);
                               const temExcPan   = diffPanPct > toleranciaFabPct;
                               const bgRow = temExcPan ? '#fff3e0' : idx % 2 === 0 ? '#fff' : '#f5f5ff';
                               const borderPan   = temExcPan ? '3px solid #ff6d00' : undefined;
