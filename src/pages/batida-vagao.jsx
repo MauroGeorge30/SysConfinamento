@@ -185,7 +185,7 @@ export default function BatidaVagao() {
         { data: ingsData },
       ] = await Promise.all([
         supabase.from('wagon_batches').select('*').eq('farm_id', currentFarm.id)
-          .order('batch_date', { ascending: false }).order('feeding_order', { ascending: true }),
+          .order('batch_date', { ascending: false }).order('feeding_order', { ascending: false }),
         supabase.from('lots')
           .select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(id, name))')
           .eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
@@ -1260,7 +1260,7 @@ export default function BatidaVagao() {
 
         {/* ═══ ABA LANÇAR REALIZADO ═══ */}
         {aba === 'realizado' && (() => {
-          const batidasDia   = batidas.filter(b => b.batch_date === realizadoData);
+          const batidasDia   = batidas.filter(b => b.batch_date === realizadoData).sort((a, b) => (b.feeding_order || 0) - (a.feeding_order || 0));
           const insumos      = calcInsumosPrevistosDia(realizadoData);
           const totalBatidas = batidasDia.length;
           const todasFabricadas  = totalBatidas > 0 && batidasDia.every(b => b.qty_realizada_kg != null);
@@ -1379,11 +1379,23 @@ export default function BatidaVagao() {
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   {fab != null
-                                    ? <><strong style={{ color: '#1565c0' }}>{fmtKg(fab)}</strong>
-                                        <div style={{ fontSize: '0.72rem', color: fab > prev ? '#e65100' : '#1565c0' }}>
-                                          {fab > prev ? '+' : ''}{fmtKg(fab - prev)}
-                                        </div>
-                                      </>
+                                    ? (() => {
+                                        const diffPct = prev > 0 ? Math.abs((fab - prev) / prev) * 100 : 0;
+                                        const temExcesso = diffPct > toleranciaFabPct;
+                                        return (
+                                          <>
+                                            <strong style={{ color: temExcesso ? '#b71c1c' : '#1565c0' }}>{fmtKg(fab)}</strong>
+                                            <div style={{ fontSize: '0.72rem', color: fab > prev ? '#e65100' : '#1565c0' }}>
+                                              {fab > prev ? '+' : ''}{fmtKg(fab - prev)}
+                                            </div>
+                                            {temExcesso && (
+                                              <span style={{ display: 'inline-block', fontSize: '0.68rem', fontWeight: 800, color: '#fff', background: '#b71c1c', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
+                                                ⚠️ {fab > prev ? '+' : ''}{diffPct.toFixed(1)}%
+                                              </span>
+                                            )}
+                                          </>
+                                        );
+                                      })()
                                     : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>— não lançado</span>
                                   }
                                 </td>
