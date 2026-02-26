@@ -21,6 +21,23 @@ const FASES_PADRAO = [
   { nome: 'Terminação', dias: '99', racaoId: '', msPct: '', custoKgMN: '', cms: '' },
 ];
 
+// ── Sub-componentes fora do render para não perder foco ────────
+function PRow({ lbl, val, set, ph = '', tp = 'number' }) {
+  return (
+    <div className={styles.pRow}>
+      <label>{lbl}</label>
+      <input type={tp} value={val} onChange={e => set(e.target.value)} placeholder={ph} />
+    </div>
+  );
+}
+function CRow({ lbl, val, dest, ok, err }) {
+  return (
+    <div className={`${styles.pRow} ${styles.pCalc} ${dest?styles.pDest:''} ${ok?styles.pOk:''} ${err?styles.pErr:''}`}>
+      <label>{lbl}</label><span>{val}</span>
+    </div>
+  );
+}
+
 export default function Viabilidade() {
   const router = useRouter();
   const { user, loading: authLoading, currentFarm } = useAuth();
@@ -58,7 +75,7 @@ export default function Viabilidade() {
     (async () => {
       setLoading(true);
       const [{ data: ld }, { data: rd }, { data: sd }] = await Promise.all([
-        supabase.from('lots').select(`id, lot_code, head_count, entry_date, entry_weight, status,
+        supabase.from('lots').select(`id, lot_code, head_count, entry_date, entry_weight,
           lot_phases(id, phase_name, feed_type_id, start_date, end_date, cms_pct_pv,
             feed_types(id, name, cost_per_kg, dry_matter_pct))
         `).eq('farm_id', currentFarm.id).order('entry_date', { ascending: false }),
@@ -200,18 +217,6 @@ export default function Viabilidade() {
   useEffect(() => { if (!authLoading && !user) router.push('/'); }, [authLoading, user, router]);
   if (authLoading || !user) return null;
 
-  const I = ({ lbl, val, set, ph = '', tp = 'number' }) => (
-    <div className={styles.pRow}>
-      <label>{lbl}</label>
-      <input type={tp} value={val} onChange={e => set(e.target.value)} placeholder={ph} />
-    </div>
-  );
-  const C = ({ lbl, val, dest, ok, err }) => (
-    <div className={`${styles.pRow} ${styles.pCalc} ${dest?styles.pDest:''} ${ok?styles.pOk:''} ${err?styles.pErr:''}`}>
-      <label>{lbl}</label><span>{val}</span>
-    </div>
-  );
-
   return (
     <Layout>
       <div className={styles.container}>
@@ -328,7 +333,7 @@ export default function Viabilidade() {
                     <option value="">— Simulação manual —</option>
                     {lotes.map(l => (
                       <option key={l.id} value={l.id}>
-                        {l.lot_code} · {l.head_count}cab · {l.entry_weight||'?'}kg · {l.status==='active'?'🟢':'⚫'}
+                        {l.lot_code} · {l.head_count}cab · {l.entry_weight||'?'}kg · {''}
                       </option>
                     ))}
                   </select>
@@ -402,60 +407,60 @@ export default function Viabilidade() {
               <div className={styles.card}>
                 <div className={styles.cardT}>🐂 Compra</div>
                 <div className={styles.pG}>
-                  <I lbl="Animais (cab.)"       val={animais}       set={setAnimais}/>
-                  <I lbl="Peso Entrada (kg)"     val={pesoEntrada}   set={setPesoEntrada}/>
-                  <I lbl="Preço Compra (R$/@)"   val={precoCompraAt} set={setPrecoCompraAt} ph="349.61"/>
-                  <I lbl="KM do Frete"           val={kmFrete}       set={setKmFrete} ph="600"/>
-                  <I lbl="R$ por KM"             val={precoKmFrete}  set={setPrecoKmFrete} ph="7.00"/>
-                  <I lbl="Animais na Carreta"    val={qtdCarreta}    set={setQtdCarreta} ph="100"/>
-                  <I lbl="Comissão (R$/cb)"      val={comissao}      set={setComissao} ph="0"/>
+                  <PRow lbl="Animais (cab.)"       val={animais}       set={setAnimais}/>
+                  <PRow lbl="Peso Entrada (kg)"     val={pesoEntrada}   set={setPesoEntrada}/>
+                  <PRow lbl="Preço Compra (R$/@)"   val={precoCompraAt} set={setPrecoCompraAt} ph="349.61"/>
+                  <PRow lbl="KM do Frete"           val={kmFrete}       set={setKmFrete} ph="600"/>
+                  <PRow lbl="R$ por KM"             val={precoKmFrete}  set={setPrecoKmFrete} ph="7.00"/>
+                  <PRow lbl="Animais na Carreta"    val={qtdCarreta}    set={setQtdCarreta} ph="100"/>
+                  <PRow lbl="Comissão (R$/cb)"      val={comissao}      set={setComissao} ph="0"/>
                   <div className={styles.pDiv}/>
-                  <C lbl="Frete / cab"           val={`R$ ${fmtR(r.frete)}`}/>
-                  <C lbl="Peso entrada (@)"      val={`${fmtR(r.peAt,2)} @`}/>
-                  <C lbl="Preço animal base"     val={`R$ ${fmtR(r.anBase)}`}/>
-                  <C lbl="@ c/ frete+comissão"   val={`R$ ${fmtR(r.atComF)}`}/>
-                  <C lbl="kg c/ frete+comissão"  val={`R$ ${fmtR(r.kgComF,4)}`}/>
-                  <C lbl="Preço compra total/cb" val={`R$ ${fmtR(r.compraTotal)}`} dest/>
+                  <CRow lbl="Frete / cab"           val={`R$ ${fmtR(r.frete)}`}/>
+                  <CRow lbl="Peso entrada (@)"      val={`${fmtR(r.peAt,2)} @`}/>
+                  <CRow lbl="Preço animal base"     val={`R$ ${fmtR(r.anBase)}`}/>
+                  <CRow lbl="@ c/ frete+comissão"   val={`R$ ${fmtR(r.atComF)}`}/>
+                  <CRow lbl="kg c/ frete+comissão"  val={`R$ ${fmtR(r.kgComF,4)}`}/>
+                  <CRow lbl="Preço compra total/cb" val={`R$ ${fmtR(r.compraTotal)}`} dest/>
                 </div>
               </div>
 
               <div className={styles.card}>
                 <div className={styles.cardT}>⚙️ Produção</div>
                 <div className={styles.pG}>
-                  <I lbl="GMD (kg/dia)"         val={gmd}         set={setGmd} ph="1.5"/>
-                  <I lbl="CMS % PV (padrão)"    val={cmsPctPv}    set={setCmsPctPv} ph="2.3"/>
-                  <I lbl="Rendimento Carcaça %"  val={rendCarcaca} set={setRendCarcaca} ph="56"/>
-                  <I lbl="Custo Operacional R$"  val={operacional} set={setOperacional} ph="0"/>
-                  <I lbl="Taxas R$"              val={taxas}       set={setTaxas} ph="0"/>
+                  <PRow lbl="GMD (kg/dia)"         val={gmd}         set={setGmd} ph="1.5"/>
+                  <PRow lbl="CMS % PV (padrão)"    val={cmsPctPv}    set={setCmsPctPv} ph="2.3"/>
+                  <PRow lbl="Rendimento Carcaça %"  val={rendCarcaca} set={setRendCarcaca} ph="56"/>
+                  <PRow lbl="Custo Operacional R$"  val={operacional} set={setOperacional} ph="0"/>
+                  <PRow lbl="Taxas R$"              val={taxas}       set={setTaxas} ph="0"/>
                   <div className={styles.pDiv}/>
-                  <C lbl="Período total"         val={`${r.totalDias} dias`}/>
-                  <C lbl="MS dieta ponderada"    val={fmtPct(r.msPond,1)}/>
-                  <C lbl="R$/kg MN ponderado"    val={`R$ ${fmtR(r.cuPond,4)}`}/>
-                  <C lbl="Consumo MN total"      val={`${fmtR(r.mnTot,2)} kg`}/>
-                  <C lbl="Custo diária média"    val={`R$ ${fmtR(r.diaMed,2)}`}/>
-                  <C lbl="Peso de saída"         val={`${fmtR(r.pesoS,1)} kg`}/>
-                  <C lbl="Ganho de peso"         val={`+${fmtR(r.ganhoPeso,1)} kg`}/>
-                  <C lbl="Custo alimentar total" val={`R$ ${fmtR(r.cuAlim)}`} dest/>
+                  <CRow lbl="Período total"         val={`${r.totalDias} dias`}/>
+                  <CRow lbl="MS dieta ponderada"    val={fmtPct(r.msPond,1)}/>
+                  <CRow lbl="R$/kg MN ponderado"    val={`R$ ${fmtR(r.cuPond,4)}`}/>
+                  <CRow lbl="Consumo MN total"      val={`${fmtR(r.mnTot,2)} kg`}/>
+                  <CRow lbl="Custo diária média"    val={`R$ ${fmtR(r.diaMed,2)}`}/>
+                  <CRow lbl="Peso de saída"         val={`${fmtR(r.pesoS,1)} kg`}/>
+                  <CRow lbl="Ganho de peso"         val={`+${fmtR(r.ganhoPeso,1)} kg`}/>
+                  <CRow lbl="Custo alimentar total" val={`R$ ${fmtR(r.cuAlim)}`} dest/>
                 </div>
               </div>
 
               <div className={styles.card}>
                 <div className={styles.cardT}>💰 Venda & Resultado</div>
                 <div className={styles.pG}>
-                  <I lbl="Preço de Venda (R$/@)" val={precoVendaAt} set={setPrecoVendaAt} ph="327"/>
-                  <C lbl="Peso carcaça"           val={`${fmtR(r.carc,1)} kg`}/>
-                  <C lbl="@ produzida"            val={`${fmtR(r.atP,2)} @`}/>
-                  <C lbl="Custo @ produzida"      val={`R$ ${fmtR(r.cuAt)}`}/>
+                  <PRow lbl="Preço de Venda (R$/@)" val={precoVendaAt} set={setPrecoVendaAt} ph="327"/>
+                  <CRow lbl="Peso carcaça"           val={`${fmtR(r.carc,1)} kg`}/>
+                  <CRow lbl="@ produzida"            val={`${fmtR(r.atP,2)} @`}/>
+                  <CRow lbl="Custo @ produzida"      val={`R$ ${fmtR(r.cuAt)}`}/>
                   <div className={styles.pDiv}/>
-                  <C lbl="Preço animal c/frete"   val={`R$ ${fmtR(r.compraTotal)}`}/>
-                  <C lbl="Custo alimentar"        val={`R$ ${fmtR(r.cuAlim)}`}/>
-                  <C lbl="Operacional + Taxas"    val={`R$ ${fmtR(n(operacional)+n(taxas))}`}/>
-                  <C lbl="Custo total / cb"       val={`R$ ${fmtR(r.cuTot)}`} dest/>
-                  <C lbl="Receita total / cb"     val={`R$ ${fmtR(r.rec)}`} ok={r.rec>0&&r.luc>0}/>
-                  <C lbl={`Lucro líquido / cb`}   val={`R$ ${fmtR(r.luc)}`} ok={viavel} err={!viavel&&n(precoVendaAt)>0}/>
-                  <C lbl={`Lucro lote (${animais} cab)`} val={`R$ ${fmtR(r.lucLote)}`} ok={viavel} err={!viavel&&n(precoVendaAt)>0}/>
-                  <C lbl="Margem %"               val={fmtPct(r.margPct)}/>
-                  <C lbl="Margem / @"             val={`R$ ${fmtR(r.margAt)}`}/>
+                  <CRow lbl="Preço animal c/frete"   val={`R$ ${fmtR(r.compraTotal)}`}/>
+                  <CRow lbl="Custo alimentar"        val={`R$ ${fmtR(r.cuAlim)}`}/>
+                  <CRow lbl="Operacional + Taxas"    val={`R$ ${fmtR(n(operacional)+n(taxas))}`}/>
+                  <CRow lbl="Custo total / cb"       val={`R$ ${fmtR(r.cuTot)}`} dest/>
+                  <CRow lbl="Receita total / cb"     val={`R$ ${fmtR(r.rec)}`} ok={r.rec>0&&r.luc>0}/>
+                  <CRow lbl={`Lucro líquido / cb`}   val={`R$ ${fmtR(r.luc)}`} ok={viavel} err={!viavel&&n(precoVendaAt)>0}/>
+                  <CRow lbl={`Lucro lote (${animais} cab)`} val={`R$ ${fmtR(r.lucLote)}`} ok={viavel} err={!viavel&&n(precoVendaAt)>0}/>
+                  <CRow lbl="Margem %"               val={fmtPct(r.margPct)}/>
+                  <CRow lbl="Margem / @"             val={`R$ ${fmtR(r.margAt)}`}/>
                 </div>
               </div>
 
