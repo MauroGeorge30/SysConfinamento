@@ -425,8 +425,9 @@ export default function Alimentacao() {
           pen_id:       penId,
           quantity_kg:  qtyKg.toString(),  // sempre refresh da batida ao mudar data/ordem
           leftover_kg:  '',
-          temBatida:    !!batida,
+          temBatida:     !!batida,
           usouRealizado: batida?.qty_realizada_kg != null,
+          temEntregue:   batida?.qty_entregue_cocho_kg != null,
         };
       });
       return novo;
@@ -1136,10 +1137,18 @@ export default function Alimentacao() {
                         <td>{l.head_count}</td>
                         <td>
                           {d.temBatida
-                            ? <span style={{ display:'flex', flexDirection:'column', gap:1 }}>
-                                <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '0.85rem' }}>✅ OK</span>
-                                <span style={{ fontSize: '0.72rem', color: d.usouRealizado ? '#2e7d32' : '#e65100', fontWeight: 600 }}>
-                                  {d.usouRealizado ? 'realizado' : '⏳ previsto'}
+                            ? <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ fontSize: '0.75rem', color: '#888', minWidth: 42 }}>Fab.</span>
+                                  <span style={{ color: d.usouRealizado ? '#2e7d32' : '#e65100', fontWeight: 700, fontSize: '0.8rem' }}>
+                                    {d.usouRealizado ? '✅ OK' : '⏳ prev.'}
+                                  </span>
+                                </span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ fontSize: '0.75rem', color: '#888', minWidth: 42 }}>Cocho</span>
+                                  <span style={{ color: d.temEntregue ? '#2e7d32' : '#c62828', fontWeight: 700, fontSize: '0.8rem' }}>
+                                    {d.temEntregue ? '✅ OK' : '❌ Pend.'}
+                                  </span>
                                 </span>
                               </span>
                             : <span style={{ color: '#c62828', fontSize: '0.85rem' }}>⚠️ Sem batida</span>
