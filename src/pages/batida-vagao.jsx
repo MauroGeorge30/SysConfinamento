@@ -1361,12 +1361,16 @@ export default function BatidaVagao() {
                             const prevMS   = calcMSBatida(b, prev);
                             const fabMS    = fab != null ? calcMSBatida(b, fab) : null;
                             const cochoEntry = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
+                            const diffFabPct  = fab != null && prev > 0 ? Math.abs((fab - prev) / prev) * 100 : 0;
+                            const temExcesso   = diffFabPct > toleranciaFabPct;
                             const status =
                               entregue != null ? { label: '✅ Completo', cor: '#2e7d32', bg: '#e8f5e9' } :
                               fab != null      ? { label: '🐄 Aguarda entrega', cor: '#1565c0', bg: '#e3f2fd' } :
                                                  { label: '⏳ Sem fabricado', cor: '#e65100', bg: '#fff3e0' };
+                            const bgLinha     = temExcesso ? '#fff3e0' : status.bg + '55';
+                            const borderLinha = temExcesso ? '3px solid #ff6d00' : undefined;
                             return (
-                              <tr key={b.id} style={{ background: status.bg + '55' }}>
+                              <tr key={b.id} style={{ background: bgLinha, borderLeft: borderLinha }}>
                                 <td>
                                   <strong>{lote?.lot_code || '—'}</strong>
                                   <div style={{ fontSize: '0.75rem', color: '#888' }}>{racao?.name || '—'}</div>
@@ -1379,23 +1383,19 @@ export default function BatidaVagao() {
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   {fab != null
-                                    ? (() => {
-                                        const diffPct = prev > 0 ? Math.abs((fab - prev) / prev) * 100 : 0;
-                                        const temExcesso = diffPct > toleranciaFabPct;
-                                        return (
-                                          <>
-                                            <strong style={{ color: temExcesso ? '#b71c1c' : '#1565c0' }}>{fmtKg(fab)}</strong>
-                                            <div style={{ fontSize: '0.72rem', color: fab > prev ? '#e65100' : '#1565c0' }}>
-                                              {fab > prev ? '+' : ''}{fmtKg(fab - prev)}
-                                            </div>
-                                            {temExcesso && (
-                                              <span style={{ display: 'inline-block', fontSize: '0.68rem', fontWeight: 800, color: '#fff', background: '#b71c1c', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
-                                                ⚠️ {fab > prev ? '+' : ''}{diffPct.toFixed(1)}%
-                                              </span>
-                                            )}
-                                          </>
-                                        );
-                                      })()
+                                    ? (
+                                        <>
+                                          <strong style={{ color: temExcesso ? '#b71c1c' : '#1565c0' }}>{fmtKg(fab)}</strong>
+                                          <div style={{ fontSize: '0.72rem', color: fab > prev ? '#e65100' : '#1565c0' }}>
+                                            {fab > prev ? '+' : ''}{fmtKg(fab - prev)}
+                                          </div>
+                                          {temExcesso && (
+                                            <span style={{ display: 'inline-block', fontSize: '0.68rem', fontWeight: 800, color: '#fff', background: '#b71c1c', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
+                                              ⚠️ {fab > prev ? '+' : ''}{diffFabPct.toFixed(1)}%
+                                            </span>
+                                          )}
+                                        </>
+                                      )
                                     : <span style={{ color: '#bbb', fontSize: '0.82rem' }}>— não lançado</span>
                                   }
                                 </td>
@@ -1852,30 +1852,30 @@ export default function BatidaVagao() {
                           <tbody>
                             {linhasVis.map(({ b, previsto, fabricado, entregue, msEntregue, custo, status }, idx) => {
                               const racao = racoes.find(r => r.id === b.feed_type_id);
-                              const bgRow = idx % 2 === 0 ? '#fff' : '#f5f5ff';
+                              const diffPanPct  = fabricado != null && previsto > 0 ? Math.abs((fabricado - previsto) / previsto) * 100 : 0;
+                              const temExcPan   = diffPanPct > toleranciaFabPct;
+                              const bgRow = temExcPan ? '#fff3e0' : idx % 2 === 0 ? '#fff' : '#f5f5ff';
+                              const borderPan   = temExcPan ? '3px solid #ff6d00' : undefined;
                               const statusInfo =
                                 status === 'completo' ? { label: '✅', bg: '#e8f5e9', cor: '#2e7d32' } :
                                 status === 'entrega'  ? { label: '🐄', bg: '#e3f2fd', cor: '#1565c0' } :
                                                         { label: '⏳', bg: '#fff8e1', cor: '#f57c00' };
                               const cochoNote = b.cocho_note != null ? COCHO_NOTES.find(n => n.nota === b.cocho_note) : null;
                               return (
-                                <tr key={b.id} style={{ background: bgRow, borderBottom: '1px solid #eeeeee' }}>
+                                <tr key={b.id} style={{ background: bgRow, borderBottom: '1px solid #eeeeee', borderLeft: borderPan }}>
                                   <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', fontWeight: 500, color: '#333' }}>{fmtDataBR(b.batch_date)}</td>
                                   <td style={{ padding: '6px 8px', textAlign: 'center', color: '#666' }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º'}</td>
                                   <td style={{ padding: '6px 8px', color: '#444', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={racao?.name}>{racao?.name || '—'}</td>
                                   <td style={{ padding: '6px 8px', textAlign: 'right', color: '#555' }}>{fmtKg(previsto)}</td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1565c0', fontWeight: fabricado != null ? 600 : 400 }}>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', color: temExcPan ? '#b71c1c' : '#1565c0', fontWeight: fabricado != null ? 600 : 400 }}>
                                     {fabricado != null ? (
                                       <>
                                         {fmtKg(fabricado)}
-                                        {(() => {
-                                          const diff = previsto > 0 ? Math.abs((fabricado - previsto) / previsto) * 100 : 0;
-                                          return diff > toleranciaFabPct
-                                            ? <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#fff', background: fabricado > previsto ? '#b71c1c' : '#e65100', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
-                                                ⚠️ {fabricado > previsto ? '+' : ''}{((fabricado - previsto) / previsto * 100).toFixed(1)}% excesso
-                                              </span>
-                                            : null;
-                                        })()}
+                                        {temExcPan && (
+                                          <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#fff', background: '#b71c1c', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
+                                            ⚠️ {fabricado > previsto ? '+' : ''}{diffPanPct.toFixed(1)}%
+                                          </span>
+                                        )}
                                       </>
                                     ) : <span style={{ color: '#ccc' }}>—</span>}
                                   </td>
