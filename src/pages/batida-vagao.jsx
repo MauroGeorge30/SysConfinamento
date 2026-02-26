@@ -136,6 +136,8 @@ export default function BatidaVagao() {
   const [entregaInputs, setEntregaInputs] = useState({}); // { batidaId: { qty_kg, cocho_note } }
   const [mostrarEntrega, setMostrarEntrega] = useState(false); // controla visibilidade da Seção 2
   const [toleranciaEntregaPct, setToleranciaEntregaPct] = useState(10);
+  const [toleranciaFabPct, setToleranciaFabPct]       = useState(10); // % tolerância para alerta de excesso fabricado
+  const [modalExcesso, setModalExcesso]               = useState(null); // { excessos, realizadoPorBatida, insumos }
   const [panoramaDataInicio, setPanoramaDataInicio] = useState('');
   const [panoramaDataFim, setPanoramaDataFim]       = useState(hoje);
   const [panoramaMaxLinhas, setPanoramaMaxLinhas]   = useState(15); // % tolerância para alerta de diferença
@@ -394,17 +396,27 @@ export default function BatidaVagao() {
       });
     });
 
-    // Confirmação com diff
-    const linhas = batidasDia.map(b => {
-      const lote    = lotes.find(l => l.id === b.lot_id);
-      const prev    = Number(b.total_qty_kg);
-      const real    = realizadoPorBatida[b.id] || 0;
-      const delta   = real - prev;
-      const deltaPct = prev > 0 ? ((delta / prev) * 100).toFixed(1) : 0;
-      return `${lote?.lot_code || b.id}: prev ${fmtKg(prev)} → real ${fmtKg(real)} (${delta >= 0 ? '+' : ''}${deltaPct}%)`;
-    });
-    const ok = confirm(`Confirma lançamento do realizado para ${batidasDia.length} batida(s) em ${new Date(realizadoData + 'T00:00:00').toLocaleDateString('pt-BR')}?\n\n${linhas.join('\n')}`);
-    if (!ok) return;
+    // Verifica excesso acima da tolerância
+    const excessos = insumos.map(ing => {
+      const realVal = parseFloat(String(realizadoInputs[ing.ingId] || '0').replace(',', '.'));
+      const prev    = ing.qtdPrevistaDia;
+      const delta   = realVal - prev;
+      const pct     = prev > 0 ? Math.abs(delta / prev) * 100 : 0;
+      return { nome: ing.nome, prev, real: realVal, delta, pct };
+    }).filter(e => e.pct > toleranciaFabPct);
+
+    if (excessos.length > 0) {
+      // Abre modal de confirmação — não prossegue aqui
+      setModalExcesso({ excessos, realizadoPorBatida: { ...realizadoPorBatida }, insumos });
+      return;
+    }
+
+    // Sem excesso — salva direto
+    await _executarSalvarRealizado(realizadoPorBatida);
+  };
+
+  const _executarSalvarRealizado = async (realizadoPorBatida) => {
+    const batidasDia = batidas.filter(b => b.batch_date === realizadoData);
 
     setSalvandoRealizado(true);
     try {
@@ -1551,7 +1563,20 @@ export default function BatidaVagao() {
                         );
                       })()}
 
-                      <div className={styles.formAcoes}>
+                      {/* Campo de tolerância Seção 1 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, padding: '8px 12px', background: '#f5f5f5', borderRadius: 8, fontSize: '0.85rem', color: '#555' }}>
+                        <span>⚙️ Tolerância para alerta de excesso:</span>
+                        <input
+                          type="number" min="0" max="100" step="0.5"
+                          value={toleranciaFabPct}
+                          onChange={e => setToleranciaFabPct(parseFloat(e.target.value) || 0)}
+                          style={{ width: 60, padding: '3px 6px', border: '1px solid #ccc', borderRadius: 6, textAlign: 'center' }}
+                        />
+                        <span>%</span>
+                        <span style={{ color: '#999', fontSize: '0.78rem' }}>(diferença acima deste % abre alerta de confirmação)</span>
+                      </div>
+
+                      <div className={styles.formAcoes} style={{ marginTop: 10 }}>
                         <button type="button" className={styles.btnCancelar} onClick={() => { setRealizadoInputs({}); setEntregaInputs({}); setMostrarEntrega(false); }}>Limpar</button>
                         <button type="button" className={styles.btnAdd} onClick={handleSalvarRealizadoDia}
                           disabled={salvandoRealizado || Object.keys(realizadoInputs).length === 0}>
@@ -1828,7 +1853,19 @@ export default function BatidaVagao() {
                                   <td style={{ padding: '6px 8px', color: '#444', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={racao?.name}>{racao?.name || '—'}</td>
                                   <td style={{ padding: '6px 8px', textAlign: 'right', color: '#555' }}>{fmtKg(previsto)}</td>
                                   <td style={{ padding: '6px 8px', textAlign: 'right', color: '#1565c0', fontWeight: fabricado != null ? 600 : 400 }}>
-                                    {fabricado != null ? fmtKg(fabricado) : <span style={{ color: '#ccc' }}>—</span>}
+                                    {fabricado != null ? (
+                                      <>
+                                        {fmtKg(fabricado)}
+                                        {(() => {
+                                          const diff = previsto > 0 ? Math.abs((fabricado - previsto) / previsto) * 100 : 0;
+                                          return diff > toleranciaFabPct
+                                            ? <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#fff', background: fabricado > previsto ? '#b71c1c' : '#e65100', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>
+                                                ⚠️ {fabricado > previsto ? '+' : ''}{((fabricado - previsto) / previsto * 100).toFixed(1)}% excesso
+                                              </span>
+                                            : null;
+                                        })()}
+                                      </>
+                                    ) : <span style={{ color: '#ccc' }}>—</span>}
                                   </td>
                                   <td style={{ padding: '6px 8px', textAlign: 'right', color: '#2e7d32', fontWeight: entregue != null ? 600 : 400 }}>
                                     {entregue != null ? fmtKg(entregue) : <span style={{ color: '#ccc' }}>—</span>}
@@ -1877,6 +1914,79 @@ export default function BatidaVagao() {
             </div>
           );
         })()}
+
+        {/* ═══ MODAL CONFIRMAÇÃO EXCESSO FABRICADO ═══ */}
+        {modalExcesso && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '1.5rem 2rem', width: '100%', maxWidth: 560, boxShadow: '0 8px 40px rgba(0,0,0,0.35)' }}>
+
+              {/* Cabeçalho */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{ fontSize: '2rem' }}>🚨</div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#b71c1c' }}>Excesso acima da tolerância ({toleranciaFabPct}%)</div>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginTop: 2 }}>
+                    Os insumos abaixo estão com diferença significativa em relação ao previsto.<br/>
+                    Confirme se o peso registrado está correto antes de prosseguir.
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de excessos */}
+              <div style={{ border: '1px solid #ffcdd2', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ background: '#ffebee' }}>
+                      <th style={{ padding: '7px 12px', textAlign: 'left', color: '#b71c1c', fontWeight: 700 }}>Insumo</th>
+                      <th style={{ padding: '7px 10px', textAlign: 'right', color: '#555', fontWeight: 600 }}>Previsto</th>
+                      <th style={{ padding: '7px 10px', textAlign: 'right', color: '#b71c1c', fontWeight: 700 }}>Lançado</th>
+                      <th style={{ padding: '7px 10px', textAlign: 'right', color: '#b71c1c', fontWeight: 700 }}>Diferença</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalExcesso.excessos.map((e, i) => (
+                      <tr key={i} style={{ borderTop: '1px solid #ffebee', background: i % 2 === 0 ? '#fff' : '#fff8f8' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{e.nome}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: '#555' }}>{fmtKg(e.prev)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#b71c1c' }}>{fmtKg(e.real)}</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800 }}>
+                          <span style={{ background: e.delta > 0 ? '#b71c1c' : '#1565c0', color: '#fff', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem' }}>
+                            {e.delta >= 0 ? '+' : ''}{fmtKg(e.delta)} ({e.delta >= 0 ? '+' : ''}{e.pct.toFixed(1)}%)
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Aviso */}
+              <div style={{ background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: '0.83rem', color: '#e65100' }}>
+                ⚠️ <strong>Atenção:</strong> Caso confirme, a diferença será registrada e ficará destacada no resumo das batidas para controle do encarregado.
+                O responsável deverá ser notificado para verificar a situação.
+              </div>
+
+              {/* Ações */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button type="button"
+                  style={{ padding: '9px 20px', border: '1px solid #ccc', borderRadius: 8, background: '#f5f5f5', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}
+                  onClick={() => setModalExcesso(null)}>
+                  ← Voltar e corrigir
+                </button>
+                <button type="button"
+                  style={{ padding: '9px 20px', border: 'none', borderRadius: 8, background: '#b71c1c', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700 }}
+                  disabled={salvandoRealizado}
+                  onClick={async () => {
+                    setModalExcesso(null);
+                    await _executarSalvarRealizado(modalExcesso.realizadoPorBatida);
+                  }}>
+                  {salvandoRealizado ? 'Salvando...' : '⚠️ Confirmar mesmo assim'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* ═══ MODAL AJUSTE ENTREGA COCHO ═══ */}
         {modalAjuste && (
