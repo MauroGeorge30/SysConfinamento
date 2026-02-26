@@ -79,7 +79,7 @@ export default function Alimentacao() {
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
         supabase.from('lots').select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(name))').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
         supabase.from('lot_weighings').select('id, lot_id, weighing_date, avg_weight_kg').eq('farm_id', currentFarm.id).order('weighing_date', { ascending: false }),
-        supabase.from('wagon_batches').select('id, lot_id, feed_type_id, batch_date, batch_type, feeding_order, total_qty_kg, qty_realizada_kg').eq('farm_id', currentFarm.id).order('batch_date', { ascending: false }),
+        supabase.from('wagon_batches').select('id, lot_id, feed_type_id, batch_date, batch_type, feeding_order, total_qty_kg, qty_realizada_kg, qty_entregue_cocho_kg').eq('farm_id', currentFarm.id).order('batch_date', { ascending: false }),
       ]);
       if (regError) throw regError;
       setRegistros(regData || []);
@@ -348,14 +348,19 @@ export default function Alimentacao() {
     ) || null;
   })();
 
-  // Sugestão: usa realizado da batida se existir, senão previsto, senão cálculo
+  // Sugestão: prioridade entregue no cocho > fabricado > previsto > cálculo
   const sugestao = (() => {
     if (batidaAtual) {
-      const temRealizado  = batidaAtual.qty_realizada_kg != null;
-      const total         = Number(temRealizado ? batidaAtual.qty_realizada_kg : batidaAtual.total_qty_kg);
+      const temEntregue   = batidaAtual.qty_entregue_cocho_kg != null;
+      const temFabricado  = batidaAtual.qty_realizada_kg != null;
+      const total         = Number(
+        temEntregue  ? batidaAtual.qty_entregue_cocho_kg :
+        temFabricado ? batidaAtual.qty_realizada_kg :
+                       batidaAtual.total_qty_kg
+      );
       const feedingsPerDay = parseInt(loteAtual?.daily_feeding_count) || 1;
       const mnPorTrato    = batidaAtual.batch_type === 'day' ? total / feedingsPerDay : total;
-      return { mnPorTrato, fromBatida: true, temRealizado, batidaTotal: total, batch_type: batidaAtual.batch_type, feedingsPerDay };
+      return { mnPorTrato, fromBatida: true, temEntregue, temFabricado, batidaTotal: total, batch_type: batidaAtual.batch_type, feedingsPerDay };
     }
     return calcMNSugerido();
   })();
@@ -401,9 +406,13 @@ export default function Alimentacao() {
           (b.batch_type === 'day' || (b.batch_type === 'feeding' && b.feeding_order === tratoLoteOrdem))
         );
         const feedingsPerDay = parseInt(l.daily_feeding_count) || 1;
-        // Usa realizado se disponível, senão previsto
+        // Prioridade: entregue no cocho > fabricado > previsto
         const qtdBase = batida
-          ? Number(batida.qty_realizada_kg ?? batida.total_qty_kg)
+          ? Number(
+              batida.qty_entregue_cocho_kg != null ? batida.qty_entregue_cocho_kg :
+              batida.qty_realizada_kg      != null ? batida.qty_realizada_kg :
+                                                     batida.total_qty_kg
+            )
           : 0;
         const qtyKg = batida
           ? (batida.batch_type === 'day' ? qtdBase / feedingsPerDay : qtdBase)
@@ -645,9 +654,11 @@ export default function Alimentacao() {
                       {sugestao.fromBatida ? (
                         <>
                           <strong>🚜 Batida de Vagão: {Number(sugestao.mnPorTrato).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} kg</strong>
-                          {sugestao.temRealizado
-                            ? <span style={{ marginLeft: 8, background: '#c8e6c9', color: '#1b5e20', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>✅ baseado no REALIZADO</span>
-                            : <span style={{ marginLeft: 8, background: '#fff3e0', color: '#e65100', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>⏳ baseado no PREVISTO — lance o realizado na batida</span>
+                          {sugestao.temEntregue
+                            ? <span style={{ marginLeft: 8, background: '#c8e6c9', color: '#1b5e20', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>🐄 baseado no ENTREGUE NO COCHO</span>
+                            : sugestao.temFabricado
+                              ? <span style={{ marginLeft: 8, background: '#e3f2fd', color: '#1565c0', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>🏭 baseado no FABRICADO</span>
+                              : <span style={{ marginLeft: 8, background: '#fff3e0', color: '#e65100', padding: '1px 7px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>⏳ baseado no PREVISTO</span>
                           }
                           {sugestao.batch_type === 'day' && sugestao.feedingsPerDay > 1 && (
                             <span style={{ color: '#555', marginLeft: '0.5rem' }}>
