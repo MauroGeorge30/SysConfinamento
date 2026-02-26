@@ -604,6 +604,36 @@ export default function BatidaVagao() {
       cocho_adjustment_kg: ajusteCocho !== 0 ? ajusteCocho : null,
       notes: form.notes || null,
     };
+    // Verificar duplicata
+    if (form.batch_type === 'feeding') {
+      const { data: dupCheck } = await supabase
+        .from('wagon_batches')
+        .select('id')
+        .eq('farm_id', currentFarm.id)
+        .eq('lot_id', form.lot_id)
+        .eq('batch_date', form.batch_date)
+        .eq('batch_type', 'feeding')
+        .eq('feeding_order', parseInt(form.feeding_order))
+        .limit(1);
+      if (dupCheck && dupCheck.length > 0) {
+        const loteCod = lotes.find(l => l.id === form.lot_id)?.lot_code || '';
+        return alert('❌ Batida duplicada!\n\nJá existe uma batida do ' + form.feeding_order + 'º trato para o lote ' + loteCod + ' em ' + new Date(form.batch_date + 'T00:00:00').toLocaleDateString('pt-BR') + '.\n\nSe precisar corrigir, exclua a batida existente.');
+      }
+    } else {
+      const { data: dupCheck } = await supabase
+        .from('wagon_batches')
+        .select('id')
+        .eq('farm_id', currentFarm.id)
+        .eq('lot_id', form.lot_id)
+        .eq('batch_date', form.batch_date)
+        .eq('batch_type', 'day')
+        .limit(1);
+      if (dupCheck && dupCheck.length > 0) {
+        const loteCod = lotes.find(l => l.id === form.lot_id)?.lot_code || '';
+        return alert('❌ Batida duplicada!\n\nJá existe uma batida diária para o lote ' + loteCod + ' em ' + new Date(form.batch_date + 'T00:00:00').toLocaleDateString('pt-BR') + '.');
+      }
+    }
+
     const { error } = await supabase.from('wagon_batches').insert([payload]);
     if (error) return alert('Erro: ' + error.message);
     resetForm();
@@ -666,6 +696,21 @@ export default function BatidaVagao() {
           cocho_note: d.cocho_note, cocho_adjustment_kg: adj !== 0 ? adj : null,
         };
       });
+      // Verificar duplicatas no lote
+      const { data: dupCheckLote } = await supabase
+        .from('wagon_batches')
+        .select('id, lot_id')
+        .eq('farm_id', currentFarm.id)
+        .eq('batch_date', loteData)
+        .eq('batch_type', loteTipo)
+        .in('lot_id', selecionados.map(l => l.id))
+        .eq('feeding_order', loteTipo === 'feeding' ? loteOrdem : null);
+      if (dupCheckLote && dupCheckLote.length > 0) {
+        const lotesRepetidos = dupCheckLote.map(d => lotes.find(l => l.id === d.lot_id)?.lot_code || d.lot_id);
+        setSalvando(false);
+        return alert('❌ Batida duplicada!\n\nJá existe batida do ' + (loteTipo === 'feeding' ? loteOrdem + 'º trato' : 'dia') + ' para:\n' + lotesRepetidos.join(', ') + '\n\nRemova os lotes duplicados ou exclua a batida existente.');
+      }
+
       const { error } = await supabase.from('wagon_batches').insert(payloads);
       if (error) throw error;
       alert(`✅ ${payloads.length} batida(s) registrada(s)! Lembre-se de lançar o peso realizado após a fabricação.`);
@@ -809,13 +854,24 @@ export default function BatidaVagao() {
                     {form.batch_type === 'feeding' && (
                       <div>
                         <label>Nº do Trato *</label>
-                        <div className={styles.tratoOrdemBox}>
-                          <span className={styles.tratoOrdemNum}>{form.feeding_order}º Trato</span>
-                          <div className={styles.tratoOrdemBtns}>
-                            <button type="button" onClick={() => setForm(p => ({ ...p, feeding_order: Math.max(1, p.feeding_order - 1) }))}>−</button>
-                            <button type="button" onClick={() => setForm(p => ({ ...p, feeding_order: p.feeding_order + 1 }))}>+</button>
-                          </div>
-                        </div>
+                        {(() => {
+                          const maxTratos = parseInt(lotes.find(l => l.id === form.lot_id)?.daily_feeding_count) || 99;
+                          return (
+                            <div className={styles.tratoOrdemBox}>
+                              <span className={styles.tratoOrdemNum}>
+                                {form.feeding_order}º Trato
+                                {maxTratos < 99 && <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 400, marginLeft: 4 }}>/ {maxTratos}</span>}
+                              </span>
+                              <div className={styles.tratoOrdemBtns}>
+                                <button type="button" onClick={() => setForm(p => ({ ...p, feeding_order: Math.max(1, p.feeding_order - 1) }))}>−</button>
+                                <button type="button"
+                                  disabled={form.feeding_order >= maxTratos}
+                                  style={{ opacity: form.feeding_order >= maxTratos ? 0.35 : 1, cursor: form.feeding_order >= maxTratos ? 'not-allowed' : 'pointer' }}
+                                  onClick={() => setForm(p => ({ ...p, feeding_order: Math.min(p.feeding_order + 1, maxTratos) }))}>+</button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1046,10 +1102,15 @@ export default function BatidaVagao() {
                     </span>
                       <div className={styles.tratoOrdemBtns}>
                         <button type="button" onClick={() => setLoteOrdem(o => Math.max(1, o - 1))}>−</button>
-                        <button type="button" onClick={() => {
+                        {(() => {
                           const maxTratos = lotes.length > 0 ? Math.min(...lotes.map(l => parseInt(l.daily_feeding_count) || 1)) : 99;
-                          setLoteOrdem(o => Math.min(o + 1, maxTratos));
-                        }}>+</button>
+                          return (
+                            <button type="button"
+                              disabled={loteOrdem >= maxTratos}
+                              style={{ opacity: loteOrdem >= maxTratos ? 0.35 : 1, cursor: loteOrdem >= maxTratos ? 'not-allowed' : 'pointer' }}
+                              onClick={() => setLoteOrdem(o => Math.min(o + 1, maxTratos))}>+</button>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
