@@ -43,7 +43,7 @@ export default function Dashboard() {
         { data: wagonBatches },
       ] = await Promise.all([
         supabase.from('lots')
-          .select('id, lot_code, category, head_count, avg_entry_weight, entry_date, target_gmd, target_leftover_pct, target_exit_weight, status, pen_id, pens(pen_number), lot_phases(id, phase_name, end_date, feed_types(name, dry_matter_pct, cost_per_kg)), lot_weighings(id, avg_weight_kg, weighing_date)')
+          .select('id, lot_code, category, head_count, avg_entry_weight, entry_date, target_gmd, target_leftover_pct, status, pen_id, pens(pen_number), lot_phases(id, phase_name, end_date, feed_types(name, dry_matter_pct, cost_per_kg)), lot_weighings(id, avg_weight_kg, weighing_date)')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
           .order('entry_date', { ascending: true }),
