@@ -57,8 +57,8 @@ export default function Lotes() {
           .select('*, pens(pen_number), lot_phases(id, phase_name, feed_type_id, start_date, end_date, cms_pct_pv, feed_types(name, cost_per_kg, dry_matter_pct)), lot_weighings(id, avg_weight_kg, weighing_date, head_weighed)')
           .eq('farm_id', currentFarm.id)
           .order('entry_date', { ascending: false }),
-        supabase.from('pens').select('id, pen_number, capacity, current_occupancy').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
-        supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
+        supabase.from('pens').select('id, pen_number, capacity, current_occupancy').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number', { ascending: true }),
+        supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name', { ascending: true }),
       ]);
       if (lotesError) throw lotesError;
       setLotes(lotesData || []);
