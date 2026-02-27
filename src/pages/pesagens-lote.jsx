@@ -40,7 +40,7 @@ export default function PesagensLote() {
           .select('id, lot_code, category, head_count, avg_entry_weight, entry_date, target_gmd, pen_id, pens(pen_number)')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('lot_code'),
+          .order('lot_code', { ascending: true }),
         supabase.from('lot_weighings')
           .select('*, lots(lot_code, category, avg_entry_weight, entry_date, target_gmd)')
           .eq('farm_id', currentFarm.id)
