@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
             .from('farms')
             .select('*')
             .eq('status', 'active')
-            .order('name');
+            .order('name', { ascending: true });
           farmsCarregadas = farms || [];
         } else {
           // Outros usuários: fazenda principal + extras via user_farm_access
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
               .from('farms')
               .select('*')
               .in('id', Array.from(farmIds))
-              .order('name');
+              .order('name', { ascending: true });
 
             if (farmsError) {
               console.warn('[AuthContext] Erro ao buscar farms:', farmsError.message);
