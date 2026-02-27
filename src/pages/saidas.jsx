@@ -37,7 +37,7 @@ export default function Saidas() {
           .select('id, tag_number, name, entry_date, entry_weight, current_pen_id')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('tag_number'),
+          .order('tag_number', { ascending: true }),
       ]);
       if (error) throw error;
       setSaidas(saidasData || []);
