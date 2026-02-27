@@ -58,8 +58,8 @@ export default function Ocorrencias() {
           .eq('farm_id', currentFarm.id)
           .order('occurrence_date', { ascending: false })
           .limit(300),
-        supabase.from('lots').select('id, lot_code, pen_id').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
-        supabase.from('pens').select('id, pen_number').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
+        supabase.from('lots').select('id, lot_code, pen_id').eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code', { ascending: true }),
+        supabase.from('pens').select('id, pen_number').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number', { ascending: true }),
       ]);
       if (ocError) throw ocError;
       setOcorrencias(ocData || []);
