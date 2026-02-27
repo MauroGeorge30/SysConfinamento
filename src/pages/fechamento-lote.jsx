@@ -66,7 +66,7 @@ export default function FechamentoLote() {
         supabase.from('feeding_records')
           .select('quantity_kg, leftover_kg, feeding_date, cost_per_kg, feed_types(name, cost_per_kg, dry_matter_pct)')
           .eq('lot_id', loteId)
-          .order('feeding_date'),
+          .order('feeding_date', { ascending: true }),
         supabase.from('lot_weighings')
           .select('avg_weight_kg, weighing_date, head_weighed')
           .eq('lot_id', loteId)
@@ -74,7 +74,7 @@ export default function FechamentoLote() {
         supabase.from('lot_extra_costs')
           .select('*')
           .eq('lot_id', loteId)
-          .order('cost_date'),
+          .order('cost_date', { ascending: true }),
       ]);
 
       setCustos(custosExtras || []);
