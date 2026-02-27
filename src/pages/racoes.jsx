@@ -1395,8 +1395,8 @@ function AbaTransferir({ currentFarm, user }) {
         const itensValidos = (items || []).filter(it => insIdMap[it.ingredient_id]);
         if (itensValidos.length > 0) {
           const novosItens = itensValidos.map(it => {
-            const { id: _i, feed_composition_id: _fc, feed_ingredients: _fi, ...restoIt } = it;
-            return { ...restoIt, feed_composition_id: novaComp.id, ingredient_id: insIdMap[it.ingredient_id] };
+            const { id: _i, composition_id: _fc, feed_composition_id: _fc2, feed_ingredients: _fi, ...restoIt } = it;
+            return { ...restoIt, composition_id: novaComp.id, ingredient_id: insIdMap[it.ingredient_id] };
           });
           const { error: errIt } = await supabase.from('feed_composition_items').insert(novosItens);
           if (errIt) throw errIt;
