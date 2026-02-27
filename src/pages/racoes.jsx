@@ -521,7 +521,8 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                       </button>
                       {canEdit('feed_ingredients') && (
                         <button className={styles.btnEditar} onClick={() => {
-                          showEditId === ins.id ? (setShowEditId(null), setEditingId(null)) : handleAbrirEdicao(ins);
+                          if (showEditId === ins.id) { setShowEditId(null); setEditingId(null); }
+                          else { handleAbrirEdicao(ins); }
                         }}>✏️ Editar</button>
                       )}
                       {canDelete('feed_ingredients') && (
