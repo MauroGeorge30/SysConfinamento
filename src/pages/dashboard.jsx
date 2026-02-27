@@ -40,10 +40,11 @@ export default function Dashboard() {
         { data: ocorrencias },
         { data: pesagensLote },
         { data: financeiro },
+        { data: wagonBatches },
       ] = await Promise.all([
         supabase.from('lots')
           .select(`id, lot_code, category, head_count, avg_entry_weight, entry_date,
-            target_gmd, target_leftover_pct, status, pen_id,
+            target_gmd, target_leftover_pct, target_exit_weight, status, pen_id,
             pens(pen_number),
             lot_phases(id, phase_name, end_date, feed_types(name, dry_matter_pct, cost_per_kg)),
             lot_weighings(id, avg_weight_kg, weighing_date)`)
@@ -87,6 +88,10 @@ export default function Dashboard() {
           .select('type, amount, record_date')
           .eq('farm_id', currentFarm.id)
           .gte('record_date', mesAtual + '-01'),
+
+        supabase.from('wagon_batches')
+          .select('lot_id, total_cost')
+          .eq('farm_id', currentFarm.id),
       ]);
 
       // ── Lotes ──────────────────────────────────────────────
@@ -213,6 +218,22 @@ export default function Dashboard() {
         }
       });
 
+      // GMD abaixo da meta
+      lotesAtivos.forEach(l => {
+        if (!l.target_gmd) return;
+        const gmd = calcGMD(l);
+        if (gmd === null) return;
+        const meta = Number(l.target_gmd);
+        if (gmd < meta * 0.9) {
+          alertas.push({
+            tipo: 'warning',
+            icone: '📉',
+            msg: `Lote ${l.lot_code}: GMD ${gmd.toFixed(3)} kg/d abaixo da meta (${meta.toFixed(3)} kg/d)`,
+            link: '/pesagens-lote',
+          });
+        }
+      });
+
       // ── Ocorrências do mês ──────────────────────────────────
       const oc = ocorrencias || [];
       const mortesmes = oc.filter(o => o.type === 'morte').reduce((a, o) => a + o.quantity, 0);
@@ -224,6 +245,7 @@ export default function Dashboard() {
       const despesaMes = fin.filter(r => r.type === 'expense').reduce((acc, r) => acc + Number(r.amount), 0);
 
       // ── Cards de lotes para o painel ────────────────────────
+      const wb = wagonBatches || [];
       const lotesCards = lotesAtivos.map(l => {
         const gmd = calcGMD(l);
         const ultPes = getUltimaPesagem(l);
@@ -235,7 +257,17 @@ export default function Dashboard() {
         const sobraPct = ultimoTrato && Number(ultimoTrato.quantity_kg) > 0 && ultimoTrato.leftover_kg != null
           ? (Number(ultimoTrato.leftover_kg) / Number(ultimoTrato.quantity_kg)) * 100
           : null;
-        return { ...l, gmd, ultPes, fase, dias, gmdOk, sobraPct };
+        // Custo acumulado de alimentação (wagon_batches)
+        const custoAcumulado = wb.filter(w => w.lot_id === l.id).reduce((acc, w) => acc + Number(w.total_cost || 0), 0);
+        const custoPorCabAcum = l.head_count > 0 && custoAcumulado > 0 ? custoAcumulado / l.head_count : null;
+        // Dias restantes estimados para atingir peso de saída via GMD atual
+        let diasRestantes = null;
+        if (gmd && gmd > 0 && ultPes && l.target_exit_weight) {
+          const diff = Number(l.target_exit_weight) - Number(ultPes.avg_weight_kg);
+          if (diff > 0) diasRestantes = Math.ceil(diff / gmd);
+          else diasRestantes = 0;
+        }
+        return { ...l, gmd, ultPes, fase, dias, gmdOk, sobraPct, custoAcumulado, custoPorCabAcum, diasRestantes };
       });
 
       // ── Baias detalhes ──────────────────────────────────────
@@ -421,9 +453,94 @@ export default function Dashboard() {
                           {lote.fase && <small>{lote.fase.phase_name}</small>}
                         </div>
                       </div>
+
+                      {/* Linha extra: custo acumulado + dias restantes */}
+                      <div className={styles.loteIndicadores} style={{ marginTop: 6 }}>
+                        <div className={styles.loteInd} style={{ gridColumn: 'span 2' }}>
+                          <span>Custo Alim. Acumulado</span>
+                          <strong style={{ fontSize: '0.85rem' }}>
+                            {lote.custoAcumulado > 0
+                              ? `R$ ${lote.custoAcumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                              : '—'}
+                          </strong>
+                          {lote.custoPorCabAcum !== null && lote.custoPorCabAcum > 0 && (
+                            <small>R$ {lote.custoPorCabAcum.toFixed(2)}/cab</small>
+                          )}
+                        </div>
+                        <div className={`${styles.loteInd} ${
+                          lote.diasRestantes === 0 ? styles.indVerde :
+                          lote.diasRestantes !== null && lote.diasRestantes <= 15 ? styles.indLaranja : ''
+                        }`} style={{ gridColumn: 'span 2' }}>
+                          <span>Dias Restantes (est.)</span>
+                          <strong style={{ fontSize: '0.85rem' }}>
+                            {lote.diasRestantes === null ? '—' :
+                             lote.diasRestantes === 0 ? 'Pronto!' :
+                             `${lote.diasRestantes}d`}
+                          </strong>
+                          {lote.target_exit_weight && (
+                            <small>meta {Number(lote.target_exit_weight).toFixed(0)} kg</small>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
+
+                {/* ── GRÁFICO GMD POR LOTE ── */}
+                {dados.lotesCards.some(l => l.gmd !== null) && (
+                  <>
+                    <div className={styles.secaoTitulo} style={{ marginTop: '1.5rem' }}>📈 GMD por Lote</div>
+                    <div className={styles.gmdChartBox}>
+                      {(() => {
+                        const lotesComGmd = dados.lotesCards.filter(l => l.gmd !== null);
+                        const maxGmd = Math.max(...lotesComGmd.map(l => Math.max(l.gmd, l.target_gmd || 0)), 0.01);
+                        const barH = 28;
+                        const gap = 10;
+                        const labelW = 90;
+                        const chartW = 480;
+                        const totalH = lotesComGmd.length * (barH + gap) + gap;
+
+                        return (
+                          <svg width="100%" viewBox={`0 0 ${labelW + chartW + 60} ${totalH}`} className={styles.gmdSvg}>
+                            {lotesComGmd.map((lote, i) => {
+                              const y = gap + i * (barH + gap);
+                              const barW = Math.max((lote.gmd / maxGmd) * chartW, 2);
+                              const metaX = lote.target_gmd ? labelW + (Number(lote.target_gmd) / maxGmd) * chartW : null;
+                              const cor = lote.gmdOk === true ? '#2e7d32' : lote.gmdOk === false ? '#c62828' : '#1565c0';
+                              return (
+                                <g key={lote.id}>
+                                  {/* Label lote */}
+                                  <text x={labelW - 6} y={y + barH / 2 + 4} textAnchor="end" fontSize="11" fill="#555" fontWeight="600">
+                                    {lote.lot_code}
+                                  </text>
+                                  {/* Fundo barra */}
+                                  <rect x={labelW} y={y} width={chartW} height={barH} rx="5" fill="#f0f0f0" />
+                                  {/* Barra GMD */}
+                                  <rect x={labelW} y={y} width={barW} height={barH} rx="5" fill={cor} opacity="0.85" />
+                                  {/* Valor */}
+                                  <text x={labelW + barW + 6} y={y + barH / 2 + 4} fontSize="11" fill={cor} fontWeight="700">
+                                    {lote.gmd.toFixed(3)}
+                                  </text>
+                                  {/* Linha de meta */}
+                                  {metaX && (
+                                    <line x1={metaX} y1={y - 2} x2={metaX} y2={y + barH + 2} stroke="#ff9800" strokeWidth="2" strokeDasharray="4,2" />
+                                  )}
+                                </g>
+                              );
+                            })}
+                            {/* Legenda meta */}
+                            {lotesComGmd.some(l => l.target_gmd) && (
+                              <g transform={`translate(${labelW}, ${totalH - 2})`}>
+                                <line x1="0" y1="0" x2="16" y2="0" stroke="#ff9800" strokeWidth="2" strokeDasharray="4,2" />
+                                <text x="20" y="4" fontSize="10" fill="#888">Meta GMD</text>
+                              </g>
+                            )}
+                          </svg>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
               </>
             )}
 
