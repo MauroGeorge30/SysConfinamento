@@ -148,6 +148,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [editingId, setEditingId] = useState(null);
   const [editingMovId, setEditingMovId] = useState(null);
   const [formEditMov, setFormEditMov] = useState({ quantity_kg: '', entry_date: '', notes: '' });
+  const [showEditId, setShowEditId] = useState(null);
 
   // Form cadastro do insumo
   const [formData, setFormData] = useState({
@@ -301,7 +302,10 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
     setEditingId(null); setShowForm(false); setShowEditId(null);
   };
 
-  const [showEditId, setShowEditId] = useState(null);
+  const resetEntrada = () => {
+    setFormEntrada({ entry_date: hoje(), quantity_kg_received: '', price_per_ton: '', freight_per_ton: '0', invoice_number: '', supplier: '' });
+    setShowEntradaId(null);
+  };
 
   const handleAbrirEdicao = (ins) => {
     setFormData({ name: ins.name, supplier: ins.supplier || '', unit: ins.unit, dry_matter_pct: ins.dry_matter_pct || '', stock_min_kg: ins.stock_min_kg || '', notes: ins.notes || '' });
@@ -310,8 +314,10 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
     setShowEntradaId(null);
     setShowForm(false);
   };
-    setFormEntrada({ entry_date: hoje(), quantity_kg_received: '', price_per_ton: '', freight_per_ton: '0', invoice_number: '', supplier: '' });
-    setShowEntradaId(null);
+
+  const handleToggleEdit = (insId, ins) => {
+    if (showEditId === insId) { setShowEditId(null); setEditingId(null); }
+    else { handleAbrirEdicao(ins); }
   };
 
   // Cálculos derivados da entrada
@@ -520,10 +526,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                         {showMovId === ins.id ? 'Fechar' : '📋 Movimentos'}
                       </button>
                       {canEdit('feed_ingredients') && (
-                        <button className={styles.btnEditar} onClick={() => {
-                          if (showEditId === ins.id) { setShowEditId(null); setEditingId(null); }
-                          else { handleAbrirEdicao(ins); }
-                        }}>✏️ Editar</button>
+                        <button className={styles.btnEditar} onClick={() => handleToggleEdit(ins.id, ins)}>✏️ Editar</button>
                       )}
                       {canDelete('feed_ingredients') && (
                         <button className={styles.btnDeletarIns} onClick={() => handleDeleteInsumo(ins)}>🗑 Deletar</button>
