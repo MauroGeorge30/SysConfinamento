@@ -1620,63 +1620,105 @@ export default function BatidaVagao() {
                           Informe o peso jogado de fato no cocho de cada lote e a nota de cocho lida no momento da entrega.
                         </div>
                         <div className={styles.loteTabela}>
-                          <table className={styles.tabelaRealizado}>
-                            <thead>
-                              <tr>
-                                <th>Lote</th>
-                                <th>Trato</th>
-                                <th style={{ textAlign: 'right' }}>Base (fab.)</th>
-                                <th style={{ textAlign: 'right', color: '#2e7d32' }}>Entregue no Cocho (kg)</th>
-                                <th style={{ textAlign: 'right' }}>Δ</th>
-                                <th>Nota Cocho</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {batidasDia.filter(b => b.qty_entregue_cocho_kg == null).map(b => {
-                                const lote     = lotes.find(l => l.id === b.lot_id);
-                                const base     = getBase(b);
-                                const rawQty   = entregaInputs[b.id]?.qty_kg ?? '';
-                                const entrega  = parseFloat(String(rawQty).replace(',', '.'));
-                                const temVal   = !isNaN(entrega) && entrega > 0;
-                                const delta    = temVal ? entrega - base : null;
-                                const deltaPct = delta != null && base > 0 ? (delta / base) * 100 : null;
-                                const corD     = delta == null ? '#aaa' : delta > 0.5 ? '#e65100' : delta < -0.5 ? '#1565c0' : '#2e7d32';
-                                const cochoAtual = entregaInputs[b.id]?.cocho_note ?? null;
-                                return (
-                                  <tr key={b.id}>
-                                    <td><strong>{lote?.lot_code || '—'}</strong></td>
-                                    <td style={{ fontSize: '0.82rem', color: '#888' }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}</td>
-                                    <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(base)}</td>
-                                    <td style={{ textAlign: 'right' }}>
-                                      <input type="text" inputMode="decimal" value={rawQty}
-                                        placeholder={fmtN(base, 2)}
-                                        onChange={e => setEntregaInputs(p => ({ ...p, [b.id]: { ...p[b.id], qty_kg: e.target.value } }))}
-                                        className={styles.inputRealizado} style={{ width: 120 }} />
-                                    </td>
-                                    <td style={{ textAlign: 'right', fontWeight: 700, color: corD, fontSize: '0.82rem', minWidth: 90 }}>
-                                      {delta != null ? (delta >= 0 ? '+' : '') + fmtKg(delta) : '—'}
-                                      {deltaPct != null && <span style={{ display: 'block', fontSize: '0.72rem' }}>{(deltaPct >= 0 ? '+' : '') + fmtPct(deltaPct)}</span>}
-                                    </td>
-                                    <td>
-                                      <div className={styles.cochoNotasInline}>
-                                        {COCHO_NOTES.map(n => (
-                                          <button key={n.nota} type="button"
-                                            className={styles.cochoBtnInline + (cochoAtual === n.nota ? ' ' + styles.cochoBtnInlineActive : '')}
-                                            style={cochoAtual === n.nota ? { background: n.bgCor, borderColor: n.cor, color: n.cor } : {}}
-                                            onClick={() => setEntregaInputs(p => ({
-                                              ...p,
-                                              [b.id]: { ...p[b.id], cocho_note: p[b.id]?.cocho_note === n.nota ? null : n.nota }
-                                            }))}>
-                                            {n.label}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </td>
+                          {(() => {
+                            const linhasSec2 = batidasDia.filter(b => b.qty_entregue_cocho_kg == null);
+                            const totalBase = linhasSec2.reduce((s, b) => s + getBase(b), 0);
+                            const totalEntregando = linhasSec2.reduce((s, b) => {
+                              const v = parseFloat(String(entregaInputs[b.id]?.qty_kg ?? '').replace(',', '.'));
+                              return s + (isNaN(v) || v <= 0 ? 0 : v);
+                            }, 0);
+                            const totalDelta = totalEntregando > 0 ? totalEntregando - totalBase : null;
+                            const corTotalD = totalDelta == null ? '#aaa' : totalDelta > 0.5 ? '#e65100' : totalDelta < -0.5 ? '#1565c0' : '#2e7d32';
+                            return (
+                              <table className={styles.tabelaRealizado}>
+                                <thead>
+                                  <tr>
+                                    <th>Lote</th>
+                                    <th>Trato</th>
+                                    <th style={{ textAlign: 'right' }}>Base (fab.)</th>
+                                    <th style={{ textAlign: 'right', color: '#2e7d32' }}>Entregue no Cocho (kg)</th>
+                                    <th style={{ textAlign: 'right' }}>Δ</th>
+                                    <th>Nota Cocho</th>
                                   </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                                </thead>
+                                <tbody>
+                                  {linhasSec2.map(b => {
+                                    const lote     = lotes.find(l => l.id === b.lot_id);
+                                    const base     = getBase(b);
+                                    const rawQty   = entregaInputs[b.id]?.qty_kg ?? '';
+                                    const entrega  = parseFloat(String(rawQty).replace(',', '.'));
+                                    const temVal   = !isNaN(entrega) && entrega > 0;
+                                    const acimaDaBase = temVal && entrega > base + 0.001;
+                                    const delta    = temVal ? entrega - base : null;
+                                    const deltaPct = delta != null && base > 0 ? (delta / base) * 100 : null;
+                                    const corD     = delta == null ? '#aaa' : delta > 0.5 ? '#e65100' : delta < -0.5 ? '#1565c0' : '#2e7d32';
+                                    const cochoAtual = entregaInputs[b.id]?.cocho_note ?? null;
+                                    return (
+                                      <tr key={b.id} style={acimaDaBase ? { background: '#fff8e1' } : {}}>
+                                        <td><strong>{lote?.lot_code || '—'}</strong></td>
+                                        <td style={{ fontSize: '0.82rem', color: '#888' }}>{b.batch_type === 'day' ? 'Dia' : b.feeding_order + 'º trato'}</td>
+                                        <td style={{ textAlign: 'right', color: '#555' }}>{fmtKg(base)}</td>
+                                        <td style={{ textAlign: 'right' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                                            <input type="text" inputMode="decimal" value={rawQty}
+                                              placeholder={fmtN(base, 2)}
+                                              onChange={e => {
+                                                const v = parseFloat(String(e.target.value).replace(',', '.'));
+                                                if (!isNaN(v) && v > base + 0.001) {
+                                                  // Bloqueia e avisa, mantém o valor digitado visível mas inválido
+                                                  setEntregaInputs(p => ({ ...p, [b.id]: { ...p[b.id], qty_kg: e.target.value } }));
+                                                } else {
+                                                  setEntregaInputs(p => ({ ...p, [b.id]: { ...p[b.id], qty_kg: e.target.value } }));
+                                                }
+                                              }}
+                                              className={styles.inputRealizado}
+                                              style={{ width: 120, borderColor: acimaDaBase ? '#e65100' : undefined, outline: acimaDaBase ? '2px solid #e65100' : undefined }} />
+                                            {acimaDaBase && (
+                                              <span style={{ fontSize: '0.7rem', color: '#e65100', fontWeight: 700 }}>
+                                                ⚠️ Máx: {fmtN(base, 2)} kg
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td style={{ textAlign: 'right', fontWeight: 700, color: corD, fontSize: '0.82rem', minWidth: 90 }}>
+                                          {delta != null ? (delta >= 0 ? '+' : '') + fmtKg(delta) : '—'}
+                                          {deltaPct != null && <span style={{ display: 'block', fontSize: '0.72rem' }}>{(deltaPct >= 0 ? '+' : '') + fmtPct(deltaPct)}</span>}
+                                        </td>
+                                        <td>
+                                          <div className={styles.cochoNotasInline}>
+                                            {COCHO_NOTES.map(n => (
+                                              <button key={n.nota} type="button"
+                                                className={styles.cochoBtnInline + (cochoAtual === n.nota ? ' ' + styles.cochoBtnInlineActive : '')}
+                                                style={cochoAtual === n.nota ? { background: n.bgCor, borderColor: n.cor, color: n.cor } : {}}
+                                                onClick={() => setEntregaInputs(p => ({
+                                                  ...p,
+                                                  [b.id]: { ...p[b.id], cocho_note: p[b.id]?.cocho_note === n.nota ? null : n.nota }
+                                                }))}>
+                                                {n.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot>
+                                  <tr style={{ background: '#f1f8e9', borderTop: '2px solid #c8e6c9' }}>
+                                    <td colSpan={2} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '0.88rem' }}>TOTAL</td>
+                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{fmtKg(totalBase)}</td>
+                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#2e7d32' }}>
+                                      {totalEntregando > 0 ? fmtKg(totalEntregando) : '—'}
+                                    </td>
+                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: corTotalD, fontSize: '0.82rem' }}>
+                                      {totalDelta != null ? (totalDelta >= 0 ? '+' : '') + fmtKg(totalDelta) : '—'}
+                                    </td>
+                                    <td></td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            );
+                          })()}
                         </div>
                         {/* Campo de tolerância configurável */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, padding: '8px 12px', background: '#f5f5f5', borderRadius: 8, fontSize: '0.85rem', color: '#555' }}>
@@ -1695,9 +1737,22 @@ export default function BatidaVagao() {
                           <button type="button" className={styles.btnCancelar} onClick={() => setEntregaInputs({})}>Limpar entrega</button>
                           <button type="button" className={styles.btnAdd}
                             onClick={handleSalvarEntregaCocho}
-                            disabled={salvandoRealizado || Object.keys(entregaInputs).length === 0}>
+                            disabled={salvandoRealizado || Object.keys(entregaInputs).length === 0 || batidasDia.filter(b => b.qty_entregue_cocho_kg == null).some(b => {
+                              const base = getBase(b);
+                              const v = parseFloat(String(entregaInputs[b.id]?.qty_kg ?? '').replace(',', '.'));
+                              return !isNaN(v) && v > base + 0.001;
+                            })}>
                             🐄 2. Confirmar Entrega no Cocho
                           </button>
+                          {batidasDia.filter(b => b.qty_entregue_cocho_kg == null).some(b => {
+                            const base = getBase(b);
+                            const v = parseFloat(String(entregaInputs[b.id]?.qty_kg ?? '').replace(',', '.'));
+                            return !isNaN(v) && v > base + 0.001;
+                          }) && (
+                            <span style={{ fontSize: '0.8rem', color: '#e65100', fontWeight: 600 }}>
+                              ⚠️ Corrija os valores acima do fabricado antes de confirmar
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
