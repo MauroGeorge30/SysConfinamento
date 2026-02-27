@@ -143,6 +143,16 @@
 .baiaInfo { font-size: 0.78rem; color: #888; }
 .baiaBadgeLote { color: #1565c0; font-weight: 600; }
 
+/* ── Gráfico GMD ── */
+.gmdChartBox {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.2rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  overflow-x: auto;
+}
+.gmdSvg { display: block; min-width: 320px; }
+
 /* ── Responsivo ── */
 @media (max-width: 1000px) {
   .grid4 { grid-template-columns: repeat(2, 1fr); }
