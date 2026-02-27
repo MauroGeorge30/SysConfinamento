@@ -50,17 +50,17 @@ export default function Gado() {
         supabase.from('cattle')
           .select('*')
           .eq('farm_id', currentFarm.id)
-          .order('tag_number'),
+          .order('tag_number', { ascending: true }),
         supabase.from('pens')
           .select('id, pen_number, capacity, current_occupancy')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('pen_number'),
+          .order('pen_number', { ascending: true }),
         supabase.from('lots')
           .select('id, lot_code, pen_id, category, head_count, avg_entry_weight, entry_date, status, target_gmd, target_leftover_pct, lot_phases(phase_name, end_date, feed_types(name))')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('lot_code'),
+          .order('lot_code', { ascending: true }),
       ]);
       if (gadoError) throw gadoError;
       setGado(gadoData || []);
