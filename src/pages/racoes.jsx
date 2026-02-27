@@ -30,7 +30,7 @@ function AbaRacoes({ currentFarm, canCreate, canEdit, canDelete }) {
         .from('feed_types')
         .select('*, feed_compositions!feed_compositions_feed_type_id_fkey(id, version, effective_date, cost_per_kg, base_qty_kg, is_current)')
         .eq('farm_id', currentFarm.id)
-        .order('name');
+        .order('name', { ascending: true });
       if (error) throw error;
       setRacoes(data || []);
     } catch (err) { alert('Erro: ' + err.message); }
@@ -174,7 +174,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
         .from('feed_ingredients')
         .select('*')
         .eq('farm_id', currentFarm.id)
-        .order('name');
+        .order('name', { ascending: true });
       if (error) throw error;
       setInsumos(data || []);
 
@@ -918,8 +918,8 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
     setLoading(true);
     try {
       const [{ data: r }, { data: i }, { data: c, error: ce }] = await Promise.all([
-        supabase.from('feed_types').select('id, name, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
-        supabase.from('feed_ingredients').select('id, name, unit, current_price, price_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).eq('active', true).order('name'),
+        supabase.from('feed_types').select('id, name, dry_matter_pct').eq('farm_id', currentFarm.id).order('name', { ascending: true }),
+        supabase.from('feed_ingredients').select('id, name, unit, current_price, price_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).eq('active', true).order('name', { ascending: true }),
         supabase.from('feed_compositions')
           .select('*, feed_types!feed_compositions_feed_type_id_fkey(name), feed_composition_items(*, feed_ingredients(name, unit, dry_matter_pct))')
           .eq('farm_id', currentFarm.id).order('created_at', { ascending: false }).limit(50),
@@ -1387,8 +1387,8 @@ function AbaTransferir({ currentFarm, user }) {
     setDados(null); setSelInsumos({}); setSelRacoes({}); setSelComps({}); setResultado(null);
     try {
       const [{ data: ins }, { data: rac }, { data: comp }] = await Promise.all([
-        supabase.from('feed_ingredients').select('*').eq('farm_id', origem).order('name'),
-        supabase.from('feed_types').select('*').eq('farm_id', origem).order('name'),
+        supabase.from('feed_ingredients').select('*').eq('farm_id', origem).order('name', { ascending: true }),
+        supabase.from('feed_types').select('*').eq('farm_id', origem).order('name', { ascending: true }),
         supabase.from('feed_compositions')
           .select('*, feed_types!feed_compositions_feed_type_id_fkey(name), feed_composition_items(*, feed_ingredients(name))')
           .eq('farm_id', origem).order('created_at', { ascending: false }),
