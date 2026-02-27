@@ -298,10 +298,18 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
 
   const resetForm = () => {
     setFormData({ name: '', supplier: '', unit: 'kg', dry_matter_pct: '', stock_min_kg: '', notes: '' });
-    setEditingId(null); setShowForm(false);
+    setEditingId(null); setShowForm(false); setShowEditId(null);
   };
 
-  const resetEntrada = () => {
+  const [showEditId, setShowEditId] = useState(null);
+
+  const handleAbrirEdicao = (ins) => {
+    setFormData({ name: ins.name, supplier: ins.supplier || '', unit: ins.unit, dry_matter_pct: ins.dry_matter_pct || '', stock_min_kg: ins.stock_min_kg || '', notes: ins.notes || '' });
+    setEditingId(ins.id);
+    setShowEditId(ins.id);
+    setShowEntradaId(null);
+    setShowForm(false);
+  };
     setFormEntrada({ entry_date: hoje(), quantity_kg_received: '', price_per_ton: '', freight_per_ton: '0', invoice_number: '', supplier: '' });
     setShowEntradaId(null);
   };
@@ -344,7 +352,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
         const { error } = await supabase.from('feed_ingredients').insert([payload]);
         if (error) throw error;
       }
-      resetForm(); loadInsumos();
+      resetForm(); setShowEditId(null); loadInsumos();
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
   };
@@ -513,9 +521,7 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                       </button>
                       {canEdit('feed_ingredients') && (
                         <button className={styles.btnEditar} onClick={() => {
-                          setFormData({ name: ins.name, supplier: ins.supplier || '', unit: ins.unit, dry_matter_pct: ins.dry_matter_pct || '', stock_min_kg: ins.stock_min_kg || '', notes: ins.notes || '' });
-                          setEditingId(ins.id); setShowForm(true); setShowEntradaId(null);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                          showEditId === ins.id ? (setShowEditId(null), setEditingId(null)) : handleAbrirEdicao(ins);
                         }}>✏️ Editar</button>
                       )}
                       {canDelete('feed_ingredients') && (
@@ -556,6 +562,52 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                     <strong>{ins.stock_min_kg ? fmtN(ins.stock_min_kg, 0) + ' kg' : '—'}</strong>
                   </div>
                 </div>
+
+                {/* ── Painel de edição inline ── */}
+                {showEditId === ins.id && (
+                  <div className={styles.entradaPanel}>
+                    <div className={styles.entradaPanelTitle}>✏️ Editar Insumo — {ins.name}</div>
+                    <form onSubmit={handleSubmit}>
+                      <div className={styles.row}>
+                        <div>
+                          <label>Nome do Insumo *</label>
+                          <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+                        </div>
+                        <div>
+                          <label>Empresa Fornecedora</label>
+                          <input type="text" value={formData.supplier} onChange={e => setFormData({ ...formData, supplier: e.target.value })} placeholder="Ex: Agropecuária São João" />
+                        </div>
+                      </div>
+                      <div className={styles.row3}>
+                        <div>
+                          <label>Unidade</label>
+                          <select value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                            <option value="kg">kg</option>
+                            <option value="t">t (tonelada)</option>
+                            <option value="L">L (litro)</option>
+                            <option value="sc">sc (saco)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label>MS% — Matéria Seca</label>
+                          <input type="number" value={formData.dry_matter_pct} onChange={e => setFormData({ ...formData, dry_matter_pct: e.target.value })} placeholder="Ex: 87.50" step="0.01" min="0" max="100" />
+                        </div>
+                        <div>
+                          <label>Estoque mínimo (kg)</label>
+                          <input type="number" value={formData.stock_min_kg} onChange={e => setFormData({ ...formData, stock_min_kg: e.target.value })} placeholder="Ex: 5000" step="1" min="0" />
+                        </div>
+                      </div>
+                      <div>
+                        <label>Observações</label>
+                        <input type="text" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} placeholder="Opcional..." style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '8px', boxSizing: 'border-box' }} />
+                      </div>
+                      <div className={styles.entradaBtns} style={{ marginTop: 12 }}>
+                        <button type="button" className={styles.btnCancelar} onClick={() => { setShowEditId(null); setEditingId(null); }}>Cancelar</button>
+                        <button type="submit" disabled={loading}>{loading ? 'Salvando...' : '✅ Salvar Alterações'}</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
                 {/* ── Painel de entrada de estoque ── */}
                 {showEntradaId === ins.id && (
@@ -1227,6 +1279,267 @@ function AbaComposicoes({ currentFarm, user, canCreate, canEdit, canDelete }) {
   );
 }
 
+// ─── ABA: TRANSFERIR ENTRE FAZENDAS ─────────────────────────
+function AbaTransferir({ currentFarm, user }) {
+  const [fazendas, setFazendas]     = useState([]);
+  const [origem, setOrigem]         = useState('');
+  const [destino, setDestino]       = useState('');
+  const [dados, setDados]           = useState(null); // { insumos, racoes, composicoes }
+  const [loading, setLoading]       = useState(false);
+  const [salvando, setSalvando]     = useState(false);
+  const [selInsumos, setSelInsumos] = useState({});
+  const [selRacoes, setSelRacoes]   = useState({});
+  const [selComps, setSelComps]     = useState({});
+  const [resultado, setResultado]   = useState(null);
+
+  useEffect(() => {
+    supabase.from('farms').select('id, name').then(({ data }) => setFazendas(data || []));
+  }, []);
+
+  const carregarOrigem = async () => {
+    if (!origem) return;
+    setLoading(true);
+    setDados(null); setSelInsumos({}); setSelRacoes({}); setSelComps({}); setResultado(null);
+    try {
+      const [{ data: ins }, { data: rac }, { data: comp }] = await Promise.all([
+        supabase.from('feed_ingredients').select('*').eq('farm_id', origem).order('name'),
+        supabase.from('feed_types').select('*').eq('farm_id', origem).order('name'),
+        supabase.from('feed_compositions')
+          .select('*, feed_types!feed_compositions_feed_type_id_fkey(name), feed_composition_items(*, feed_ingredients(name))')
+          .eq('farm_id', origem).order('created_at', { ascending: false }),
+      ]);
+      setDados({ insumos: ins || [], racoes: rac || [], composicoes: comp || [] });
+    } catch (e) { alert('Erro: ' + e.message); }
+    finally { setLoading(false); }
+  };
+
+  const toggleAll = (map, setMap, items, idKey = 'id') => {
+    const todos = items.every(i => map[i[idKey]]);
+    const novo = {};
+    if (!todos) items.forEach(i => { novo[i[idKey]] = true; });
+    setMap(novo);
+  };
+
+  const handleTransferir = async () => {
+    if (!destino) return alert('Selecione a fazenda de destino.');
+    if (destino === origem) return alert('Origem e destino não podem ser iguais.');
+    const insIds  = Object.keys(selInsumos).filter(k => selInsumos[k]);
+    const racIds  = Object.keys(selRacoes).filter(k => selRacoes[k]);
+    const compIds = Object.keys(selComps).filter(k => selComps[k]);
+    if (!insIds.length && !racIds.length && !compIds.length) return alert('Selecione ao menos um item para transferir.');
+
+    const nomeDest = fazendas.find(f => f.id === destino)?.name || destino;
+    if (!confirm(`Transferir os itens selecionados para "${nomeDest}"?\n\nItens já existentes com o mesmo nome serão ignorados.`)) return;
+
+    setSalvando(true);
+    setResultado(null);
+    let res = { insumos: 0, insumosPulados: 0, racoes: 0, racoesPuladas: 0, comps: 0, compsPuladas: 0 };
+    try {
+      // ── 1. Insumos ──
+      const insSelecionados = (dados.insumos || []).filter(i => selInsumos[i.id]);
+      const { data: insDestExist } = await supabase.from('feed_ingredients').select('name').eq('farm_id', destino);
+      const nomesInsExist = new Set((insDestExist || []).map(i => i.name.toLowerCase()));
+      const insIdMap = {}; // mapa id_origem → id_destino
+
+      for (const ins of insSelecionados) {
+        if (nomesInsExist.has(ins.name.toLowerCase())) {
+          // Já existe — busca o id destino para mapear
+          const { data: existente } = await supabase.from('feed_ingredients').select('id').eq('farm_id', destino).ilike('name', ins.name).single();
+          if (existente) insIdMap[ins.id] = existente.id;
+          res.insumosPulados++;
+          continue;
+        }
+        const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, ...resto } = ins;
+        const { data: novo, error } = await supabase.from('feed_ingredients').insert([{ ...resto, farm_id: destino, stock_qty_kg: 0 }]).select('id').single();
+        if (error) throw error;
+        insIdMap[ins.id] = novo.id;
+        res.insumos++;
+      }
+
+      // ── 2. Rações ──
+      const racSelecionadas = (dados.racoes || []).filter(r => selRacoes[r.id]);
+      const { data: racDestExist } = await supabase.from('feed_types').select('name').eq('farm_id', destino);
+      const nomesRacExist = new Set((racDestExist || []).map(r => r.name.toLowerCase()));
+      const racIdMap = {};
+
+      for (const rac of racSelecionadas) {
+        if (nomesRacExist.has(rac.name.toLowerCase())) {
+          const { data: existente } = await supabase.from('feed_types').select('id').eq('farm_id', destino).ilike('name', rac.name).single();
+          if (existente) racIdMap[rac.id] = existente.id;
+          res.racoesPuladas++;
+          continue;
+        }
+        const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, ...resto } = rac;
+        const { data: novo, error } = await supabase.from('feed_types').insert([{ ...resto, farm_id: destino }]).select('id').single();
+        if (error) throw error;
+        racIdMap[rac.id] = novo.id;
+        res.racoes++;
+      }
+
+      // ── 3. Composições ──
+      const compSelecionadas = (dados.composicoes || []).filter(c => selComps[c.id]);
+      for (const comp of compSelecionadas) {
+        const racaoDestId = racIdMap[comp.feed_type_id];
+        if (!racaoDestId) { res.compsPuladas++; continue; } // ração não transferida/não existe
+
+        const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, feed_types: _ft, feed_composition_items: items, ...restoComp } = comp;
+        const { data: novaComp, error: errC } = await supabase.from('feed_compositions')
+          .insert([{ ...restoComp, feed_type_id: racaoDestId, farm_id: destino }]).select('id').single();
+        if (errC) throw errC;
+
+        // Itens da composição
+        const itensValidos = (items || []).filter(it => insIdMap[it.ingredient_id]);
+        if (itensValidos.length > 0) {
+          const novosItens = itensValidos.map(it => {
+            const { id: _i, feed_composition_id: _fc, feed_ingredients: _fi, ...restoIt } = it;
+            return { ...restoIt, feed_composition_id: novaComp.id, ingredient_id: insIdMap[it.ingredient_id] };
+          });
+          const { error: errIt } = await supabase.from('feed_composition_items').insert(novosItens);
+          if (errIt) throw errIt;
+        }
+
+        // Atualiza is_current na ração destino
+        if (comp.is_current) {
+          await supabase.from('feed_compositions').update({ is_current: false })
+            .eq('farm_id', destino).eq('feed_type_id', racaoDestId).neq('id', novaComp.id);
+          await supabase.from('feed_compositions').update({ is_current: true }).eq('id', novaComp.id);
+          await supabase.from('feed_types').update({ cost_per_kg: restoComp.cost_per_kg }).eq('id', racaoDestId);
+        }
+        res.comps++;
+      }
+
+      setResultado(res);
+    } catch (e) { alert('Erro ao transferir: ' + e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const fazEndasOutras = fazendas.filter(f => f.id !== currentFarm?.id);
+
+  return (
+    <div>
+      <div className={styles.subHeader}>
+        <span>Copiar insumos, rações e composições entre fazendas</span>
+      </div>
+
+      {/* Seleção de fazendas */}
+      <div className={styles.formCard}>
+        <h2>🔄 Transferir Dados entre Fazendas</h2>
+        <div className={styles.row}>
+          <div>
+            <label>Fazenda de Origem (possui os dados)</label>
+            <select value={origem} onChange={e => { setOrigem(e.target.value); setDados(null); setResultado(null); }}>
+              <option value="">Selecione a origem...</option>
+              {fazendas.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Fazenda de Destino (vai receber os dados)</label>
+            <select value={destino} onChange={e => setDestino(e.target.value)}>
+              <option value="">Selecione o destino...</option>
+              {fazendas.filter(f => f.id !== origem).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+        </div>
+        {origem && (
+          <div className={styles.formAcoes} style={{ marginTop: 12 }}>
+            <button className={styles.btnAdd} onClick={carregarOrigem} disabled={loading}>
+              {loading ? 'Carregando...' : '🔍 Carregar Dados da Origem'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Resultado */}
+      {resultado && (
+        <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 10, padding: '1rem 1.2rem', marginBottom: '1rem' }}>
+          <div style={{ fontWeight: 700, color: '#2e7d32', marginBottom: 6 }}>✅ Transferência concluída!</div>
+          <div style={{ fontSize: '0.88rem', color: '#444', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <span>🧪 Insumos: <strong>{resultado.insumos}</strong> copiados{resultado.insumosPulados > 0 ? `, ${resultado.insumosPulados} já existiam` : ''}</span>
+            <span>🌾 Rações: <strong>{resultado.racoes}</strong> copiadas{resultado.racoesPuladas > 0 ? `, ${resultado.racoesPuladas} já existiam` : ''}</span>
+            <span>📋 Composições: <strong>{resultado.comps}</strong> copiadas{resultado.compsPuladas > 0 ? `, ${resultado.compsPuladas} ignoradas (ração não disponível)` : ''}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Seleção de itens */}
+      {dados && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Insumos */}
+          <div className={styles.formCard} style={{ padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <strong>🧪 Insumos ({dados.insumos.length})</strong>
+              <button className={styles.btnHistorico} onClick={() => toggleAll(selInsumos, setSelInsumos, dados.insumos)}>
+                {dados.insumos.every(i => selInsumos[i.id]) ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+              {dados.insumos.map(ins => (
+                <label key={ins.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: selInsumos[ins.id] ? '#e8f5e9' : '#f9f9f9', border: '1px solid ' + (selInsumos[ins.id] ? '#a5d6a7' : '#e0e0e0'), borderRadius: 8, cursor: 'pointer', fontSize: '0.88rem' }}>
+                  <input type="checkbox" checked={!!selInsumos[ins.id]} onChange={e => setSelInsumos(p => ({ ...p, [ins.id]: e.target.checked }))} />
+                  <span>{ins.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Rações */}
+          <div className={styles.formCard} style={{ padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <strong>🌾 Rações ({dados.racoes.length})</strong>
+              <button className={styles.btnHistorico} onClick={() => toggleAll(selRacoes, setSelRacoes, dados.racoes)}>
+                {dados.racoes.every(r => selRacoes[r.id]) ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+              {dados.racoes.map(rac => (
+                <label key={rac.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: selRacoes[rac.id] ? '#e8f5e9' : '#f9f9f9', border: '1px solid ' + (selRacoes[rac.id] ? '#a5d6a7' : '#e0e0e0'), borderRadius: 8, cursor: 'pointer', fontSize: '0.88rem' }}>
+                  <input type="checkbox" checked={!!selRacoes[rac.id]} onChange={e => setSelRacoes(p => ({ ...p, [rac.id]: e.target.checked }))} />
+                  <span>{rac.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Composições */}
+          <div className={styles.formCard} style={{ padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <strong>📋 Composições ({dados.composicoes.length})</strong>
+              <button className={styles.btnHistorico} onClick={() => toggleAll(selComps, setSelComps, dados.composicoes)}>
+                {dados.composicoes.every(c => selComps[c.id]) ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: '#888', marginBottom: 10 }}>⚠️ A ração correspondente também deve estar selecionada (ou já existir no destino).</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {dados.composicoes.map(comp => (
+                <label key={comp.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: selComps[comp.id] ? '#e8f5e9' : '#f9f9f9', border: '1px solid ' + (selComps[comp.id] ? '#a5d6a7' : '#e0e0e0'), borderRadius: 8, cursor: 'pointer', fontSize: '0.88rem' }}>
+                  <input type="checkbox" checked={!!selComps[comp.id]} onChange={e => setSelComps(p => ({ ...p, [comp.id]: e.target.checked }))} />
+                  <span><strong>{comp.feed_types?.name || '—'}</strong></span>
+                  <span style={{ color: '#888' }}>v{comp.version} · {new Date(comp.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                  {comp.is_current && <span style={{ background: '#e8f5e9', color: '#2e7d32', fontSize: '0.72rem', fontWeight: 700, padding: '1px 6px', borderRadius: 8 }}>Vigente</span>}
+                  <span style={{ marginLeft: 'auto', color: '#1565c0', fontSize: '0.8rem' }}>
+                    {(comp.feed_composition_items || []).length} ingrediente(s)
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Botão de ação */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: '#666' }}>
+              {Object.values(selInsumos).filter(Boolean).length} insumos · {Object.values(selRacoes).filter(Boolean).length} rações · {Object.values(selComps).filter(Boolean).length} composições selecionados
+            </span>
+            <button className={styles.btnAdd} onClick={handleTransferir} disabled={salvando}>
+              {salvando ? 'Transferindo...' : '🔄 Transferir para ' + (fazendas.find(f => f.id === destino)?.name || '...')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────
 export default function Racoes() {
   const router = useRouter();
@@ -1247,10 +1560,12 @@ export default function Racoes() {
           <button className={`${styles.aba} ${aba === 'insumos' ? styles.abaAtiva : ''}`} onClick={() => setAba('insumos')}>🧪 Insumos</button>
           <button className={`${styles.aba} ${aba === 'racoes' ? styles.abaAtiva : ''}`} onClick={() => setAba('racoes')}>🌾 Rações</button>
           <button className={`${styles.aba} ${aba === 'composicoes' ? styles.abaAtiva : ''}`} onClick={() => setAba('composicoes')}>📋 Composições</button>
+          <button className={`${styles.aba} ${aba === 'transferir' ? styles.abaAtiva : ''}`} onClick={() => setAba('transferir')}>🔄 Transferir</button>
         </div>
         {aba === 'insumos' && <AbaInsumos {...props} />}
         {aba === 'racoes' && <AbaRacoes {...props} />}
         {aba === 'composicoes' && <AbaComposicoes {...props} />}
+        {aba === 'transferir' && <AbaTransferir {...props} />}
       </div>
     </Layout>
   );
