@@ -188,8 +188,8 @@ export default function BatidaVagao() {
           .order('batch_date', { ascending: false }).order('feeding_order', { ascending: false }),
         supabase.from('lots')
           .select('id, lot_code, pen_id, head_count, avg_entry_weight, entry_date, target_gmd, carcass_yield_pct, daily_feeding_count, lot_phases(id, phase_name, start_date, end_date, feed_types(id, name))')
-          .eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code'),
-        supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name'),
+          .eq('farm_id', currentFarm.id).eq('status', 'active').order('lot_code', { ascending: true }),
+        supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct').eq('farm_id', currentFarm.id).order('name', { ascending: true }),
         supabase.from('lot_weighings').select('id, lot_id, weighing_date, avg_weight_kg').eq('farm_id', currentFarm.id).order('weighing_date', { ascending: false }),
         supabase.from('feed_compositions')
           .select('*, feed_composition_items(id, ingredient_id, quantity_kg, proportion_pct, feed_ingredients(id, name, unit, dry_matter_pct))')
