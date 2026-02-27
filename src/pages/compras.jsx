@@ -53,7 +53,7 @@ export default function Compras() {
     try {
       const [{ data: ins }, { data: comp }] = await Promise.all([
         supabase.from('feed_ingredients').select('id, name, dry_matter_pct, unit, stock_qty_kg, stock_min_kg')
-          .eq('farm_id', currentFarm.id).eq('active', true).order('name'),
+          .eq('farm_id', currentFarm.id).eq('active', true).order('name', { ascending: true }),
         supabase.from('feed_ingredient_prices')
           .select('*, feed_ingredients(id, name, dry_matter_pct, unit)')
           .eq('farm_id', currentFarm.id)
