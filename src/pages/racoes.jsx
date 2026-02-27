@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../lib/supabase';
 import styles from '../styles/Racoes.module.css';
+import comprasStyles from '../styles/Compras.module.css';
 
 // ─── Helpers ────────────────────────────────────────────────
 const fmtN  = (v, d = 2) => v != null && !isNaN(v) ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
@@ -144,6 +146,8 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
   const [showForm, setShowForm] = useState(false);
   const [showEntradaId, setShowEntradaId] = useState(null);
   const [showMovId, setShowMovId] = useState(null);
+  const [showComprasId, setShowComprasId] = useState(null);
+  const [comprasPorInsumo, setComprasPorInsumo] = useState({}); // { insId: [compras] }
   const [movimentos, setMovimentos] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editingMovId, setEditingMovId] = useState(null);
@@ -173,6 +177,22 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
         .order('name');
       if (error) throw error;
       setInsumos(data || []);
+
+      // Carrega últimas 5 compras por insumo
+      const { data: compras } = await supabase
+        .from('feed_ingredient_prices')
+        .select('id, ingredient_id, effective_date, price, price_per_ton, freight_per_ton, total_price_per_ton, price_per_kg_ms, quantity_kg_received, supplier, invoice_number')
+        .eq('farm_id', currentFarm.id)
+        .order('effective_date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      // Agrupa por insumo
+      const mapa = {};
+      (compras || []).forEach(c => {
+        if (!mapa[c.ingredient_id]) mapa[c.ingredient_id] = [];
+        if (mapa[c.ingredient_id].length < 5) mapa[c.ingredient_id].push(c);
+      });
+      setComprasPorInsumo(mapa);
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setLoading(false); }
   };
@@ -525,6 +545,11 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                       <button className={styles.btnHistorico} onClick={() => loadMovimentos(ins.id)}>
                         {showMovId === ins.id ? 'Fechar' : '📋 Movimentos'}
                       </button>
+                      <button className={styles.btnEntrada}
+                        style={{ background: '#f3e5f5', color: '#6a1b9a', borderColor: '#ce93d8' }}
+                        onClick={() => setShowComprasId(showComprasId === ins.id ? null : ins.id)}>
+                        {showComprasId === ins.id ? 'Fechar' : '🛒 Compras'}
+                      </button>
                       {canEdit('feed_ingredients') && (
                         <button className={styles.btnEditar} onClick={() => handleToggleEdit(ins.id, ins)}>✏️ Editar</button>
                       )}
@@ -691,6 +716,62 @@ function AbaInsumos({ currentFarm, user, canCreate, canEdit, canDelete }) {
                     </div>
                   </div>
                 )}
+
+                {/* ── Painel de compras ── */}
+                {showComprasId === ins.id && (() => {
+                  const ultimas = comprasPorInsumo[ins.id] || [];
+                  return (
+                    <div className={comprasStyles.comprasPainel}>
+                      <div className={comprasStyles.comprasPainelTitle}>🛒 Últimas Compras</div>
+                      {ultimas.length === 0 ? (
+                        <p style={{ fontSize: '0.82rem', color: '#aaa', margin: 0 }}>Nenhuma compra registrada.</p>
+                      ) : (
+                        <>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                            <thead>
+                              <tr style={{ background: '#f3e5f5' }}>
+                                <th style={{ padding: '5px 10px', textAlign: 'left', color: '#6a1b9a', fontWeight: 600, fontSize: '0.78rem' }}>Data</th>
+                                <th style={{ padding: '5px 10px', textAlign: 'left', color: '#6a1b9a', fontWeight: 600, fontSize: '0.78rem' }}>Qtd</th>
+                                <th style={{ padding: '5px 10px', textAlign: 'left', color: '#6a1b9a', fontWeight: 600, fontSize: '0.78rem' }}>R$/kg MN</th>
+                                <th style={{ padding: '5px 10px', textAlign: 'left', color: '#6a1b9a', fontWeight: 600, fontSize: '0.78rem' }}>R$/kg MS</th>
+                                <th style={{ padding: '5px 10px', textAlign: 'left', color: '#6a1b9a', fontWeight: 600, fontSize: '0.78rem' }}>Total/ton</th>
+                                <th style={{ padding: '5px 10px', textAlign: 'left', color: '#6a1b9a', fontWeight: 600, fontSize: '0.78rem' }}>NF / Fornecedor</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ultimas.map((c, idx) => (
+                                <tr key={c.id} style={{ background: idx % 2 === 0 ? '#fdf6ff' : '#fff', borderBottom: '1px solid #f3e5f5' }}>
+                                  <td style={{ padding: '6px 10px', color: '#888', fontSize: '0.8rem' }}>
+                                    {new Date(c.effective_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                  </td>
+                                  <td style={{ padding: '6px 10px', color: '#555' }}>
+                                    {c.quantity_kg_received ? fmtN(c.quantity_kg_received, 0) + ' kg' : '—'}
+                                  </td>
+                                  <td style={{ padding: '6px 10px', fontWeight: 700, color: '#1b5e20' }}>
+                                    {fmtR(c.price, 4)}
+                                  </td>
+                                  <td style={{ padding: '6px 10px', color: '#1565c0' }}>
+                                    {c.price_per_kg_ms ? fmtR(c.price_per_kg_ms, 4) : '—'}
+                                  </td>
+                                  <td style={{ padding: '6px 10px', color: '#555' }}>
+                                    {fmtR(c.total_price_per_ton, 2)}
+                                  </td>
+                                  <td style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#888' }}>
+                                    {c.invoice_number && <span style={{ background: '#e3f2fd', color: '#1565c0', padding: '1px 6px', borderRadius: 8, marginRight: 4 }}>NF {c.invoice_number}</span>}
+                                    {c.supplier || '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <Link href="/compras" className={comprasStyles.verTodasLink}>
+                            Ver todas as compras →
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* ── Painel de movimentações ── */}
                 {showMovId === ins.id && (
