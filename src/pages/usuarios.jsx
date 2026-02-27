@@ -44,9 +44,9 @@ export default function Usuarios() {
     setLoading(true);
     try {
       const [{ data: usersData }, { data: farmsData }, { data: rolesData }] = await Promise.all([
-        supabase.from('users').select('*').order('name'),
-        supabase.from('farms').select('*').order('name'),
-        supabase.from('roles').select('*').order('level'),
+        supabase.from('users').select('*').order('name', { ascending: true }),
+        supabase.from('farms').select('*').order('name', { ascending: true }),
+        supabase.from('roles').select('*').order('level', { ascending: true }),
       ]);
 
       const usuariosComDados = (usersData || []).map(u => ({
