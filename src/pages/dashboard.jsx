@@ -50,13 +50,13 @@ export default function Dashboard() {
             lot_weighings(id, avg_weight_kg, weighing_date)`)
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('entry_date'),
+          .order('entry_date', { ascending: true }),
 
         supabase.from('pens')
           .select('id, pen_number, capacity, current_occupancy, status, min_feed_kg, max_feed_kg, min_leftover_kg, max_leftover_kg')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('pen_number'),
+          .order('pen_number', { ascending: true }),
 
         supabase.from('cattle')
           .select('id, status')
@@ -90,7 +90,7 @@ export default function Dashboard() {
           .gte('record_date', mesAtual + '-01'),
 
         supabase.from('wagon_batches')
-          .select('lot_id, total_cost')
+          .select('lot_id, total_qty_kg, feed_type_id')
           .eq('farm_id', currentFarm.id),
       ]);
 
@@ -257,8 +257,11 @@ export default function Dashboard() {
         const sobraPct = ultimoTrato && Number(ultimoTrato.quantity_kg) > 0 && ultimoTrato.leftover_kg != null
           ? (Number(ultimoTrato.leftover_kg) / Number(ultimoTrato.quantity_kg)) * 100
           : null;
-        // Custo acumulado de alimentação (wagon_batches)
-        const custoAcumulado = wb.filter(w => w.lot_id === l.id).reduce((acc, w) => acc + Number(w.total_cost || 0), 0);
+        // Custo acumulado de alimentação (wagon_batches × custo da ração da fase ativa)
+        const faseAtivaCusto = fase?.feed_types?.cost_per_kg ? Number(fase.feed_types.cost_per_kg) : null;
+        const custoAcumulado = faseAtivaCusto
+          ? wb.filter(w => w.lot_id === l.id).reduce((acc, w) => acc + Number(w.total_qty_kg || 0) * faseAtivaCusto, 0)
+          : 0;
         const custoPorCabAcum = l.head_count > 0 && custoAcumulado > 0 ? custoAcumulado / l.head_count : null;
         // Dias restantes estimados para atingir peso de saída via GMD atual
         let diasRestantes = null;
