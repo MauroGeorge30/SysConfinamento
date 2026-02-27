@@ -1341,18 +1341,20 @@ function AbaTransferir({ currentFarm, user }) {
     try {
       // ── 1. Insumos ──
       const insSelecionados = (dados.insumos || []).filter(i => selInsumos[i.id]);
-      const { data: insDestExist } = await supabase.from('feed_ingredients').select('name').eq('farm_id', destino);
-      const nomesInsExist = new Set((insDestExist || []).map(i => i.name.toLowerCase()));
-      const insIdMap = {}; // mapa id_origem → id_destino
+      const { data: insDestExist } = await supabase.from('feed_ingredients').select('id, name').eq('farm_id', destino);
+      const insDestMap = {}; // nome.lower → id destino
+      (insDestExist || []).forEach(i => { insDestMap[i.name.toLowerCase()] = i.id; });
+      const insIdMap = {}; // id_origem → id_destino
+
+      // Mapeia insumos que já existem no destino (mesmo sem selecionar)
+      for (const ins of (dados.insumos || [])) {
+        if (insDestMap[ins.name.toLowerCase()]) {
+          insIdMap[ins.id] = insDestMap[ins.name.toLowerCase()];
+        }
+      }
 
       for (const ins of insSelecionados) {
-        if (nomesInsExist.has(ins.name.toLowerCase())) {
-          // Já existe — busca o id destino para mapear
-          const { data: existente } = await supabase.from('feed_ingredients').select('id').eq('farm_id', destino).ilike('name', ins.name).single();
-          if (existente) insIdMap[ins.id] = existente.id;
-          res.insumosPulados++;
-          continue;
-        }
+        if (insIdMap[ins.id]) { res.insumosPulados++; continue; } // já existe
         const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, ...resto } = ins;
         const { data: novo, error } = await supabase.from('feed_ingredients').insert([{ ...resto, farm_id: destino, stock_qty_kg: 0 }]).select('id').single();
         if (error) throw error;
@@ -1362,17 +1364,20 @@ function AbaTransferir({ currentFarm, user }) {
 
       // ── 2. Rações ──
       const racSelecionadas = (dados.racoes || []).filter(r => selRacoes[r.id]);
-      const { data: racDestExist } = await supabase.from('feed_types').select('name').eq('farm_id', destino);
-      const nomesRacExist = new Set((racDestExist || []).map(r => r.name.toLowerCase()));
-      const racIdMap = {};
+      const { data: racDestExist } = await supabase.from('feed_types').select('id, name').eq('farm_id', destino);
+      const racDestMap = {}; // nome.lower → id destino
+      (racDestExist || []).forEach(r => { racDestMap[r.name.toLowerCase()] = r.id; });
+      const racIdMap = {}; // id_origem → id_destino
+
+      // Mapeia rações que já existem no destino (mesmo sem selecionar)
+      for (const rac of (dados.racoes || [])) {
+        if (racDestMap[rac.name.toLowerCase()]) {
+          racIdMap[rac.id] = racDestMap[rac.name.toLowerCase()];
+        }
+      }
 
       for (const rac of racSelecionadas) {
-        if (nomesRacExist.has(rac.name.toLowerCase())) {
-          const { data: existente } = await supabase.from('feed_types').select('id').eq('farm_id', destino).ilike('name', rac.name).single();
-          if (existente) racIdMap[rac.id] = existente.id;
-          res.racoesPuladas++;
-          continue;
-        }
+        if (racIdMap[rac.id]) { res.racoesPuladas++; continue; } // já existe
         const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, ...resto } = rac;
         const { data: novo, error } = await supabase.from('feed_types').insert([{ ...resto, farm_id: destino }]).select('id').single();
         if (error) throw error;
@@ -1384,19 +1389,24 @@ function AbaTransferir({ currentFarm, user }) {
       const compSelecionadas = (dados.composicoes || []).filter(c => selComps[c.id]);
       for (const comp of compSelecionadas) {
         const racaoDestId = racIdMap[comp.feed_type_id];
-        if (!racaoDestId) { res.compsPuladas++; continue; } // ração não transferida/não existe
+        if (!racaoDestId) { res.compsPuladas++; continue; } // ração não existe no destino
 
-        const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, feed_types: _ft, feed_composition_items: items, ...restoComp } = comp;
+        const { id: _id, farm_id: _f, created_at: _c, updated_at: _u, feed_types: _ft, feed_composition_items: items, registered_by: _rb, ...restoComp } = comp;
         const { data: novaComp, error: errC } = await supabase.from('feed_compositions')
-          .insert([{ ...restoComp, feed_type_id: racaoDestId, farm_id: destino }]).select('id').single();
+          .insert([{ ...restoComp, feed_type_id: racaoDestId, farm_id: destino, registered_by: user.id }]).select('id').single();
         if (errC) throw errC;
 
-        // Itens da composição
+        // Itens da composição — só insere os que têm insumo mapeado
         const itensValidos = (items || []).filter(it => insIdMap[it.ingredient_id]);
+        const itensSemMapa = (items || []).filter(it => !insIdMap[it.ingredient_id]);
+        if (itensSemMapa.length > 0) {
+          console.warn('Itens sem insumo mapeado:', itensSemMapa.map(it => it.feed_ingredients?.name));
+        }
+
         if (itensValidos.length > 0) {
           const novosItens = itensValidos.map(it => {
-            const { id: _i, composition_id: _fc, feed_composition_id: _fc2, feed_ingredients: _fi, ...restoIt } = it;
-            return { ...restoIt, composition_id: novaComp.id, ingredient_id: insIdMap[it.ingredient_id] };
+            const { id: _i, composition_id: _fc, feed_composition_id: _fc2, feed_ingredients: _fi, farm_id: _fid, created_at: _ca, updated_at: _ua, ...restoIt } = it;
+            return { ...restoIt, composition_id: novaComp.id, ingredient_id: insIdMap[it.ingredient_id], farm_id: destino };
           });
           const { error: errIt } = await supabase.from('feed_composition_items').insert(novosItens);
           if (errIt) throw errIt;
