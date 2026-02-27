@@ -75,10 +75,7 @@ export default function Viabilidade() {
     (async () => {
       setLoading(true);
       const [{ data: ld }, { data: rd }, { data: sd }] = await Promise.all([
-        supabase.from('lots').select(`id, lot_code, head_count, entry_date, entry_weight,
-          lot_phases(id, phase_name, feed_type_id, start_date, end_date, cms_pct_pv,
-            feed_types(id, name, cost_per_kg, dry_matter_pct))
-        `).eq('farm_id', currentFarm.id).order('entry_date', { ascending: false }),
+        supabase.from('lots').select('id, lot_code, head_count, entry_date, entry_weight, lot_phases(id, phase_name, feed_type_id, start_date, end_date, cms_pct_pv, feed_types(id, name, cost_per_kg, dry_matter_pct))').eq('farm_id', currentFarm.id).order('entry_date', { ascending: false }),
         supabase.from('feed_types').select('id, name, cost_per_kg, dry_matter_pct')
           .eq('farm_id', currentFarm.id).order('name'),
         supabase.from('viability_simulations').select('*')
