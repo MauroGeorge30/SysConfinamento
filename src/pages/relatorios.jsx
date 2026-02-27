@@ -34,7 +34,7 @@ export default function Relatorios() {
         const { data, error } = await supabase.from('cattle')
           .select('*, pens!cattle_current_pen_id_fkey(pen_number)')
           .eq('farm_id', currentFarm.id)
-          .order('tag_number');
+          .order('tag_number', { ascending: true });
         if (error) throw error;
         setDados(data || []);
 
