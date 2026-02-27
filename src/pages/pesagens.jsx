@@ -39,7 +39,7 @@ export default function Pesagens() {
           .select('id, tag_number, name, entry_weight, entry_date')
           .eq('farm_id', currentFarm.id)
           .eq('status', 'active')
-          .order('tag_number'),
+          .order('tag_number', { ascending: true }),
       ]);
       if (pesError) throw pesError;
       setPesagens(pesData || []);
