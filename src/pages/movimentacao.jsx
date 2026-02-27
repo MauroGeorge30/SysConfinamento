@@ -38,8 +38,8 @@ export default function Movimentacao() {
           .eq('farm_id', currentFarm.id)
           .order('movement_date', { ascending: false })
           .limit(200),
-        supabase.from('cattle').select('id, tag_number, name, current_pen_id').eq('farm_id', currentFarm.id).eq('status', 'active').order('tag_number'),
-        supabase.from('pens').select('id, pen_number, capacity, current_occupancy').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number'),
+        supabase.from('cattle').select('id, tag_number, name, current_pen_id').eq('farm_id', currentFarm.id).eq('status', 'active').order('tag_number', { ascending: true }),
+        supabase.from('pens').select('id, pen_number, capacity, current_occupancy').eq('farm_id', currentFarm.id).eq('status', 'active').order('pen_number', { ascending: true }),
       ]);
       if (movError) throw movError;
       setMovimentacoes(movData || []);
